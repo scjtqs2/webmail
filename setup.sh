@@ -1262,7 +1262,7 @@ run_deployment() {
                 echo -e "    ${DIM}[dry-run] Would start: npm start (port ${CFG_PORT})${RESET}"
                 ;;
             "docker")
-                echo -e "    ${DIM}[dry-run] Would run:  docker pull ghcr.io/bulwarkmail/webmail:latest${RESET}"
+                echo -e "    ${DIM}[dry-run] Would run:  docker pull ghcr.io/scjtqs2/webmail:latest${RESET}"
                 echo -e "    ${DIM}[dry-run] Would start: container on port ${CFG_PORT}${RESET}"
                 ;;
             "compose")
@@ -1299,8 +1299,8 @@ run_deployment() {
         "docker")
             echo -e "  ${BOLD}Pulling Docker image...${RESET}"
             echo ""
-            (docker pull ghcr.io/bulwarkmail/webmail:latest 2>&1) &
-            spinner $! "Pulling ghcr.io/bulwarkmail/webmail:latest"
+            (docker pull ghcr.io/scjtqs2/webmail:latest 2>&1) &
+            spinner $! "Pulling ghcr.io/scjtqs2/webmail:latest"
 
             echo ""
             echo -e "    ${OK} Image pulled!"
@@ -1312,7 +1312,7 @@ run_deployment() {
             echo -e "    ${CYAN}  -p ${CFG_PORT}:3000 \\${RESET}"
             echo -e "    ${CYAN}  --env-file .env.local \\${RESET}"
             echo -e "    ${CYAN}  --restart unless-stopped \\${RESET}"
-            echo -e "    ${CYAN}  ghcr.io/bulwarkmail/webmail:latest${RESET}"
+            echo -e "    ${CYAN}  ghcr.io/scjtqs2/webmail:latest${RESET}"
             ;;
 
         "compose")

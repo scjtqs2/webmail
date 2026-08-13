@@ -13,7 +13,7 @@ A self-hosted webmail client for [Stalwart Mail Server](https://stalw.art/), bui
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue.svg?logo=gnu&logoColor=white)](LICENSE)
 [![Discord](https://img.shields.io/discord/1482128142939455674?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/tYCujymGrT)
 [![Version](https://img.shields.io/badge/version-1.8.1-green.svg?logo=git&logoColor=white)](CHANGELOG.md)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fbulwarkmail%2Fwebmail-blue?logo=docker&logoColor=white)](https://ghcr.io/bulwarkmail/webmail)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fscjtqs2%2Fwebmail-blue?logo=docker&logoColor=white)](https://ghcr.io/scjtqs2/webmail)
 </div>
 
 ---
@@ -90,7 +90,7 @@ Full feature list: **[FEATURES.md](FEATURES.md)**.
 ### Docker
 
 ```bash
-docker run -d -p 3000:3000 ghcr.io/bulwarkmail/webmail:latest
+docker run -d -p 3000:3000 ghcr.io/scjtqs2/webmail:latest
 ```
 
 Or with Docker Compose:

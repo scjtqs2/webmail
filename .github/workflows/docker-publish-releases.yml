@@ -52,6 +52,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GIT_COMMIT=${{ github.sha }}
+            NEXT_PUBLIC_DEFAULT_LOCALE=zh
+            NEXT_PUBLIC_BASE_PATH=/webmail
           outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
@@ -162,6 +164,8 @@ jobs:
           build-args: |
             GIT_COMMIT=${{ github.sha }}
             NEXT_PUBLIC_LOCALE_PREFIX=always
+            NEXT_PUBLIC_DEFAULT_LOCALE=zh
+            NEXT_PUBLIC_BASE_PATH=/webmail
           outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=always-${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=always-${{ matrix.platform }}

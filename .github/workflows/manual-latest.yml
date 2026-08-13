@@ -1,43 +1,13 @@
-name: Publish Docker Image
+name: Manual Publish Latest Image
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-    paths:
-      - "Dockerfile"
-      - ".dockerignore"
-      - "app/**"
-      - "components/**"
-      - "contexts/**"
-      - "hooks/**"
-      - "lib/**"
-      - "stores/**"
-      - "locales/**"
-      - "public/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/docker-publish.yml"
   workflow_dispatch:
 
-jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      image_name: ${{ steps.set.outputs.image_name }}
-    steps:
-      - name: Set image name
-        id: set
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "image_name=ghcr.io/${{ github.repository }}-beta" >> $GITHUB_OUTPUT
-          else
-            echo "image_name=ghcr.io/${{ github.repository }}-${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
+jobs:
   build:
-    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ needs.prepare.outputs.image_name }}
+          images: ${{ env.IMAGE_NAME }}
 
       - name: Build and push by digest
         id: build
@@ -82,9 +52,9 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             NEXT_PUBLIC_DEFAULT_LOCALE=zh
             NEXT_PUBLIC_BASE_PATH=/webmail
-          outputs: type=image,name=${{ needs.prepare.outputs.image_name }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.platform }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=manual-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=manual-${{ matrix.platform }}
 
       - name: Export digest
         run: |
@@ -102,7 +72,7 @@ jobs:
 
   merge:
     runs-on: ubuntu-latest
-    needs: [prepare, build]
+    needs: build
     permissions:
       contents: read
       packages: write
@@ -129,7 +99,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ needs.prepare.outputs.image_name }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=sha
@@ -138,8 +108,8 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ needs.prepare.outputs.image_name }}@sha256:%s ' *)
+            $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ needs.prepare.outputs.image_name }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
