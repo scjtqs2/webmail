@@ -194,7 +194,9 @@ function buildPluginApi(manifest: PluginManifest) {
       removePublicKey: (keyId: string) => callApi('crypto.removePublicKey', [keyId]),
       setEncryptionAtRest: (config: EncryptionAtRestConfig) => callApi('crypto.setEncryptionAtRest', [config]),
       getEncryptionAtRest: () => callApi('crypto.getEncryptionAtRest', []),
-      getOrCreateWebAuthn: (masterCredentialIdBytes?: number[], name?: string, displayName?: string) => callApi('crypto.getOrCreateWebAuthn', [masterCredentialIdBytes, manifest.id, name, displayName], 0)
+      getWebAuthn: (masterCredentialIdBytes: number[]) => callApi('crypto.getWebAuthn', [masterCredentialIdBytes, manifest.id], 0),
+      createWebAuthn: (name: string, displayName: string) => callApi('crypto.createWebAuthn', [manifest.id, name, displayName], 0),
+      getPublicKeyFromWKD: (email: string) => callApi('crypto.getPublicKeyFromWKD', [email]),
     },
     storage: {
       get: (key: string) => callApi('storage.get', [key]),
@@ -253,7 +255,7 @@ function buildPluginApi(manifest: PluginManifest) {
       removeKeyword: (emailId: string, keyword: string, accountId?: string) =>
         callApi('jmap.removeKeyword', [emailId, keyword, accountId]) as Promise<void>,
       /** Fetch a blob's raw bytes by id. Resolves to a Uint8Array. */
-      fetchBlob: (blobId: string, opts?: { name?: string; type?: string }) =>
+      fetchBlob: (blobId: string, opts?: { name?: string; type?: string, rangeHeader?: number }) =>
         callApi('jmap.fetchBlob', [blobId, opts]) as Promise<Uint8Array>,
       uploadBlob: (content: Uint8Array, name: string, type: string) =>
         callApi('jmap.uploadBlob', [content, name, type]) as Promise<{ blobId: string; size: number; type: string; }>,
@@ -340,8 +342,8 @@ function buildPluginApi(manifest: PluginManifest) {
     },
     // Native sidebar tag definitions. Definition reads/writes use the existing
     // settings permissions; server discovery and message counts use email:read.
-    // add() is intentionally append-only: it never overwrites or removes tags
-    // the user has already named, coloured, hidden, or reordered.
+    // add() is intentionally append-only. reorder() requires a complete
+    // permutation of existing ids. Neither method overwrites or removes tags.
     keywords: {
       list: () => callApi('keywords.list', []) as Promise<PluginKeywordDefinition[]>,
       add: (definitions: PluginKeywordDefinitionInput[]) =>
@@ -349,6 +351,8 @@ function buildPluginApi(manifest: PluginManifest) {
           added: PluginKeywordDefinition[];
           skipped: string[];
         }>,
+      reorder: (ids: string[], options?: { caseSensitive?: boolean }) =>
+        callApi('keywords.reorder', [ids, options]) as Promise<PluginKeywordDefinition[]>,
       discover: (options?: { limit?: number }) =>
         callApi('keywords.discover', [options]) as Promise<{
           keywords: Record<string, number>;
