@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Save, Loader2, RotateCcw, Sparkles } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Sparkles } from '@/components/icons';
 import { apiFetch } from '@/lib/browser-navigation';
+import { DEFAULT_OAUTH_SCOPES } from '@/lib/oauth/scopes';
 
 interface ConfigEntry {
   // Sensitive keys (sessionSecret, oauthClientSecret) come back with
@@ -273,13 +274,29 @@ export function AuthTab() {
         <Text label="OAuth Client ID" configKey="oauthClientId" value={currentValue('oauthClientId') as string} source={config.oauthClientId?.source} onChange={handleChange} onRevert={handleRevert} />
         <Text label="OAuth Client Secret" configKey="oauthClientSecret" value={currentValue('oauthClientSecret') as string} source={config.oauthClientSecret?.source} onChange={handleChange} onRevert={handleRevert} type="password" placeholder={config.oauthClientSecret?.hasValue ? '••••••••  (saved - type to replace)' : undefined} />
         <Text label="OAuth Issuer URL" configKey="oauthIssuerUrl" value={currentValue('oauthIssuerUrl') as string} source={config.oauthIssuerUrl?.source} onChange={handleChange} onRevert={handleRevert} placeholder="https://auth.example.com" />
-        <Toggle label="Allow private OAuth endpoints" description="Permit discovery to resolve to RFC-1918 / loopback hosts. Enable only for split-DNS deployments where the mail server's public hostname resolves to an internal IP." configKey="oauthAllowPrivateEndpoints" value={currentValue('oauthAllowPrivateEndpoints') as boolean} source={config.oauthAllowPrivateEndpoints?.source} onChange={handleChange} onRevert={handleRevert} />
-        <Text label="OAuth Scopes" description="Space-separated scopes that replace the defaults. Leave blank to use the built-in scope list." configKey="oauthScopes" value={currentValue('oauthScopes') as string} source={config.oauthScopes?.source} onChange={handleChange} onRevert={handleRevert} placeholder="openid email offline_access" />
-        <Text label="OAuth Extra Scopes" description="Additional space-separated scopes appended to the defaults." configKey="oauthExtraScopes" value={currentValue('oauthExtraScopes') as string} source={config.oauthExtraScopes?.source} onChange={handleChange} onRevert={handleRevert} placeholder="urn:ietf:params:oauth:..." />
+        <Toggle label="Allow private OAuth endpoints" description="Permit discovered endpoints on other hosts to resolve to RFC-1918 / loopback addresses. Endpoints on the issuer's own host are always allowed, so split-DNS setups rarely need this." configKey="oauthAllowPrivateEndpoints" value={currentValue('oauthAllowPrivateEndpoints') as boolean} source={config.oauthAllowPrivateEndpoints?.source} onChange={handleChange} onRevert={handleRevert} />
+        <Text label="OAuth Scopes" description={`Space-separated scopes that replace the defaults (${DEFAULT_OAUTH_SCOPES}). Leave blank to use them. offline_access is not requested by default; add it here or under Extra Scopes if your provider only issues refresh tokens for it, or sessions end when the access token expires.`} configKey="oauthScopes" value={currentValue('oauthScopes') as string} source={config.oauthScopes?.source} onChange={handleChange} onRevert={handleRevert} placeholder={DEFAULT_OAUTH_SCOPES} />
+        <Text label="OAuth Extra Scopes" description={`Additional space-separated scopes appended to the defaults (${DEFAULT_OAUTH_SCOPES}). Ignored when OAuth Scopes is set.`} configKey="oauthExtraScopes" value={currentValue('oauthExtraScopes') as string} source={config.oauthExtraScopes?.source} onChange={handleChange} onRevert={handleRevert} placeholder="urn:ietf:params:oauth:..." />
       </Section>
 
       <Section title="Single Sign-On">
         <Toggle label="Auto SSO" description="Automatically redirect to SSO provider on load" configKey="autoSsoEnabled" value={currentValue('autoSsoEnabled') as boolean} source={config.autoSsoEnabled?.source} onChange={handleChange} onRevert={handleRevert} />
+        <Toggle label="End provider session on sign-out" description="Signing out of an SSO account also signs out of the identity provider, when it advertises an end_session_endpoint. Turn off if the provider is shared with apps that should stay signed in." configKey="oauthEndSession" value={currentValue('oauthEndSession') as boolean} source={config.oauthEndSession?.source} onChange={handleChange} onRevert={handleRevert} />
+        <Text label="Post-logout redirect URI" description="Where the provider sends users after signing them out. Register it with the provider as a post-logout redirect URI first, or it will refuse the logout. Leave blank to stay on the provider's signed-out page." configKey="oauthPostLogoutRedirectUri" value={currentValue('oauthPostLogoutRedirectUri') as string} source={config.oauthPostLogoutRedirectUri?.source} onChange={handleChange} onRevert={handleRevert} placeholder="https://mail.example.com/en/login" />
+      </Section>
+
+      <Section title="Admin Dashboard">
+        <Select
+          label="Stalwart admin access"
+          description="What a Stalwart admin account grants in this dashboard. “Automatic” signs Stalwart admins in without the admin password; “Password required” keeps the shield but asks for the admin password; “Off” ignores Stalwart admin status entirely. The last two need an admin password to be configured."
+          configKey="stalwartAdminAccess"
+          value={currentValue('stalwartAdminAccess') as string}
+          source={config.stalwartAdminAccess?.source}
+          options={['auto', 'password', 'off']}
+          optionLabels={{ auto: 'Automatic (no password)', password: 'Password required', off: 'Off (separate admins)' }}
+          onChange={handleChange}
+          onRevert={handleRevert}
+        />
       </Section>
 
       <Section title="Session & Security">
@@ -362,20 +379,24 @@ function Toggle({ label, description, configKey, value, source, onChange, onReve
   );
 }
 
-function Select({ label, configKey, value, source, options, onChange, onRevert }: {
-  label: string; configKey: string; value: string; source?: string; options: string[];
+function Select({ label, description, configKey, value, source, options, optionLabels, onChange, onRevert }: {
+  label: string; description?: string; configKey: string; value: string; source?: string; options: string[];
+  optionLabels?: Record<string, string>;
   onChange: (k: string, v: unknown) => void; onRevert: (k: string) => void;
 }) {
   return (
     <div className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm text-foreground">{label}</span>
-        <SourceBadge source={source} />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-foreground">{label}</span>
+          <SourceBadge source={source} />
+        </div>
+        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <select value={value ?? ''} onChange={(e) => onChange(configKey, e.target.value)}
           className="h-8 rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
+          {options.map(o => <option key={o} value={o}>{optionLabels?.[o] ?? o}</option>)}
         </select>
         {source === 'admin' && (
           <button onClick={() => onRevert(configKey)} className="text-muted-foreground hover:text-foreground" title="Revert"><RotateCcw className="w-3.5 h-3.5" /></button>

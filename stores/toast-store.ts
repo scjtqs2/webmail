@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Toast, ToastAction } from "@/components/ui/toast";
+import { generateUUID } from "@/lib/utils";
 
 interface ToastStore {
   toasts: Toast[];
@@ -12,7 +13,11 @@ export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
 
   addToast: (toast) => {
-    const id = crypto.randomUUID();
+    // FTM fix (2026-08-22): crypto.randomUUID() only exists in SECURE contexts
+    // (https/localhost). On a plain-http LAN origin it is undefined, so EVERY
+    // toast crashed -- and took the caller's post-success path down with it
+    // (calendar save: the success toast threw before the dialog-close ran).
+    const id = generateUUID();
     const newToast: Toast = {
       ...toast,
       id,
@@ -39,6 +44,7 @@ interface ToastOptions {
   message?: string;
   action?: ToastAction;
   secondaryAction?: ToastAction;
+  tertiaryAction?: ToastAction;
   duration?: number;
 }
 
@@ -50,6 +56,7 @@ function showToast(type: Toast["type"], title: string, options?: string | ToastO
     message: opts?.message,
     action: opts?.action,
     secondaryAction: opts?.secondaryAction,
+    tertiaryAction: opts?.tertiaryAction,
     duration: opts?.duration ?? defaultDuration,
   });
 }

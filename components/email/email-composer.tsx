@@ -5,7 +5,7 @@ import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Paperclip, Send, Save, Check, Loader2, AlertCircle, FileText, BookmarkPlus, CalendarClock, ChevronDown, MailCheck, Search, Users } from "lucide-react";
+import { X, Paperclip, Send, Save, Check, Loader2, AlertCircle, FileText, BookmarkPlus, CalendarClock, ChevronDown, MailCheck, Search, Users, PackageCheck, LockKeyhole, Type, HardDrive } from "@/components/icons";
 import { cn, formatFileSize, formatDateTime, generateUUID } from "@/lib/utils";
 import { debug } from "@/lib/debug";
 import { toast } from "@/stores/toast-store";
@@ -16,9 +16,16 @@ import { buildReplySubject, buildForwardSubject } from "@/lib/subject-prefix";
 import { isFilePreviewable } from "@/lib/file-preview";
 import { isEditableEventTarget } from "@/lib/keyboard";
 import { buildQuotedHtmlBlock, serializeEditorContent } from "@/components/email/quoted-html";
-import { buildSignatureBlock, containsEmbeddedSignature, SIGNATURE_RANGE_MARKER } from "@/components/email/signature-block";
+import { containsEmbeddedSignature } from "@/components/email/signature-block";
+import {
+  buildEmbeddedSignatureHtml,
+  htmlComposeBodyToPlainText,
+  plainComposeBodyToHtml,
+  removeSignatureRange,
+} from "@/components/email/compose-format";
 import { emailHooks, contactHooks, isExternalAttachmentResult } from "@/lib/plugin-hooks";
-import type { AlmostSavedDraft, OutgoingEmail, RecipientSuggestion } from "@/lib/plugin-types";
+import { onUploadProgress } from "@/lib/upload-progress";
+import type { AlmostSavedDraft, OutgoingEmail, PluginAttachmentUpload, RecipientSuggestion } from "@/lib/plugin-types";
 import { useAuthStore } from "@/stores/auth-store";
 import { useIdentityStore } from "@/stores/identity-store";
 import { useProMultiAccountIdentities, stripCrossAccountIdentityPrefix } from "@/hooks/use-pro-multi-account-identities";
@@ -27,6 +34,9 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { Avatar } from "@/components/ui/avatar";
 import { FilePreviewModal } from "@/components/files/file-preview-modal";
+import { FilePickerDialog } from "@/components/files/file-picker-dialog";
+import type { IJMAPClient } from "@/lib/jmap/client-interface";
+import type { FileNode } from "@/lib/jmap/types";
 import { useContactStore, getContactDisplayName, getContactPrimaryEmail } from "@/stores/contact-store";
 import { useTemplateStore } from "@/stores/template-store";
 import { SubAddressHelper } from "@/components/identity/sub-address-helper";
@@ -36,10 +46,10 @@ import { TemplatePicker } from "@/components/templates/template-picker";
 import { TemplateForm } from "@/components/templates/template-form";
 import type { EmailTemplate } from "@/lib/template-types";
 import { appendPlainTextSignature, getPlainTextSignature, plainTextBodyHasSignature, plainTextBodyWithoutSignature } from "@/lib/signature-utils";
-import { findComposeIdentityId, findDraftIdentityId, resolveReplyFrom } from "@/lib/reply-identity";
+import { findComposeIdentityId, findDraftIdentityId, findReplyIdentityId, resolveReplyFrom } from "@/lib/reply-identity";
 import { buildReplyRecipients, isSelfSent } from "@/lib/reply-recipients";
-import { computeReplyThreadingHeaders } from "@/lib/email-threading";
-import { RequestTimeoutError } from "@/lib/jmap/client";
+import { computeReplyThreadingHeaders, type ReplyThreadingHeaders } from "@/lib/email-threading";
+import { RecipientsRejectedError, RequestTimeoutError, ScheduleTooLateError, SendUnconfirmedError, formatRejectedRecipients } from "@/lib/jmap/client";
 import {
   rewriteCidImagesForEditor,
   replaceInlineImagePlaceholders,
@@ -58,11 +68,14 @@ import {
   ICON_MAP,
 } from "@/lib/email-composer-utils";
 import { isValidEmail } from "@/lib/validation";
+import { buildMentionCandidates } from "@/lib/recipient-mentions";
 import { RichTextEditor } from "@/components/email/rich-text-editor";
+import { isRecipientMentionActive } from "@/components/email/recipient-mention";
 import type { Editor } from "@tiptap/react";
 import { htmlToPlainText as htmlToPlainTextShared } from "@/lib/html-to-text";
 import { fileStorage } from "@/lib/plugin-storage";
 import { usePolicyStore } from "@/stores/policy-store";
+import { toUnicodeEmail } from "@/lib/idn";
 
 /**
  * Derives the text/plain alternative from the composer's HTML body, preserving
@@ -123,11 +136,24 @@ export interface ComposerDraftData {
    * File). Without these the composer starts with zero attachments and the
    * next save/send rebuilds the draft without them - silent data loss (#849).
    */
-  attachments?: Array<{ blobId: string; name?: string; type?: string; size: number; cid?: string; disposition?: string }>;
-  /** When set, overrides the header From: - sent through the selected identity's envelope. */
+  attachments?: Array<{ blobId: string; name?: string; type?: string; size: number; cid?: string; disposition?: string; sourceAccountId?: string }>;
+  /** When set, overrides the header From: and the envelope MAIL FROM, where the server allows it. */
   fromOverrideEmail?: string;
   fromOverrideName?: string;
   fromOverrideEnabled?: boolean;
+  /**
+   * Format the body is in. Absent, the "plain text only" setting decides -
+   * set for a stashed compose or a re-opened draft so it comes back in the
+   * format it was written in (#1022).
+   */
+  plainTextMode?: boolean;
+  /**
+   * Threading headers of a re-opened reply draft (RFC 5322 In-Reply-To /
+   * References). A draft re-opens in "compose" mode, where nothing else
+   * rebuilds them, so they ride along or the reply drops out of its thread.
+   */
+  inReplyTo?: string[];
+  references?: string[];
 }
 
 interface EmailComposerProps {
@@ -153,6 +179,10 @@ interface EmailComposerProps {
     references?: string[];
     delayedUntil?: string;
     requestReadReceipt?: boolean;
+    /** Ask for SMTP delivery status notifications (RFC 3461). */
+    requestDsn?: boolean;
+    /** Refuse delivery over an unencrypted hop (RFC 8689 REQUIRETLS). */
+    requireTls?: boolean;
   }) => void | Promise<void>;
   onScheduledSendCreated?: () => void | Promise<void>;
   onClose?: () => void;
@@ -175,11 +205,12 @@ interface EmailComposerProps {
   mode?: 'compose' | 'reply' | 'replyAll' | 'forward';
   /**
    * Email of the mailbox/account the user is viewing when they start a new
-   * message. When set (and `autoSelectReplyIdentity` is on), a fresh compose
-   * preselects the identity matching this address instead of the primary
-   * identity, so "New message" from info@ defaults its From to info@. Mirrors
-   * the reply-time identity match; ignored for reply/replyAll/forward (those
-   * resolve from the original recipients).
+   * message. When set, a fresh compose preselects the identity matching this
+   * address instead of the primary identity, so "New message" from info@
+   * defaults its From to info@. It matches the user's OWN identities only and
+   * is therefore not gated on `autoSelectReplyIdentity`, which gates the
+   * catch-all From rewrite. Mirrors the reply-time identity match; ignored for
+   * reply/replyAll/forward (those resolve from the original recipients).
    */
   composeFromAccountEmail?: string;
   replyTo?: {
@@ -212,11 +243,23 @@ interface EmailComposerProps {
 
 type ComposerAttachment = {
   file?: File;
+  // Login whose server holds `blobId`, set for parts of the original message
+  // on a forward - the message may go out through another account, which
+  // cannot resolve them. See rehomeForeignBlobs.
+  sourceAccountId?: string;
   name: string;
   type: string;
   size: number;
   blobId?: string;
   uploading?: boolean;
+  /**
+   * Transferred share of the upload, 0-100. Set while `uploading` when the
+   * transport reports byte progress: the stock path via the JMAP client's
+   * `onProgress`, a plugin offload via the staged-file-id registry
+   * (`lib/upload-progress.ts`). Absent when nothing has reported yet, in
+   * which case the chip falls back to its indeterminate bar.
+   */
+  progress?: number;
   error?: boolean;
   abortController?: AbortController;
   // Carried through for parts hydrated from an existing draft so inline
@@ -230,41 +273,6 @@ type ComposerAttachment = {
   fromDraftPart?: boolean;
 };
 
-type SignatureIdentityLike = {
-  htmlSignature?: string;
-  textSignature?: string;
-} | null | undefined;
-
-// Render the embedded signature. Bracketed with `data-signature-block` marker
-// paragraphs so we can swap the inner content when the user switches identity
-// without losing the surrounding draft or quoted message. The markers are
-// preserved through TipTap by the StyledParagraph extension. The HTML
-// signature itself is wrapped in a SignatureBlock atom node so its inline
-// styling survives the editor (see signature-block.ts) instead of being
-// flattened by the schema.
-function buildEmbeddedSignatureHtml(
-  identity: SignatureIdentityLike,
-  options: { embed: boolean; separator: boolean }
-): string {
-  if (!options.embed) return '';
-  const startMarker = options.separator
-    ? `<p ${SIGNATURE_RANGE_MARKER}="separator">-- </p>`
-    : `<p ${SIGNATURE_RANGE_MARKER}="start"></p>`;
-  const endMarker = `<p ${SIGNATURE_RANGE_MARKER}="end"></p>`;
-  if (identity?.htmlSignature) {
-    return `${startMarker}${buildSignatureBlock(sanitizeSignatureHtml(identity.htmlSignature))}${endMarker}`;
-  }
-  if (identity?.textSignature) {
-    const escaped = identity.textSignature
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
-    return `${startMarker}<p>${escaped}</p>${endMarker}`;
-  }
-  return '';
-}
-
 function formatLocalDateTimeInput(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -276,6 +284,11 @@ function getDefaultScheduleValue(): string {
   tomorrowAtEight.setHours(8, 0, 0, 0);
   return formatLocalDateTimeInput(tomorrowAtEight);
 }
+
+// Height the body area (formatting toolbar included) must keep below the
+// pinned From/To/Cc/Bcc/Subject fields. Below it the fields scroll away with
+// the body instead (#1114).
+const PINNED_FIELDS_MIN_BODY_HEIGHT = 200;
 
 export function EmailComposer({
   onSend,
@@ -295,21 +308,41 @@ export function EmailComposer({
   const tCommon = useTranslations('common');
   const tQuote = useTranslations('quote_header');
   const timeFormat = useSettingsStore((state) => state.timeFormat);
-  const plainTextMode = useSettingsStore((state) => state.plainTextMode);
+  const plainTextModeDefault = useSettingsStore((state) => state.plainTextMode);
+  // Per-message format (#1022). Seeded from the "plain text only" setting -
+  // or the format a re-opened / stashed draft was written in - and switchable
+  // from the toolbar for just this message.
+  const [plainTextMode, setPlainTextMode] = useState<boolean>(
+    () => initialData?.plainTextMode ?? plainTextModeDefault
+  );
   const subAddressDelimiter = useSettingsStore((state) => state.subAddressDelimiter);
   const autoSelectReplyIdentity = useSettingsStore((state) => state.autoSelectReplyIdentity);
+  const replyIdentityMatch = useSettingsStore((state) => state.replyIdentityMatch);
   const attachmentReminderEnabled = useSettingsStore((state) => state.attachmentReminderEnabled);
   const attachmentReminderKeywords = useSettingsStore((state) => state.attachmentReminderKeywords);
   const emptySubjectWarningEnabled = useSettingsStore((state) => state.emptySubjectWarningEnabled);
+  const recipientMentionsEnabled = useSettingsStore((state) => state.recipientMentionsEnabled);
   const updateSetting = useSettingsStore((state) => state.updateSetting);
   const sendDelaySeconds = useSettingsStore((state) => state.sendDelaySeconds);
   const signaturePosition = useSettingsStore((state) => state.signaturePosition);
   const signatureSeparatorEnabled = useSettingsStore((state) => state.signatureSeparatorEnabled);
   const requestReadReceiptDefault = useSettingsStore((state) => state.requestReadReceiptDefault);
-  const activeIdentities = useIdentityStore((s) => s.identities);
-  // Pro shell: surface identities from every connected account, grouped
-  // for the From dropdown's <optgroup>s. Outside Pro this collapses to
-  // the active account's identities only.
+  // A draft belongs to the account the composer was opened in. Switching
+  // accounts with the composer open must not move it: its saves would land in
+  // the other account, and replacing the previous save would delete that
+  // account's message with the same id. So the identities (and, below, the
+  // client) stop following the active account once it changes.
+  const activeAccountIdNow = useAuthStore((s) => s.activeAccountId);
+  const composerAccountIdRef = useRef(activeAccountIdNow);
+  if (composerAccountIdRef.current === null) composerAccountIdRef.current = activeAccountIdNow;
+  const onComposerAccount = activeAccountIdNow === composerAccountIdRef.current;
+  const liveIdentities = useIdentityStore((s) => s.identities);
+  const composerIdentitiesRef = useRef(liveIdentities);
+  if (onComposerAccount) composerIdentitiesRef.current = liveIdentities;
+  const activeIdentities = composerIdentitiesRef.current;
+  // More than one connected account: surface identities from every one,
+  // grouped for the From dropdown's <optgroup>s. With a single account this
+  // collapses to the active account's identities only.
   const multiAccountIdentities = useProMultiAccountIdentities();
   const identities = multiAccountIdentities.enabled
     ? multiAccountIdentities.allIdentities
@@ -318,9 +351,33 @@ export function EmailComposer({
     ? multiAccountIdentities.groups
     : [];
   const primaryIdentity = activeIdentities[0] ?? null;
+  // The account this composer belongs to (see composerAccountIdRef above).
+  const activeAccountId = composerAccountIdRef.current;
+  // Automatic selection stays on the account that holds the original message:
+  // `composerClient` follows the chosen identity, and a reply/forward still
+  // carries the original message's blobIds, which only that account's server
+  // can resolve. That is the active account unless `replyTo.accountId` names
+  // another connected login - a message opened from the Unified Inbox or from
+  // a non-active account's folders (#1104). Anything else there (a shared
+  // folder's owner id) stays on the active account. The From dropdown keeps
+  // offering every account's identities to pick by hand.
+  const replyAccountId = replyTo?.accountId;
+  const sourceAccountId = multiAccountIdentities.enabled && replyAccountId
+    && useAccountStore.getState().getAccountById(replyAccountId)?.isConnected
+    ? replyAccountId
+    : activeAccountId;
+  const sourceAccountIdentities = useMemo(
+    () => (multiAccountIdentities.enabled
+      ? identities.filter(
+          (identity) => stripCrossAccountIdentityPrefix(identity.id).localAccountId === sourceAccountId,
+        )
+      : identities),
+    [multiAccountIdentities.enabled, identities, sourceAccountId],
+  );
 
   const { isFeatureEnabled } = usePolicyStore();
   const templatesEnabled = isFeatureEnabled('templatesEnabled');
+  const filesEnabled = isFeatureEnabled('filesEnabled');
 
   // The signature identity used when embedding the signature into the initial
   // body for "above quote" mode. Mirrors the signatureIdentity derivation
@@ -449,6 +506,11 @@ export function EmailComposer({
       separator: signatureSeparatorEnabled,
     });
 
+    // Whether the quoted original may show its remote images in the editor:
+    // the viewer's rule, minus the per-message "load" click it doesn't know.
+    const { externalContentPolicy, isSenderTrusted } = useSettingsStore.getState();
+    const quoteRemoteAllowed = externalContentPolicy === 'allow' || (!!from?.email && isSenderTrusted(from.email));
+
     // Plugin override (resolved at composer open via onBuildQuoteHeader).
     if (replyTo.quoteHeaderHtml !== undefined && (mode === 'reply' || mode === 'replyAll' || mode === 'forward')) {
       if (replyTo.htmlBody) {
@@ -456,7 +518,8 @@ export function EmailComposer({
         // nested tables / MJML survive 1:1 (sanitize strips scripts/styles
         // first; cid rewrite runs after so its data-cid markers survive).
         const island = buildQuotedHtmlBlock(
-          rewriteCidImagesForEditor(sanitizeEmailHtml(replyTo.htmlBody))
+          rewriteCidImagesForEditor(sanitizeEmailHtml(replyTo.htmlBody)),
+          { remoteAllowed: quoteRemoteAllowed },
         );
         return `${prefix}${signatureBlock}<br>${replyTo.quoteHeaderHtml}${island}`;
       }
@@ -482,7 +545,8 @@ export function EmailComposer({
       // scripts/styles/head; cid rewrite afterwards so data-cid markers
       // aren't dropped by the sanitizer's ALLOW_DATA_ATTR:false.
       const island = buildQuotedHtmlBlock(
-        rewriteCidImagesForEditor(sanitizeEmailHtml(replyTo.htmlBody))
+        rewriteCidImagesForEditor(sanitizeEmailHtml(replyTo.htmlBody)),
+        { remoteAllowed: quoteRemoteAllowed },
       );
       return `${prefix}${signatureBlock}<br><div>${quoteHeader}</div>${island}`;
     }
@@ -498,6 +562,33 @@ export function EmailComposer({
     return prefix;
   };
 
+  // A body handed in through `initialData` - a re-opened draft, a mailto:
+  // link, a restored composer stash - is mounted in `compose` mode like a new
+  // mail, but unlike one it was never built by getInitialBody, so nothing
+  // embedded the signature. The send/draft/preview paths still treated every
+  // compose body as carrying it, so such a body went out without any
+  // signature and without a hint in the UI (#848): every "below quote" reply
+  // draft saved before #823, drafts written by other clients, mailto bodies.
+  // Embed it here, where the body is actually built, so the assumption holds
+  // and the signature stays editable/removable in the editor (#329). A body
+  // that already carries it (a #823 draft, the stash of a compose in
+  // progress) is left alone.
+  const withSignatureEmbedded = (provided: string): string => {
+    if (!shouldEmbedSignatureInNewMail) return provided;
+    if (plainTextMode) {
+      if (plainTextBodyHasSignature(provided, initialSignatureIdentity)) return provided;
+      return appendPlainTextSignature(provided, initialSignatureIdentity, {
+        separator: signatureSeparatorEnabled,
+      });
+    }
+    if (containsEmbeddedSignature(provided)) return provided;
+    const embedded = buildEmbeddedSignatureHtml(initialSignatureIdentity, {
+      embed: true,
+      separator: signatureSeparatorEnabled,
+    });
+    return `${provided || '<p></p>'}${embedded}`;
+  };
+
   // Committed recipients are structured arrays; the in-progress text the user
   // is typing lives in a separate `*Input` string per field. This keeps a
   // display name containing a comma (e.g. "Doo, John") intact instead of
@@ -509,7 +600,9 @@ export function EmailComposer({
   const [ccInput, setCcInput] = useState('');
   const [bccInput, setBccInput] = useState('');
   const [subject, setSubject] = useState(initialData?.subject ?? getInitialSubject());
-  const [body, setBody] = useState(initialData?.body ?? getInitialBody());
+  const [body, setBody] = useState(() =>
+    initialData?.body != null ? withSignatureEmbedded(initialData.body) : getInitialBody()
+  );
   const [showCc, setShowCc] = useState(initialData?.showCc ?? getInitialCc().length > 0);
   const [showBcc, setShowBcc] = useState(initialData?.showBcc ?? false);
   // Committed recipients plus any not-yet-committed text the user has typed.
@@ -520,6 +613,10 @@ export function EmailComposer({
   const [isDraggingChipOverCc, setIsDraggingChipOverCc] = useState(false);
   const [isDraggingChipOverBcc, setIsDraggingChipOverBcc] = useState(false);
   const [requestReadReceipt, setRequestReadReceipt] = useState(requestReadReceiptDefault);
+  // SMTP submission options, offered only when the server advertises the
+  // extension (RFC 8621 §1.3 submissionExtensions).
+  const [requestDsn, setRequestDsn] = useState(false);
+  const [requireTls, setRequireTls] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(initialData?.draftId ?? null);
   // Mirror of draftId for synchronous reads inside chained saves; React's
   // setDraftId is async, so a queued saveDraft would otherwise see the old
@@ -554,6 +651,9 @@ export function EmailComposer({
           blobId: att.blobId,
           ...(att.cid ? { cid: att.cid } : {}),
           ...(att.disposition === 'inline' ? { disposition: 'inline' as const } : {}),
+          // A forward stashed before its first save still holds the original
+          // account's blobs: keep the tag so they are copied before saving.
+          ...(att.sourceAccountId ? { sourceAccountId: att.sourceAccountId } : {}),
           fromDraftPart: true,
         }));
     }
@@ -575,11 +675,12 @@ export function EmailComposer({
           type: att.type || 'application/octet-stream',
           size: att.size,
           blobId: att.blobId,
+          sourceAccountId: sourceAccountId ?? undefined,
         }));
     }
     return [];
   });
-  const inlineImagesRef = useRef<Array<{ cid: string; blobId: string; type: string; name: string; size: number; dataUrl: string }>>([]);
+  const inlineImagesRef = useRef<Array<{ cid: string; blobId: string; type: string; name: string; size: number; dataUrl: string; sourceAccountId?: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ to?: boolean; body?: boolean }>({});
   const [shakeField, setShakeField] = useState<string | null>(null);
@@ -589,6 +690,9 @@ export function EmailComposer({
   const [fromOverrideEmail, setFromOverrideEmail] = useState<string>(initialData?.fromOverrideEmail ?? '');
   const [fromOverrideName, setFromOverrideName] = useState<string>(initialData?.fromOverrideName ?? '');
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  // The Files account being browsed for attachments, fixed when the picker
+  // opens so the picked blobs are tagged with the login that owns them.
+  const [filesPicker, setFilesPicker] = useState<{ client: IJMAPClient; accountId?: string } | null>(null);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showAllAttachments, setShowAllAttachments] = useState(false);
@@ -630,7 +734,10 @@ export function EmailComposer({
     restoreFocus: true,
   });
 
-  const { client } = useAuthStore();
+  const { client: activeClient } = useAuthStore();
+  const composerOwnClientRef = useRef(activeClient);
+  if (onComposerAccount && activeClient) composerOwnClientRef.current = activeClient;
+  const client = composerOwnClientRef.current;
   const currentIdentity = selectedIdentityId
     ? identities.find((identity) => identity.id === selectedIdentityId) || primaryIdentity
     : primaryIdentity;
@@ -646,7 +753,76 @@ export function EmailComposer({
   const composerClient = currentIdentityParts.localAccountId
     ? (useAuthStore.getState().getClientForAccount(currentIdentityParts.localAccountId) ?? client)
     : client;
+  // The upload callbacks below list only `client` as a dependency, so they read
+  // the composing identity's client through a ref: uploads must land in the
+  // account that owns the draft, and a direct substitution would capture a
+  // stale client. (#943)
+  const composerClientRef = useRef(composerClient);
+  composerClientRef.current = composerClient;
   const currentIdentityRawId = currentIdentityParts.rawId ?? currentIdentity?.id;
+  // Login that owns the blobs uploaded through `composerClient`.
+  const composerAccountId = currentIdentityParts.localAccountId ?? activeAccountId ?? undefined;
+
+  // Forwarded attachments and quoted inline images reference part blobs of the
+  // original message, which only the account that holds it can resolve. When
+  // the message goes out through another account - a From picked by hand from
+  // another account's identities - those blobs are copied over first, or
+  // Email/set fails with blobNotFound. Blob/copy cannot do it: every login is
+  // its own JMAP session. Each part is copied once; later saves reuse it.
+  // Quoted inline images are only used at send time, so they are copied only
+  // when `inlineCids` names the ones the body still shows.
+  const rehomeForeignBlobs = async (inlineCids?: ReadonlySet<string>): Promise<void> => {
+    const target = composerClient;
+    if (!target || !composerAccountId) return;
+    const isForeign = (owner?: string) => !!owner && owner !== composerAccountId;
+    const copyBlob = async (part: { blobId: string; name: string; type: string; sourceAccountId?: string }) => {
+      const source = useAuthStore.getState().getClientForAccount(part.sourceAccountId!);
+      if (!source) throw new Error(`No connected client for account ${part.sourceAccountId}`);
+      const buffer = await source.fetchBlobArrayBuffer(part.blobId, part.name, part.type);
+      const { blobId } = await target.uploadBlob(new File([buffer], part.name, { type: part.type }));
+      return blobId;
+    };
+
+    for (const att of [...attachmentsRef.current]) {
+      if (!att.blobId || att.uploading || !isForeign(att.sourceAccountId)) continue;
+      const blobId = await copyBlob({ ...att, blobId: att.blobId });
+      const copied = { ...att, blobId, sourceAccountId: composerAccountId };
+      // Recorded part by part, so a failure further on does not copy this one
+      // again on the retry. Ref first, synchronously: callers read
+      // attachmentsRef right after.
+      const swap = (list: ComposerAttachment[]) => list.map(a => (a === att ? copied : a));
+      attachmentsRef.current = swap(attachmentsRef.current);
+      setAttachments(swap);
+    }
+
+    if (!inlineCids?.size) return;
+    for (const entry of inlineImagesRef.current) {
+      if (!inlineCids.has(entry.cid) || !isForeign(entry.sourceAccountId)) continue;
+      entry.blobId = await copyBlob(entry);
+      entry.sourceAccountId = composerAccountId;
+    }
+  };
+  // RFC 5322 §3.6.4 threading for this message: computed from the original
+  // on a reply (not a forward), carried over from a re-opened reply draft.
+  // Drafts store it too, so a reply stays in its thread when re-opened or
+  // re-sent after Undo.
+  const replyThreadingHeaders = useMemo<ReplyThreadingHeaders | null>(() => {
+    if (mode === 'reply' || mode === 'replyAll') return computeReplyThreadingHeaders(replyTo);
+    if (initialData?.inReplyTo?.length) {
+      return { inReplyTo: initialData.inReplyTo, references: initialData.references ?? [] };
+    }
+    return null;
+  }, [mode, replyTo, initialData?.inReplyTo, initialData?.references]);
+  // A From override is asked for as the envelope MAIL FROM too, but a server
+  // may only accept the identity's own address there (Stalwart does), which
+  // then shows in the Return-Path. Unless one of the account's identities owns
+  // the override address - the send goes through that one - say so (#1009).
+  const overrideAddress = fromOverrideEnabled ? fromOverrideEmail.trim().toLowerCase() : '';
+  const overrideEnvelopeFallback = overrideAddress && currentIdentity?.email
+    && !identities.some((identity) => identity.email.toLowerCase() === overrideAddress
+      && stripCrossAccountIdentityPrefix(identity.id).localAccountId === currentIdentityParts.localAccountId)
+    ? currentIdentity.email
+    : null;
   // Alias identities often lack a configured signature - fall back to the primary
   // identity's signature so replies (which auto-select a matching alias) still
   // populate the user's signature.
@@ -680,50 +856,22 @@ export function EmailComposer({
     // body isn't lost during the signature splice + setContent round-trip.
     const currentHtml = serializeEditorContent(editor);
     const doc = new DOMParser().parseFromString(currentHtml, 'text/html');
-    const startEl = doc.querySelector(
-      `[${SIGNATURE_RANGE_MARKER}="separator"], [${SIGNATURE_RANGE_MARKER}="start"]`
-    );
-    if (!startEl) return;
-    const endEl = doc.querySelector(`[${SIGNATURE_RANGE_MARKER}="end"]`);
-
     const newSignature = buildEmbeddedSignatureHtml(signatureIdentity, {
       embed: true,
       separator: signatureSeparatorEnabled,
     });
     if (!newSignature) return;
 
-    // Build a temporary container holding the replacement nodes so we can
-    // splice them in without re-serializing/parsing twice.
+    // Remove the existing signature range (bounded so it never eats into the
+    // quoted body - see removeSignatureRange) and splice the new one in at the
+    // same position, without re-serializing/parsing twice.
+    const removed = removeSignatureRange(doc);
+    if (!removed) return;
     const replacementHost = doc.createElement('div');
     replacementHost.innerHTML = newSignature;
-    const replacementNodes = Array.from(replacementHost.childNodes);
-
-    const parent = startEl.parentNode;
-    if (!parent) return;
-
-    // Remove the existing signature range [startEl … endEl] inclusive, or
-    // from startEl to the next quote boundary if no end marker is present.
-    // The quote boundary is either a legacy <blockquote> or the QuotedHtml
-    // island wrapper (<div data-quoted-html>) - stop before either so the
-    // signature splice never eats into the quoted body.
-    const removeUntil = endEl && endEl.parentNode === parent ? endEl : null;
-    const isQuoteBoundary = (n: Node | null): boolean => {
-      if (!n || n.nodeType !== 1) return false;
-      const el = n as Element;
-      return el.tagName === 'BLOCKQUOTE' || el.hasAttribute('data-quoted-html');
-    };
-    const toRemove: Node[] = [];
-    let cursor: Node | null = startEl;
-    while (cursor) {
-      toRemove.push(cursor);
-      if (cursor === removeUntil) break;
-      const next: Node | null = cursor.nextSibling;
-      if (!removeUntil && isQuoteBoundary(next)) break;
-      cursor = next;
-    }
-    const insertBefore = toRemove[toRemove.length - 1]?.nextSibling ?? null;
-    toRemove.forEach((node) => parent.removeChild(node));
-    replacementNodes.forEach((node) => parent.insertBefore(node, insertBefore));
+    Array.from(replacementHost.childNodes).forEach((node) =>
+      removed.parent.insertBefore(node, removed.insertBefore)
+    );
 
     const nextHtml = doc.body.innerHTML;
     if (nextHtml !== currentHtml) {
@@ -753,8 +901,12 @@ export function EmailComposer({
     setShowSendMenu(false);
   }, []);
 
+  // `autoSelectReplyIdentity` fused two behaviours: matching one of the user's
+  // OWN identities, which never rewrites `From:`, and the domain catch-all,
+  // which puts an address they have not configured into `From:`. Only the
+  // first is safe for everyone, so it is unconditional here; the rewrite stays
+  // behind the setting, which is what the setting's description promises.
   useEffect(() => {
-    if (!autoSelectReplyIdentity) return;
     if (selectedIdentityId || initialData?.selectedIdentityId) return;
 
     // New message started from a specific mailbox/account: default the From to
@@ -762,6 +914,11 @@ export function EmailComposer({
     // viewing info@ sends as info@. Reply/forward fall through to the
     // recipient-based resolution below.
     if (mode === 'compose') {
+      // Still gated. `composeFromAccountEmail` falls back to `AccountEntry.email`,
+      // which is written once at first login, so resolving it unconditionally
+      // would override a user-chosen default sender identity (#507) on every
+      // new message.
+      if (!autoSelectReplyIdentity) return;
       const composeIdentityId = findComposeIdentityId(identities, composeFromAccountEmail);
       if (composeIdentityId) {
         setSelectedIdentityId(composeIdentityId);
@@ -769,57 +926,86 @@ export function EmailComposer({
       return;
     }
 
-    if (mode !== 'reply' && mode !== 'replyAll') return;
+    // `forward` resolves like a reply: the address the original was delivered to
+    // is the one to send from. The comment above already promised it, and the
+    // neighbouring inline-image effect groups all three modes together.
+    if (mode !== 'reply' && mode !== 'replyAll' && mode !== 'forward') return;
+
+    // The original lives on another connected account whose identities have
+    // not loaded yet: wait for them instead of settling on one of the active
+    // account's, which the selectedIdentityId guard above would then keep.
+    const fromOtherAccount = Boolean(sourceAccountId) && sourceAccountId !== activeAccountId;
+    if (fromOtherAccount && sourceAccountIdentities.length === 0) return;
 
     // Replying to our own message in a thread (#703): keep sending as the
     // identity that sent it. Resolving from the recipients here would pick the
     // *other* party's address - and on a catch-all domain it would even set a
-    // From override to their address.
+    // From override to their address. An identity on the message's own account
+    // wins when two accounts share the address.
     if (isSelfSent({ from: replyTo?.from }, identities.map(i => i.email).filter(Boolean))) {
-      const senderIdentityId = findDraftIdentityId(identities, replyTo?.from?.[0]);
+      const senderIdentityId = findDraftIdentityId(sourceAccountIdentities, replyTo?.from?.[0])
+        ?? findDraftIdentityId(identities, replyTo?.from?.[0]);
       if (senderIdentityId) {
         setSelectedIdentityId(senderIdentityId);
         return;
       }
     }
 
-    const resolved = resolveReplyFrom(identities, {
+    const recipients = {
       to: replyTo?.to,
       cc: replyTo?.cc,
       bcc: replyTo?.bcc,
-    });
+    };
 
-    if (resolved) {
-      setSelectedIdentityId(resolved.identityId);
-      if (resolved.overrideEmail && !fromOverrideEnabled) {
-        setFromOverrideEnabled(true);
-        setFromOverrideEmail(resolved.overrideEmail);
-        if (resolved.overrideName) setFromOverrideName(resolved.overrideName);
-      }
+    // Own-identity match: unconditional, since it only ever selects one of the
+    // user's own configured addresses.
+    const ownIdentityId = findReplyIdentityId(sourceAccountIdentities, recipients);
+    if (ownIdentityId) {
+      setSelectedIdentityId(ownIdentityId);
       return;
     }
 
-    // Fallback: match identity by the account's email when replying from unified view
-    if (replyTo?.accountId) {
-      const account = useAccountStore.getState().getAccountById(replyTo.accountId);
-      if (account?.email) {
-        const accountEmail = account.email.trim().toLowerCase();
-        const accountIdentity = identities.find(
-          (identity) => identity.email.trim().toLowerCase() === accountEmail
-        );
-        if (accountIdentity) {
-          setSelectedIdentityId(accountIdentity.id);
+    // Catch-all From rewrite: opt-in, and never on a forward. A reply continues
+    // a thread whose participants already know the addressing; a forward
+    // introduces the rewritten From to a recipient the user just typed, who has
+    // no way to tell it is not really from that person. `replyIdentityMatch`
+    // lets a user keep the setting on but limit it to configured identities,
+    // for domains where the other addresses are distribution lists (#1000).
+    if (autoSelectReplyIdentity && mode !== 'forward') {
+      const resolved = resolveReplyFrom(sourceAccountIdentities, recipients, replyIdentityMatch);
+      if (resolved) {
+        setSelectedIdentityId(resolved.identityId);
+        if (resolved.overrideEmail && !fromOverrideEnabled) {
+          setFromOverrideEnabled(true);
+          setFromOverrideEmail(resolved.overrideEmail);
+          if (resolved.overrideName) setFromOverrideName(resolved.overrideName);
         }
+        return;
       }
+    }
+
+    // Nothing on the message's account matched, but it is not the active one:
+    // still send from it - the identity on its login address, else its first -
+    // rather than from the active account's default (#1104). On the active
+    // account the default already applies, and it is the user's choice (#507).
+    if (fromOtherAccount && sourceAccountId) {
+      const loginEmail = useAccountStore.getState().getAccountById(sourceAccountId)?.email?.trim().toLowerCase();
+      const accountIdentity = sourceAccountIdentities.find(
+        (identity) => identity.email.trim().toLowerCase() === loginEmail
+      ) ?? sourceAccountIdentities[0];
+      setSelectedIdentityId(accountIdentity.id);
     }
   }, [
     autoSelectReplyIdentity,
+    replyIdentityMatch,
     composeFromAccountEmail,
     fromOverrideEnabled,
     identities,
+    sourceAccountIdentities,
+    sourceAccountId,
+    activeAccountId,
     initialData?.selectedIdentityId,
     mode,
-    replyTo?.accountId,
     replyTo?.bcc,
     replyTo?.cc,
     replyTo?.from,
@@ -836,7 +1022,12 @@ export function EmailComposer({
   useEffect(() => {
     if (plainTextMode) return;
     if (mode !== 'reply' && mode !== 'replyAll' && mode !== 'forward') return;
-    if (!composerClient || !replyTo?.attachments?.length) return;
+    // The quoted parts live on the account that holds the original message,
+    // which is not necessarily the one this message goes out through.
+    const originClient = (sourceAccountId && sourceAccountId !== composerAccountId
+      ? useAuthStore.getState().getClientForAccount(sourceAccountId)
+      : undefined) ?? composerClient;
+    if (!originClient || !replyTo?.attachments?.length) return;
 
     // Hydrate every cid the quoted body actually renders as an <img>, rather
     // than only parts declared `image/*` + `inline`. Some clients (notably
@@ -864,6 +1055,7 @@ export function EmailComposer({
         name: att.name || 'inline',
         size: att.size,
         dataUrl: '',
+        sourceAccountId: sourceAccountId ?? undefined,
       });
     }
 
@@ -873,7 +1065,7 @@ export function EmailComposer({
       for (const att of inlineAtts) {
         if (!att.cid) continue;
         try {
-          const buffer = await composerClient.fetchBlobArrayBuffer(
+          const buffer = await originClient.fetchBlobArrayBuffer(
             att.blobId,
             att.name || 'inline',
             att.type,
@@ -988,6 +1180,10 @@ export function EmailComposer({
   const ccStr = formatRecipientList(withInput(cc, ccInput));
   const bccStr = formatRecipientList(withInput(bcc, bccInput));
 
+  // Who an "@" in the body offers. Never Bcc: naming a blind-copied
+  // recipient in the text would disclose them to everyone else.
+  const mentionCandidates = useMemo(() => buildMentionCandidates(to, cc), [to, cc]);
+
   // Uploaded/hydrated attachments in ComposerDraftData shape, so a state
   // snapshot (pro tab move, unmount save) carries them across a remount
   // instead of silently dropping them (#849). In-flight/failed uploads have
@@ -1001,11 +1197,12 @@ export function EmailComposer({
       size: att.size,
       ...(att.cid ? { cid: att.cid } : {}),
       ...(att.disposition ? { disposition: att.disposition } : {}),
+      ...(att.sourceAccountId ? { sourceAccountId: att.sourceAccountId } : {}),
     }));
 
   // Keep a ref to current state for the unmount save
-  const stateRef = useRef({ to: toStr, cc: ccStr, bcc: bccStr, subject, body, showCc, showBcc, selectedIdentityId, subAddressTag, draftId, fromOverrideEnabled, fromOverrideEmail, fromOverrideName, attachments: snapshotAttachments() });
-  stateRef.current = { to: toStr, cc: ccStr, bcc: bccStr, subject, body, showCc, showBcc, selectedIdentityId, subAddressTag, draftId, fromOverrideEnabled, fromOverrideEmail, fromOverrideName, attachments: snapshotAttachments() };
+  const stateRef = useRef({ to: toStr, cc: ccStr, bcc: bccStr, subject, body, showCc, showBcc, selectedIdentityId, subAddressTag, draftId, fromOverrideEnabled, fromOverrideEmail, fromOverrideName, attachments: snapshotAttachments(), plainTextMode });
+  stateRef.current = { to: toStr, cc: ccStr, bcc: bccStr, subject, body, showCc, showBcc, selectedIdentityId, subAddressTag, draftId, fromOverrideEnabled, fromOverrideEmail, fromOverrideName, attachments: snapshotAttachments(), plainTextMode };
 
   // Track initial values for dirty detection (captured once on first render)
   const initialValuesRef = useRef({ to: toStr, cc: ccStr, bcc: bccStr, subject, body, attachmentCount: attachments.length });
@@ -1077,6 +1274,8 @@ export function EmailComposer({
   const subjectInputRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const composerMainRef = useRef<HTMLDivElement>(null);
+  const composerFieldsRef = useRef<HTMLDivElement>(null);
   const toDropdownRef = useRef<HTMLDivElement>(null);
   const ccDropdownRef = useRef<HTMLDivElement>(null);
   const bccDropdownRef = useRef<HTMLDivElement>(null);
@@ -1093,6 +1292,54 @@ export function EmailComposer({
       proseMirror?.focus();
     }
   }, [plainTextMode]);
+
+  // The fields sit pinned above the body's own scroll container only while
+  // the pane leaves the body enough height under them. In a short pane
+  // (reading pane at the bottom on a laptop, a phone in landscape) the body
+  // scroller shrank to the height of its sticky formatting toolbar, which
+  // then covered the text completely (#1114). Without the room, fields and
+  // body scroll together and the toolbar pins to the top of that instead.
+  const [pinFields, setPinFields] = useState(true);
+  useEffect(() => {
+    const main = composerMainRef.current;
+    const fields = composerFieldsRef.current;
+    if (!main || !fields || typeof ResizeObserver === 'undefined') return;
+    const update = () => {
+      // Hidden or not laid out yet: keep the current layout.
+      if (main.clientHeight === 0) return;
+      setPinFields(main.clientHeight - fields.offsetHeight >= PINNED_FIELDS_MIN_BODY_HEIGHT);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(main);
+    observer.observe(fields);
+    update();
+    return () => observer.disconnect();
+  }, []);
+
+  // Switch this one message between rich text and plain text (#1022). The
+  // body is converted in place and the embedded signature survives in the
+  // target format (compose-format.ts). Formatting is dropped going to plain
+  // text - that is what plain text means - and does not come back on a
+  // second switch.
+  const togglePlainTextMode = useCallback(() => {
+    const separator = signatureSeparatorEnabled;
+    if (plainTextMode) {
+      setBody((prev) => plainComposeBodyToHtml(prev, signatureIdentity, { separator }));
+      setPlainTextMode(false);
+      return;
+    }
+    // serializeEditorContent (not the React `body` mirror) so a QuotedHtml
+    // island's verbatim body is what gets converted. The editor unmounts with
+    // the switch - drop the ref so nothing talks to a destroyed instance.
+    const editor = editorRef.current;
+    const html = editor && !editor.isDestroyed ? serializeEditorContent(editor) : body;
+    editorRef.current = null;
+    setBody(htmlComposeBodyToPlainText(html, signatureIdentity, { separator }));
+    setPlainTextMode(true);
+    // Keyed on the signature fields, not the identity object (see the
+    // signature effects above for the same rationale).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plainTextMode, body, signatureIdentity?.htmlSignature, signatureIdentity?.textSignature, signatureSeparatorEnabled]);
 
   // Move a chip from one recipient field to another. `toIndex`, when given,
   // inserts at that position in the destination (drag-and-drop reordering,
@@ -1366,6 +1613,31 @@ export function EmailComposer({
     if (allowedFiles.length === 0) return;
     files = allowedFiles;
 
+    // Refuse what the server would refuse after the upload (maxSizeUpload per
+    // blob, maxSizeAttachmentsPerEmail per message) instead of failing late.
+    const uploadClient = composerClientRef.current ?? client;
+    const maxUpload = uploadClient.getMaxSizeUpload?.() ?? 0;
+    const oversized = maxUpload > 0 ? files.find(f => f.size > maxUpload) : undefined;
+    if (oversized) {
+      toast.error(t('attachment_too_large', { name: oversized.name, max: formatFileSize(maxUpload) }));
+      files = files.filter(f => f.size <= maxUpload);
+    }
+    const maxTotal = uploadClient.getMaxSizeAttachmentsPerEmail?.() ?? 0;
+    if (maxTotal > 0) {
+      let total = attachmentsRef.current.reduce((sum, att) => sum + (att.size || 0), 0);
+      const fitting: File[] = [];
+      for (const f of files) {
+        if (total + f.size > maxTotal) continue;
+        total += f.size;
+        fitting.push(f);
+      }
+      if (fitting.length < files.length) {
+        toast.error(t('attachments_total_too_large', { max: formatFileSize(maxTotal) }));
+      }
+      files = fitting;
+    }
+    if (files.length === 0) return;
+
     const newAttachments: ComposerAttachment[] = files.map(file => {
       const controller = new AbortController();
       return {
@@ -1387,60 +1659,90 @@ export function EmailComposer({
         
         const fileId = generateUUID();
         await fileStorage.saveFile(fileId, file);
-        
-        const transformed = await emailHooks.onBeforeBlobUpload.transform<unknown>(fileId);
 
-        // A handler can offload the file elsewhere and hand back replacement
-        // content instead of a file id. Drop the binary attachment and put the
-        // replacement in the body.
-        if (isExternalAttachmentResult(transformed)) {
-          // `transformed.fileId` when the handler re-saved the staged file
-          // under a new id; otherwise the id we handed it.
-          await fileStorage.deleteFile(transformed.fileId ?? fileId);
-          // The user may have removed the attachment while the handler was
-          // offloading it - don't drop a link for a file they cancelled.
-          if (controller?.signal.aborted) continue;
-          setAttachments(prev => prev.filter(att => att.file !== file));
-          if (plainTextMode) {
-            setBody(previous =>
-              previous && !previous.endsWith('\n') ? `${previous}\n${transformed.text}` : previous + transformed.text
-            );
-          } else {
-            // Never trust plugin markup in the document (or in the message the
-            // user then sends); insert through the editor so it lands at the
-            // caret rather than after the signature and quoted block.
-            const html = sanitizePluginBodyHtml(transformed.html);
-            if (!html) continue;
-            if (editorRef.current) {
-              editorRef.current.chain().focus().insertContent(html).run();
+        // Byte progress for the chip, from whichever transport moves the
+        // bytes: the JMAP client below reports directly, a plugin offloading
+        // via `api.http.post` reports through the staged-file-id registry
+        // (it echoes `fileId` as `progressFileId`, see doHttpPost).
+        const reportProgress = (loaded: number, total: number) => {
+          if (total <= 0 || controller?.signal.aborted) return;
+          const pct = Math.min(100, Math.floor((loaded / total) * 100));
+          setAttachments(prev =>
+            prev.map(att => (att.file === file ? { ...att, progress: pct } : att))
+          );
+        };
+        const stopProgress = onUploadProgress(fileId, reportProgress);
+
+        try {
+          const transformed = await emailHooks.onBeforeBlobUpload.transform<unknown>(fileId);
+
+          // A handler can offload the file elsewhere and hand back replacement
+          // content instead of a file id. Drop the binary attachment and put the
+          // replacement in the body.
+          if (isExternalAttachmentResult(transformed)) {
+            // `transformed.fileId` when the handler re-saved the staged file
+            // under a new id; otherwise the id we handed it.
+            await fileStorage.deleteFile(transformed.fileId ?? fileId);
+            // The user may have removed the attachment while the handler was
+            // offloading it - don't drop a link for a file they cancelled.
+            if (controller?.signal.aborted) continue;
+            setAttachments(prev => prev.filter(att => att.file !== file));
+            if (plainTextMode) {
+              setBody(previous =>
+                previous && !previous.endsWith('\n') ? `${previous}\n${transformed.text}` : previous + transformed.text
+              );
             } else {
-              setBody(previous => previous + html);
+              // Never trust plugin markup in the document (or in the message the
+              // user then sends); insert through the editor so it lands at the
+              // caret rather than after the signature and quoted block.
+              const html = sanitizePluginBodyHtml(transformed.html);
+              if (!html) continue;
+              if (editorRef.current) {
+                editorRef.current.chain().focus().insertContent(html).run();
+              } else {
+                setBody(previous => previous + html);
+              }
             }
+            continue;
           }
-          continue;
+
+          const newFileId = typeof transformed === 'string' ? transformed : fileId;
+
+          const newFile = await fileStorage.getFile(newFileId) || file;
+
+          // Passing the signal also makes cancel abort the transfer itself,
+          // instead of only being checked once the upload has finished.
+          // The staged copy is deleted only after the upload: in Firefox the
+          // File read back from IndexedDB is backed by the stored record, and
+          // deleting it first races the send - XHR then declares the full
+          // Content-Length but sends 0 bytes, and nginx answers 400.
+          let blobId: string;
+          try {
+            ({ blobId } = await (composerClientRef.current ?? client).uploadBlob(newFile, {
+              onProgress: reportProgress,
+              signal: controller?.signal,
+            }));
+          } finally {
+            await fileStorage.deleteFile(newFileId).catch(() => {});
+          }
+
+          if (controller?.signal.aborted) continue;
+          setAttachments(prev =>
+            prev.map(att =>
+              att.file === file
+                ? { ...att, blobId, uploading: false, abortController: undefined }
+                : att
+            )
+          );
+          emailHooks.onAfterAttachmentUpload.emit({
+            name: file.name,
+            type: file.type || 'application/octet-stream',
+            size: file.size,
+            blobId,
+          });
+        } finally {
+          stopProgress();
         }
-
-        const newFileId = typeof transformed === 'string' ? transformed : fileId;
-
-        const newFile = await fileStorage.getFile(newFileId) || file;
-        await fileStorage.deleteFile(newFileId);
-
-        const { blobId } = await client.uploadBlob(newFile);
-
-        if (controller?.signal.aborted) continue;
-        setAttachments(prev =>
-          prev.map(att =>
-            att.file === file
-              ? { ...att, blobId, uploading: false, abortController: undefined }
-              : att
-          )
-        );
-        emailHooks.onAfterAttachmentUpload.emit({
-          name: file.name,
-          type: file.type || 'application/octet-stream',
-          size: file.size,
-          blobId,
-        });
       } catch (error) {
         if (controller?.signal.aborted) continue;
         debug.error(`Failed to upload ${file.name}:`, error);
@@ -1469,7 +1771,7 @@ export function EmailComposer({
         reader.readAsDataURL(file);
       });
       const [{ blobId }, dataUrl] = await Promise.all([
-        client.uploadBlob(file),
+        (composerClientRef.current ?? client).uploadBlob(file),
         readAsDataUrl,
       ]);
       if (!dataUrl) throw new Error('Failed to read image as data URL');
@@ -1548,6 +1850,69 @@ export function EmailComposer({
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Lets a plugin attach a file it has already uploaded to the JMAP server
+  // (via api.jmap.uploadBlob) without going through the local file-picker /
+  // drag-drop path - e.g. a plugin that browses an external WebDAV store and
+  // offers "attach from there". No `file` is set, matching the existing
+  // draft-part hydration path above (a blobId-only attachment is already a
+  // supported shape, just never previously reachable from a plugin).
+  const handlePluginAttachmentAdd = useCallback((upload: PluginAttachmentUpload) => {
+    setAttachments(prev => [
+      ...prev,
+      {
+        name: upload.name,
+        type: upload.type,
+        size: upload.size,
+        blobId: upload.blobId,
+      },
+    ]);
+  }, []);
+
+  // Files from the Files app are already blobs on the server, so they are
+  // attached by blobId with no download or upload (#1179). Stalwart resolves a
+  // FileNode's blob in Email/set for its owner and for anyone it is shared
+  // with. The same checks as for a local file still apply.
+  const handleFilesPicked = useCallback(async (nodes: FileNode[]) => {
+    const picker = filesPicker;
+    setFilesPicker(null);
+    if (!picker) return;
+
+    let picked: FileNode[] = [];
+    for (const node of nodes) {
+      const ok = await emailHooks.onBeforeAttachmentUpload.intercept({
+        name: node.name,
+        type: node.type || 'application/octet-stream',
+        size: node.size,
+      });
+      if (ok && node.blobId) picked.push(node);
+    }
+    const maxTotal = picker.client.getMaxSizeAttachmentsPerEmail?.() ?? 0;
+    if (maxTotal > 0) {
+      let total = attachmentsRef.current.reduce((sum, att) => sum + (att.size || 0), 0);
+      const fitting = picked.filter(node => {
+        if (total + node.size > maxTotal) return false;
+        total += node.size;
+        return true;
+      });
+      if (fitting.length < picked.length) {
+        toast.error(t('attachments_total_too_large', { max: formatFileSize(maxTotal) }));
+      }
+      picked = fitting;
+    }
+    if (picked.length === 0) return;
+
+    setAttachments(prev => [
+      ...prev,
+      ...picked.map((node): ComposerAttachment => ({
+        name: node.name,
+        type: node.type || 'application/octet-stream',
+        size: node.size,
+        blobId: node.blobId!,
+        sourceAccountId: picker.accountId,
+      })),
+    ]);
+  }, [filesPicker, t]);
+
   // Inline preview for composer attachments, reusing the message viewer's
   // FilePreviewModal (so previewability and the open-in-new-tab safety gate are
   // handled there). Prefer the local File - no network - and fall back to the
@@ -1597,9 +1962,16 @@ export function EmailComposer({
       return null;
     }
 
+    try {
+      await rehomeForeignBlobs();
+    } catch (error) {
+      // The save below then fails with blobNotFound and reports it.
+      debug.warn('email', 'Failed to copy forwarded parts to the sending account:', error);
+    }
+
     // Prepare attachments for draft. cid/disposition ride along so inline
     // parts of a re-opened draft keep matching the body's cid: references.
-    const uploadedAttachments = attachments
+    const uploadedAttachments = attachmentsRef.current
       .filter(att => att.blobId && !att.uploading)
       .map(att => ({
         blobId: att.blobId!,
@@ -1666,7 +2038,10 @@ export function EmailComposer({
       const previousDraftId = draftIdRef.current;
       let savedDraft : AlmostSavedDraft = {
        to: toAddresses,
-        subject: subject || t('no_subject'),
+        // Save an empty subject as empty. A "(No Subject)" placeholder here
+        // came back as a real subject on reopen, and Send then skipped the
+        // empty-subject warning (#1189).
+        subject,
         body: draftTextBody,
         cc: ccAddresses,
         bcc: bccAddresses,
@@ -1693,7 +2068,9 @@ export function EmailComposer({
         savedDraft.draftId,
         savedDraft.attachments,
         savedDraft.fromName,
-        savedDraft.htmlBody
+        savedDraft.htmlBody,
+        replyThreadingHeaders?.inReplyTo,
+        replyThreadingHeaders?.references,
       );
 
       // Update the ref synchronously so a queued save sees the new id and
@@ -1874,6 +2251,12 @@ export function EmailComposer({
     return undefined;
   };
 
+  // The cids of the inline images (tagged with data-cid) the body still shows.
+  const bodyInlineCids = (html: string): Set<string> => {
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    return new Set(Array.from(doc.querySelectorAll('img[data-cid]'), (img) => img.getAttribute('data-cid') ?? ''));
+  };
+
   // Rewrite data: URLs of dropped images (tagged with data-cid) into cid:
   // references so recipient clients that strip data URIs can still render them.
   const rewriteInlineImages = (html: string): {
@@ -1967,7 +2350,10 @@ export function EmailComposer({
     }
 
     const ccAddresses = expandRecipients(withInput(cc, ccInput));
-    const bccAddresses = expandRecipients(withInput(bcc, bccInput));
+    // RFC 8621 Identity.bcc: addresses to Bcc on every message sent with the
+    // identity. The server does not add them; only the send carries them, so
+    // a saved draft does not pick up a copy each time it is reopened.
+    const bccAddresses = expandRecipients([...withInput(bcc, bccInput), ...(currentIdentity?.bcc ?? [])]);
 
     if (!canSend) {
       const errors: { to?: boolean; body?: boolean } = {};
@@ -2051,15 +2437,16 @@ export function EmailComposer({
         : currentIdentity.email
       : undefined;
     // When the user has typed a From override, that becomes the header From
-    // (and MIME-builder From in the S/MIME path). The identity still drives
-    // the SMTP envelope MAIL FROM - set explicitly so it doesn't mistakenly
-    // default to the override address.
+    // (and MIME-builder From in the S/MIME path) and is asked for as the SMTP
+    // envelope MAIL FROM too, so the Return-Path doesn't reveal the identity's
+    // address (#1009). A server that only accepts the identity's own address
+    // there gets that instead; the From row says so before sending.
     const overrideActive = fromOverrideEnabled && fromOverrideEmail.trim().length > 0;
     const fromEmail = overrideActive ? fromOverrideEmail.trim() : identityFromEmail;
     const fromName = overrideActive
       ? (fromOverrideName.trim() || undefined)
       : (currentIdentity?.name || undefined);
-    const envelopeMailFrom = overrideActive ? identityFromEmail : undefined;
+    const envelopeMailFrom = overrideActive ? fromEmail : undefined;
 
     // Body is already HTML from the rich text editor (or plain text in plain
     // text mode). Where the signature is already part of it (compose mode,
@@ -2080,15 +2467,26 @@ export function EmailComposer({
     };
 
     // RFC 5322 §3.6.4 threading - only continues the chain on a reply, not a forward.
-    const threadingHeaders = (mode === 'reply' || mode === 'replyAll')
-      ? computeReplyThreadingHeaders(replyTo)
-      : null;
+    const threadingHeaders = replyThreadingHeaders;
 
     // In plain text mode, send text/plain only (no HTML body)
     const signatureOpts = { separator: signatureSeparatorEnabled };
     const finalBody = plainTextMode
       ? (signatureAlreadyInBody ? body : appendPlainTextSignature(body, signatureIdentity, signatureOpts))
       : (signatureAlreadyInBody ? htmlToPlainText(body) : appendPlainTextSignature(htmlToPlainText(body), signatureIdentity, signatureOpts));
+
+    // Before any blobId is read: forwarded parts may still sit on the account
+    // that holds the original message.
+    try {
+      await rehomeForeignBlobs(plainTextMode ? undefined : bodyInlineCids(body));
+    } catch (error) {
+      // Nothing was sent; the composer and its draft stay as they are.
+      debug.warn('email', 'Failed to copy forwarded parts to the sending account:', error);
+      toast.error(t('validation.attachment_upload_failed'));
+      isSendingRef.current = false;
+      setIsSending(false);
+      return;
+    }
 
     const rewritten = plainTextMode ? null : rewriteInlineImages(body);
     const finalHtmlBody = plainTextMode
@@ -2218,6 +2616,8 @@ export function EmailComposer({
           inReplyTo: threadingHeaders?.inReplyTo,
           references: threadingHeaders?.references,
           requestReadReceipt,
+          requestDsn: requestDsn || undefined,
+          requireTls: requireTls || undefined,
           delayedUntil: effectiveDelayedUntil,
         });
 
@@ -2250,16 +2650,25 @@ export function EmailComposer({
       setScheduleValue('');
       setScheduleError('');
       // Clear ref so unmount effect doesn't re-save
-      stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [] };
+      stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [], plainTextMode };
     } catch (err) {
       debug.error('Failed to send email:', err);
+      if (err instanceof RecipientsRejectedError) {
+        // Nothing went out; the message stays open here so the addresses
+        // can be fixed. The SMTP replies say why each one was refused (#1123).
+        toast.error(t('send_recipients_rejected'), { message: formatRejectedRecipients(err.recipients) });
+        return;
+      }
       // A timeout is not a clean failure: the submission may have reached the
       // server and gone out, with only the answer lost. Saying "send failed"
       // would invite a re-send and a duplicate, so point at Sent instead (#702).
+      // The same goes for a send the server answered without confirming it.
       toast.error(
-        err instanceof RequestTimeoutError
+        err instanceof RequestTimeoutError || err instanceof SendUnconfirmedError
           ? t('send_timeout')
-          : err instanceof Error ? err.message : t('send_failed')
+          : err instanceof ScheduleTooLateError
+            ? t('schedule_send_too_late')
+            : err instanceof Error ? err.message : t('send_failed')
       );
     } finally {
       isSendingRef.current = false;
@@ -2309,7 +2718,7 @@ export function EmailComposer({
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [] };
+    stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [], plainTextMode };
     emitClose();
   };
 
@@ -2334,7 +2743,7 @@ export function EmailComposer({
         toast.error(t('save_failed'));
         explicitCloseRef.current = false;
       } else {
-        stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [] };
+        stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [], plainTextMode };
       }
     } finally {
       emitClose();
@@ -2351,7 +2760,7 @@ export function EmailComposer({
     if (draftId && onDiscardDraft) {
       onDiscardDraft(draftId);
     }
-    stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [] };
+    stateRef.current = { to: '', cc: '', bcc: '', subject: '', body: '', showCc: false, showBcc: false, selectedIdentityId: null, subAddressTag: '', draftId: null, fromOverrideEnabled: false, fromOverrideEmail: '', fromOverrideName: '', attachments: [], plainTextMode };
     emitClose();
   };
 
@@ -2386,6 +2795,7 @@ export function EmailComposer({
 
     if (
       showTemplatePicker ||
+      filesPicker ||
       showSaveAsTemplate ||
       showScheduleDialog ||
       showAttachmentWarning ||
@@ -2395,6 +2805,9 @@ export function EmailComposer({
 
     if (isPlainEscape) {
       if (activeAutoField) return;
+      // Same for the "@" recipient list in the body: this handler runs in the
+      // capture phase, before the editor could close the list itself.
+      if (isRecipientMentionActive(editorRef.current)) return;
       e.preventDefault();
       handleClose();
       return;
@@ -2528,9 +2941,16 @@ export function EmailComposer({
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto">
-        {/* Fields section */}
-        <div className="space-y-0 border-b">
+      {/* Fields + body. While pinFields holds, the fields sit outside the
+          body's scroll container so From/To/Cc/Bcc/Subject stay reachable
+          while scrolling long bodies, matching the pinned formatting toolbar
+          (see rich-text-editor.tsx). Otherwise this wrapper is the scroll
+          container and the fields scroll away with the body. */}
+      <div
+        ref={composerMainRef}
+        className={cn("flex-1 min-h-0 flex flex-col", !pinFields && "overflow-y-auto")}
+      >
+      <div ref={composerFieldsRef} className="shrink-0 space-y-0 border-b">
           {/* From field */}
           <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/50">
             <span className="text-sm text-muted-foreground w-12 md:w-16 shrink-0">{t('from')}:</span>
@@ -2562,11 +2982,11 @@ export function EmailComposer({
                 >
                   {identityGroups.length > 0
                     ? identityGroups.map((group) => (
-                        <optgroup key={group.localAccountId} label={group.accountLabel}>
+                        <optgroup key={group.localAccountId} label={toUnicodeEmail(group.accountLabel)}>
                           {group.identities.map((identity) => {
-                            const displayEmail = subAddressTag
+                            const displayEmail = toUnicodeEmail(subAddressTag
                               ? generateSubAddress(identity.email, subAddressTag, subAddressDelimiter)
-                              : identity.email;
+                              : identity.email);
                             return (
                               <option key={identity.id} value={identity.id} dir="ltr">
                                 {identity.name ? `${identity.name} <${displayEmail}>` : displayEmail}
@@ -2576,9 +2996,9 @@ export function EmailComposer({
                         </optgroup>
                       ))
                     : identities.map((identity) => {
-                        const displayEmail = subAddressTag
+                        const displayEmail = toUnicodeEmail(subAddressTag
                           ? generateSubAddress(identity.email, subAddressTag, subAddressDelimiter)
-                          : identity.email;
+                          : identity.email);
                         return (
                           <option key={identity.id} value={identity.id} dir="ltr">
                             {identity.name ? `${identity.name} <${displayEmail}>` : displayEmail}
@@ -2590,13 +3010,13 @@ export function EmailComposer({
                 <span data-testid="composer-from" className="text-sm text-foreground flex-1 truncate">
                   {subAddressTag ? (
                     <span className="font-mono">
-                      {generateSubAddress(primaryIdentity?.email || '', subAddressTag, subAddressDelimiter)}
+                      {toUnicodeEmail(generateSubAddress(primaryIdentity?.email || '', subAddressTag, subAddressDelimiter))}
                     </span>
                   ) : (
                     <bdi>
                       {primaryIdentity?.name
-                        ? `${primaryIdentity.name} <${primaryIdentity.email}>`
-                        : primaryIdentity?.email || ''}
+                        ? `${primaryIdentity.name} <${toUnicodeEmail(primaryIdentity.email)}>`
+                        : toUnicodeEmail(primaryIdentity?.email || '')}
                     </bdi>
                   )}
                 </span>
@@ -2648,6 +3068,11 @@ export function EmailComposer({
               </Button>
             </div>
           </div>
+          {overrideEnvelopeFallback && (
+            <p className="ps-[4.5rem] md:ps-[5.5rem] pe-4 py-1.5 text-xs text-muted-foreground border-b border-border/50">
+              {t('from_override.envelope_notice', { identity: overrideEnvelopeFallback })}
+            </p>
+          )}
 
           {/* To field */}
           <div data-testid="composer-to" className={cn("flex items-center gap-2 px-4 py-2.5 border-b border-border/50 relative", shakeField === 'to' && "animate-shake")}>
@@ -2809,8 +3234,9 @@ export function EmailComposer({
               className="flex-1 border-0 focus-visible:ring-0 h-8 px-0 text-sm"
             />
           </div>
-        </div>
+      </div>
 
+      <div className={cn("flex-1", pinFields && "min-h-0 overflow-auto")}>
         {/* Body */}
         {plainTextMode ? (
           <textarea
@@ -2840,6 +3266,7 @@ export function EmailComposer({
               placeholder={t('body_placeholder')}
               hasError={validationErrors.body}
               onEditorReady={(ed) => { editorRef.current = ed; }}
+              mentionCandidates={recipientMentionsEnabled ? mentionCandidates : undefined}
             />
           </div>
         )}
@@ -2860,6 +3287,7 @@ export function EmailComposer({
             dangerouslySetInnerHTML={{ __html: `${signatureSeparatorEnabled ? '<div>-- </div>' : ''}${composerSignatureHtml}` }}
           />
         ) : null}
+      </div>
       </div>
 
         {/* Attachments */}
@@ -2891,7 +3319,16 @@ export function EmailComposer({
                   {att.uploading && (
                     <div className="absolute inset-0 pointer-events-none">
                       <div className="h-full bg-primary/10 animate-pulse" />
-                      <div className="absolute bottom-0 left-0 h-0.5 bg-primary/40 animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: '40%' }} />
+                      {typeof att.progress === 'number' ? (
+                        // Real byte progress from the transport; see
+                        // ComposerAttachment.progress for who reports it.
+                        <div
+                          className="absolute bottom-0 left-0 h-0.5 bg-primary/60 transition-[width] duration-300 ease-out"
+                          style={{ width: `${att.progress}%` }}
+                        />
+                      ) : (
+                        <div className="absolute bottom-0 left-0 h-0.5 bg-primary/40 animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: '40%' }} />
+                      )}
                     </div>
                   )}
                   <div className="relative flex items-center gap-2">
@@ -2958,6 +3395,34 @@ export function EmailComposer({
             >
               <Paperclip className="w-4 h-4" />
             </Button>
+            {filesEnabled && composerClient?.supportsFiles?.() && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFilesPicker({ client: composerClient, accountId: composerAccountId })}
+                className="h-9 w-9"
+                title={t('attach_from_files')}
+                aria-label={t('attach_from_files')}
+                data-testid="composer-attach-from-files"
+              >
+                <HardDrive className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={togglePlainTextMode}
+              className={cn(
+                "h-9 w-9",
+                plainTextMode && "bg-muted text-foreground hover:bg-muted"
+              )}
+              title={plainTextMode ? t('format_rich_text') : t('format_plain_text')}
+              aria-label={plainTextMode ? t('format_rich_text') : t('format_plain_text')}
+              aria-pressed={plainTextMode}
+              data-testid="composer-format-toggle"
+            >
+              <Type className="w-4 h-4" />
+            </Button>
             {templatesEnabled && <>
               <Button
                 variant="ghost"
@@ -2995,7 +3460,48 @@ export function EmailComposer({
             >
               <MailCheck className="w-4 h-4" />
             </Button>
+            {composerClient?.supportsSubmissionExtension?.('DSN') && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setRequestDsn(v => !v)}
+                className={cn(
+                  "h-9 w-9",
+                  requestDsn && "bg-green-600 text-white hover:bg-green-600 hover:text-white dark:bg-green-600 dark:hover:bg-green-600"
+                )}
+                title={requestDsn ? t('dsn_on') : t('dsn_off')}
+                aria-pressed={requestDsn}
+                data-testid="composer-dsn-toggle"
+              >
+                <PackageCheck className="w-4 h-4" />
+              </Button>
+            )}
+            {composerClient?.supportsSubmissionExtension?.('REQUIRETLS') && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setRequireTls(v => !v)}
+                className={cn(
+                  "h-9 w-9",
+                  requireTls && "bg-green-600 text-white hover:bg-green-600 hover:text-white dark:bg-green-600 dark:hover:bg-green-600"
+                )}
+                title={requireTls ? t('require_tls_on') : t('require_tls_off')}
+                aria-pressed={requireTls}
+                data-testid="composer-require-tls-toggle"
+              >
+                <LockKeyhole className="w-4 h-4" />
+              </Button>
+            )}
             <PluginSlot name="composer-toolbar" />
+            {/* Lets a plugin offer an alternative attachment source (an
+                external file browser, cloud storage picker, etc). The plugin
+                calls `onAttach` once it has uploaded the chosen file to JMAP
+                itself (api.jmap.uploadBlob) and just wants it added to this
+                draft. */}
+            <PluginSlot
+              name="composer-attachment-source"
+              extraProps={{ onAttach: handlePluginAttachmentAdd }}
+            />
           </div>
 
           {/* Right side - Discard + Send (desktop) */}
@@ -3067,6 +3573,14 @@ export function EmailComposer({
           isOpen={showTemplatePicker}
           onClose={() => setShowTemplatePicker(false)}
           onSelect={handleTemplateSelect}
+        />
+      )}
+
+      {filesPicker && (
+        <FilePickerDialog
+          client={filesPicker.client}
+          onClose={() => setFilesPicker(null)}
+          onPick={handleFilesPicked}
         />
       )}
 

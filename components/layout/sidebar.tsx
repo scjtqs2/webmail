@@ -36,7 +36,7 @@ import {
   Mails,
   MailOpen,
   MoreHorizontal,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn, buildMailboxTree, MailboxNode } from "@/lib/utils";
 import { localizeMailboxName } from "@/lib/mailbox-label";
 import {
@@ -61,6 +61,7 @@ import { MAILBOX_DRAG_MIME } from "@/components/pro/pro-shell-drop";
 import { useTagDrop } from "@/hooks/use-tag-drop";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { unifiedLoadProgress } from "@/lib/unified-mailbox";
 import { useVacationStore } from "@/stores/vacation-store";
 import { useSettingsStore, getKeywordVisibility } from "@/stores/settings-store";
 import { useEmailStore } from "@/stores/email-store";
@@ -68,8 +69,9 @@ import { toast } from "@/stores/toast-store";
 import { debug } from "@/lib/debug";
 import { AccountSwitcher } from "./account-switcher";
 import { useIsEmbedded } from "@/hooks/use-is-embedded";
-import { buildSettingsPath } from "@/lib/deep-links";
+import { buildSettingsPath, SCHEDULED_MAILBOX_ID, scopedScheduledMailboxId } from "@/lib/deep-links";
 import { useTour } from "@/components/tour/tour-provider";
+import { toUnicodeEmail } from "@/lib/idn";
 
 interface SidebarProps {
   mailboxes: Mailbox[];
@@ -88,9 +90,16 @@ interface SidebarProps {
   onCreateFolder?: (accountId?: string) => void;
   onRenameFolder?: (mailboxId: string) => void;
   onDeleteFolder?: (mailboxId: string) => void;
+  onShareFolder?: (mailboxId: string) => void;
   onImportEmail?: (mailboxId: string) => void;
   onRefreshMailboxes?: () => void;
   scheduledTotal?: number;
+  /** Pending scheduled-send counts per JMAP account, for shared-account rows. */
+  scheduledTotalByAccount?: Record<string, number>;
+  /** JMAP account the scheduled view is currently narrowed to, if any. The
+   *  store keeps one virtual scheduled mailbox id, so the active shared row is
+   *  identified by this scope rather than by selectedMailbox alone. */
+  scheduledAccountScope?: string | null;
   showScheduledMailbox?: boolean;
   /** True when the unified view spans multiple login accounts (cross-account).
    *  Drives the section header: "All accounts" when true, else "Unified Mailbox". */
@@ -315,6 +324,7 @@ function SidebarRow({
       data-folder-name={testName ?? undefined}
       data-mailbox-id={testMailboxId ?? undefined}
       data-shared={testShared ? 'true' : undefined}
+      data-selected={isSelected ? 'true' : undefined}
       style={{ paddingBlock: 'var(--density-sidebar-py)' }}
       className={cn(
         "group w-full flex items-center max-lg:min-h-[44px] text-sm transition-colors duration-150",
@@ -397,6 +407,7 @@ function SidebarSectionHeader({
   sub,
   testId,
   onContextMenu,
+  status,
 }: {
   label: string;
   expanded: boolean;
@@ -409,6 +420,8 @@ function SidebarSectionHeader({
   sub?: boolean;
   testId?: string;
   onContextMenu?: (event: React.MouseEvent) => void;
+  /** A short note after the label, e.g. how many accounts have loaded. */
+  status?: ReactNode;
 }) {
   if (isCollapsed) {
     return first ? null : <div className="h-px bg-border/50 mx-2 my-2" aria-hidden />;
@@ -442,6 +455,7 @@ function SidebarSectionHeader({
       <span className={cn(textClass, icon ? "ms-1.5" : "ms-1.5")}>
         {label}
       </span>
+      {status}
       {onSettings && (
         <span
           role="button"
@@ -812,9 +826,12 @@ export function Sidebar({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  onShareFolder,
   onImportEmail,
   onRefreshMailboxes,
   scheduledTotal = 0,
+  scheduledTotalByAccount,
+  scheduledAccountScope = null,
   showScheduledMailbox = false,
   crossAccountActive = false,
   showCrossUnread = false,
@@ -893,10 +910,24 @@ export function Sidebar({
   // single account we still surface unified when the user has opted into
   // merging group/shared inboxes — otherwise the counts would just duplicate
   // the one inbox.
+  // Only show the section when mail-app will actually populate it: cross-account
+  // needs the admin gate + user toggle (`crossAccountActive`, which already
+  // implies 2+ connected accounts), otherwise a merged group inbox or one of
+  // the cross views must exist. A bare "2+ accounts" left an empty header. (#843)
+  const anyCrossViewEnabled = showCrossUnread || showCrossStarred || showCrossAll;
   const showUnified =
     (multiAccountMode || enableUnifiedMailbox) &&
-    (connectedAccounts.length > 1 || (includeGroupInUnified && hasGroupInboxes));
+    (crossAccountActive || (includeGroupInUnified && hasGroupInboxes) || anyCrossViewEnabled);
   const { unifiedCounts } = useEmailStore();
+  // While the other logins are still reconnecting after a load, the unified
+  // counts cover only the ones already back: say how many, so a partial total
+  // is not read as the whole. Gone as soon as the restore finishes, whatever
+  // became of the logins that did not make it.
+  const unifiedScope = useEmailStore((s) => s.unifiedScope);
+  const restoringAccounts = useAuthStore((s) => s.restoringAccounts);
+  const unifiedProgress = useMemo(() => unifiedLoadProgress({
+    crossAccountActive, restoring: restoringAccounts, scope: unifiedScope, accounts,
+  }), [crossAccountActive, restoringAccounts, accounts, unifiedScope]);
   const t = useTranslations('sidebar');
 
   useEffect(() => {
@@ -1021,21 +1052,36 @@ export function Sidebar({
       })
     : [];
 
-  const renderScheduledRow = (key: string) => showScheduledMailbox ? (
-    <SidebarRow
-      key={key}
-      icon={<CalendarClock className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />}
-      label={t('scheduled')}
-      depth={0}
-      isSelected={!selectedKeyword && selectedMailbox === '__scheduled__'}
-      total={scheduledTotal}
-      onClick={() => onMailboxSelect?.('__scheduled__')}
-      isCollapsed={isCollapsed}
-      testRole="scheduled"
-      testName="scheduled"
-      testMailboxId="__scheduled__"
-    />
-  ) : null;
+  // Scheduled row. Without an account it is the combined view (the user's own
+  // tree); with one it scopes the list to that shared account's scheduled mail,
+  // which lives in the shared JMAP account rather than the primary one (#874).
+  const renderScheduledRow = (key: string, account?: { accountId?: string; depth?: number }) => {
+    if (!showScheduledMailbox) return null;
+    const accountId = account?.accountId;
+    const mailboxId = accountId ? scopedScheduledMailboxId(accountId) : SCHEDULED_MAILBOX_ID;
+    const count = accountId
+      ? (scheduledTotalByAccount?.[accountId] ?? 0)
+      : scheduledTotal;
+    // selectedMailbox is always the plain virtual id, so the *scope* decides
+    // which of these rows is the active one.
+    const isScheduledSelected = selectedMailbox === SCHEDULED_MAILBOX_ID
+      && (scheduledAccountScope ?? null) === (accountId ?? null);
+    return (
+      <SidebarRow
+        key={key}
+        icon={<CalendarClock className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />}
+        label={t('scheduled')}
+        depth={account?.depth ?? 0}
+        isSelected={!selectedKeyword && isScheduledSelected}
+        total={count}
+        onClick={() => onMailboxSelect?.(mailboxId)}
+        isCollapsed={isCollapsed}
+        testRole="scheduled"
+        testName="scheduled"
+        testMailboxId={mailboxId}
+      />
+    );
+  };
 
   const getUnifiedIcon = (role: UnifiedMailboxRole) => {
     switch (role) {
@@ -1222,6 +1268,16 @@ export function Sidebar({
               onToggle={toggleUnified}
               isCollapsed={isCollapsed}
               first
+              status={unifiedProgress && (
+                <span
+                  className="ms-2 text-xs font-normal tabular-nums text-muted-foreground animate-pulse"
+                  title={t("all_accounts_loading", unifiedProgress)}
+                  data-testid="unified-accounts-loading"
+                >
+                  <span aria-hidden="true">{unifiedProgress.loaded}/{unifiedProgress.total}</span>
+                  <span className="sr-only">{t("all_accounts_loading", unifiedProgress)}</span>
+                </span>
+              )}
             />
             {((unifiedExpanded && !isCollapsed) || isCollapsed) && (
               <>
@@ -1280,7 +1336,7 @@ export function Sidebar({
             return (
               <div key={account.id} onContextMenu={isActive ? handleFoldersHeaderContextMenu : undefined}>
                 <SidebarSectionHeader
-                  label={account.label || account.email || account.username}
+                  label={toUnicodeEmail(account.label || account.email || account.username)}
                   expanded={expanded}
                   onToggle={() => toggleAccountGroup(account.id)}
                   onSettings={isActive ? openFolderSettings : undefined}
@@ -1395,20 +1451,29 @@ export function Sidebar({
                           ? (e) => handleSharedAccountContextMenu(e, menuAccountId)
                           : undefined}
                       />
-                      {accountExpanded && !isCollapsed && account.children.map((child) => (
-                        <MailboxTreeItem
-                          key={child.id}
-                          node={child}
-                          selectedMailbox={selectedKeyword ? "" : selectedMailbox}
-                          expandedFolders={expandedFolders}
-                          onMailboxSelect={onMailboxSelect}
-                          onToggleExpand={handleToggleExpand}
-                          isCollapsed={isCollapsed}
-                          onUnreadFilterClick={onUnreadFilterClick}
-                          colorful={colorfulSidebarIcons}
-                          onContextMenu={handleMailboxContextMenu}
-                        />
-                      ))}
+                      {accountExpanded && !isCollapsed && (
+                        <>
+                          {account.children.map((child) => (
+                            <Fragment key={child.id}>
+                              <MailboxTreeItem
+                                node={child}
+                                selectedMailbox={selectedKeyword ? "" : selectedMailbox}
+                                expandedFolders={expandedFolders}
+                                onMailboxSelect={onMailboxSelect}
+                                onToggleExpand={handleToggleExpand}
+                                isCollapsed={isCollapsed}
+                                onUnreadFilterClick={onUnreadFilterClick}
+                                colorful={colorfulSidebarIcons}
+                                onContextMenu={handleMailboxContextMenu}
+                              />
+                              {child.role === 'drafts' && menuAccountId
+                                && renderScheduledRow(`${account.id}-scheduled`, { accountId: menuAccountId })}
+                            </Fragment>
+                          ))}
+                          {menuAccountId && !account.children.some((child) => child.role === 'drafts')
+                            && renderScheduledRow(`${account.id}-scheduled`, { accountId: menuAccountId })}
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -1473,6 +1538,7 @@ export function Sidebar({
         onCreateFolder={onCreateFolder}
         onRenameFolder={onRenameFolder}
         onDeleteFolder={onDeleteFolder}
+        onShareFolder={onShareFolder}
         onImportEmail={onImportEmail}
         onRefresh={onRefreshMailboxes}
       />
