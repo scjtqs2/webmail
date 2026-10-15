@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Email } from "@/lib/jmap/types";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { TagPicker } from "@/components/email/tag-picker";
 import { getEmailTagIds } from "@/lib/thread-utils";
+import { PluginActions, usePluginActions } from "@/components/plugins/plugin-actions";
 
 interface EmailHoverActionsProps {
   email: Email;
@@ -27,6 +28,8 @@ interface EmailHoverActionsProps {
   onUndoSpam?: () => void;
   // Hidden where marking spam is meaningless for self-authored mail (Drafts, Sent).
   spamApplicable?: boolean;
+  /** Role of the folder the row is listed in; plugin buttons can be limited to some. */
+  mailboxRole?: string | null;
 }
 
 const ACTION_CONFIG: Record<HoverAction, {
@@ -66,6 +69,22 @@ const ACTION_CONFIG: Record<HoverAction, {
   },
 };
 
+/** The quick actions as shipped, before the user reorders them. */
+const DEFAULT_HOVER_ACTIONS: readonly HoverAction[] = ['delete', 'star', 'markRead', 'archive'];
+/** Gmail's row actions, in Gmail's order. */
+const MOUNTAIN_VIEW_HOVER_ACTIONS: readonly HoverAction[] = ['archive', 'delete', 'markRead'];
+
+/**
+ * The actions a Mountain View row shows on hover: Gmail's set while the user
+ * has not chosen their own, and never the star, which the row already leads
+ * with.
+ */
+export function mountainViewHoverActions(configured: readonly HoverAction[]): HoverAction[] {
+  const isDefault = configured.length === DEFAULT_HOVER_ACTIONS.length
+    && configured.every((action, i) => action === DEFAULT_HOVER_ACTIONS[i]);
+  return (isDefault ? MOUNTAIN_VIEW_HOVER_ACTIONS : configured).filter((action) => action !== 'star');
+}
+
 const CORNER_CLASSES = {
   'top-right': 'top-1 right-1',
   'top-left': 'top-1 left-1',
@@ -89,12 +108,18 @@ export function EmailHoverActions({
   isInJunk = false,
   onUndoSpam,
   spamApplicable = true,
+  mailboxRole = null,
 }: EmailHoverActionsProps) {
-  const hoverActions = useSettingsStore((state) => state.hoverActions);
+  const configuredHoverActions = useSettingsStore((state) => state.hoverActions);
+  const mountainView = useSettingsStore((state) => state.interfaceLayout === 'mountain-view');
+  const hoverActions = mountainView ? mountainViewHoverActions(configuredHoverActions) : configuredHoverActions;
   const hoverActionsMode = useSettingsStore((state) => state.hoverActionsMode);
   const hoverActionsCorner = useSettingsStore((state) => state.hoverActionsCorner);
   const t = useTranslations("settings.email_behavior.hover_actions");
   const isMobile = useIsMobile();
+  // Buttons plugins add to the row (message-row-actions), after the app's own.
+  const pluginActionCount = usePluginActions("message-row-actions", { mailboxRole }).length;
+  const pluginContext = useMemo(() => ({ emailId: email.id }), [email.id]);
 
   // The tag quick-action opens the same picker the context menu and the reading
   // pane use. It is portalled to the body because every row sits inside a
@@ -141,7 +166,7 @@ export function EmailHoverActions({
   const hoverBackgroundClassName = backgroundClassName;
 
   if (isMobile) return null;
-  if (hoverActions.length === 0) return null;
+  if (hoverActions.length === 0 && pluginActionCount === 0) return null;
 
   const handleAction = (e: React.MouseEvent, action: HoverAction) => {
     e.stopPropagation();
@@ -219,19 +244,32 @@ export function EmailHoverActions({
         aria-haspopup={actionId === "tag" ? "menu" : undefined}
         aria-expanded={actionId === "tag" ? tagPickerPos !== null : undefined}
         className={cn(
-          "p-1.5 rounded-md transition-colors duration-100 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10",
-          className,
+          "transition-colors duration-100 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10",
+          // Gmail's are round 40px targets that darken rather than change hue.
+          mountainView ? "p-2 rounded-full hover:text-foreground" : cn("p-1.5 rounded-md", className),
         )}
       >
         <DisplayIcon
           className={cn(
-            "w-4 h-4",
+            mountainView ? "w-5 h-5" : "w-4 h-4",
             actionId === "star" && isStarred && "fill-amber-400 text-amber-400",
           )}
         />
       </button>
     );
   });
+  if (pluginActionCount > 0) {
+    actionButtons.push(
+      <PluginActions
+        key="plugin-actions"
+        surface="message-row-actions"
+        context={pluginContext}
+        mailboxRole={mailboxRole}
+        compact
+        className="flex-nowrap gap-0.5"
+      />,
+    );
+  }
 
   const tagPicker =
     tagPickerPos && onSetTag

@@ -8,6 +8,7 @@ describe('applyLiteConfig (config.json for the static build)', () => {
     expect(config.appName).toBe('Webmail');
     expect(config.jmapServerUrl).toBe('');
     expect(config.rememberMeEnabled).toBe(true);
+    expect(config.loginShowRememberMe).toBe(false);
     expect(config.loginShowTotp).toBe(true);
     expect(config.faviconUrl).toBe('/branding/Bulwark_Favicon.svg');
     expect(config.loginLogoLightUrl).toBe('/branding/Bulwark_Logo_Color.svg');
@@ -103,13 +104,14 @@ describe('applyLitePolicy (policy.json for the static build)', () => {
 
   it('honours deployer gates and restrictions but never re-enables plugins', () => {
     const policy = applyLitePolicy({
-      features: { pluginsEnabled: true, sidebarAppsEnabled: true, calendarEnabled: false },
+      features: { pluginsEnabled: true, sidebarAppsEnabled: true, calendarEnabled: false, accountArchiveEnabled: true },
       restrictions: { theme: { locked: true, value: 'dark' } },
       forceEnabledPlugins: ['evil'],
       defaultSidebarApps: [{ id: 'x' }],
     });
     expect(policy.features.pluginsEnabled).toBe(false);
     expect(policy.features.sidebarAppsEnabled).toBe(false);
+    expect(policy.features.accountArchiveEnabled).toBe(false);
     expect(policy.features.calendarEnabled).toBe(false);
     expect(policy.restrictions.theme).toEqual({ locked: true, value: 'dark' });
     expect(policy.forceEnabledPlugins).toEqual([]);

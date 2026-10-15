@@ -12,6 +12,7 @@ import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextDirection } from "@/components/email/text-direction";
 import { PlainTextPaste } from "@/components/email/plain-text-paste";
+import { pastedImageFiles } from "@/components/email/paste-images";
 import { TextStyle, BackgroundColor } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import { FontSize, FONT_SIZES } from "@/components/email/font-size";
@@ -89,6 +90,17 @@ interface RichTextEditorProps {
   onEditorReady?: (editor: Editor) => void;
   /** Recipients an "@" in the text offers to mention; none turns it off. */
   mentionCandidates?: MentionCandidate[];
+  /**
+   * Hide the formatting toolbar on a phone. It wraps onto two rows there and,
+   * with the address fields, left little room for the text above the keyboard.
+   */
+  collapseToolbarOnMobile?: boolean;
+  /**
+   * Where the formatting toolbar sits: above the text (the default), pinned
+   * to the bottom of the editor as Gmail's compose window has it, or folded
+   * away entirely.
+   */
+  toolbarPlacement?: 'top' | 'bottom' | 'hidden';
 }
 
 function ToolbarButton({
@@ -111,7 +123,8 @@ function ToolbarButton({
       disabled={disabled}
       title={title}
       className={cn(
-        "p-1.5 rounded hover:bg-accent transition-colors",
+        // Bigger on a phone, where 28px was hard to hit with a finger.
+        "p-1.5 max-md:p-2 rounded hover:bg-accent transition-colors",
         active && "bg-accent text-accent-foreground",
         disabled && "opacity-40 cursor-not-allowed"
       )}
@@ -180,6 +193,8 @@ export function RichTextEditor({
   hasError,
   onEditorReady,
   mentionCandidates,
+  collapseToolbarOnMobile = false,
+  toolbarPlacement = 'top',
 }: RichTextEditorProps) {
   const rtlEditingSupport = useSettingsStore((st) => st.rtlEditingSupport);
   const tComposer = useTranslations("email_composer");
@@ -278,12 +293,15 @@ export function RichTextEditor({
         class: "tiptap min-h-[100px] px-4 py-3 text-sm text-foreground",
       },
       handleDrop: (view, event) => {
+        if (!event.dataTransfer?.files?.length) return false;
         const upload = onImageUploadRef.current;
-        if (!upload || !event.dataTransfer?.files?.length) return false;
-        const imageFiles = Array.from(event.dataTransfer.files).filter(f =>
-          f.type.startsWith("image/")
-        );
-        if (imageFiles.length === 0) return false;
+        const imageFiles = upload
+          ? Array.from(event.dataTransfer.files).filter(f => f.type.startsWith("image/"))
+          : [];
+        // A file dragged from the desktop also carries its path as text
+        // (file:///...), which ProseMirror would insert. Claim the drop but
+        // let it bubble so the composer attaches the file.
+        if (!upload || imageFiles.length === 0) return true;
         event.preventDefault();
         event.stopPropagation();
         for (const file of imageFiles) {
@@ -301,10 +319,8 @@ export function RichTextEditor({
       },
       handlePaste: (view, event) => {
         const upload = onImageUploadRef.current;
-        if (!upload || !event.clipboardData?.files?.length) return false;
-        const imageFiles = Array.from(event.clipboardData.files).filter(f =>
-          f.type.startsWith("image/")
-        );
+        if (!upload) return false;
+        const imageFiles = pastedImageFiles(event.clipboardData);
         if (imageFiles.length === 0) return false;
         event.preventDefault();
         for (const file of imageFiles) {
@@ -426,13 +442,22 @@ export function RichTextEditor({
   return (
     <div className={cn("flex flex-col", hasError && "ring-2 ring-red-500 dark:ring-red-400 rounded", className)}>
       {/* Toolbar - sticky within the composer's scroll container so it stays
-          visible while editing long bodies. The background stays at main's
-          bg-muted/30 in every state - backdrop-blur has no visual effect while
-          the toolbar rests on the solid page background, and blurs body text
-          sliding underneath only once pinned, so pinned legibility needs no
-          extra opaque overlay (an always-on stronger overlay would read darker
-          than main even at rest). */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 px-3 py-1.5 border-b border-border/50 bg-muted/30 backdrop-blur-sm">
+          visible while editing long bodies. Its background is the colour
+          bg-muted/30 gives over the page, made opaque: the same at rest, and
+          body text scrolling underneath stays hidden instead of showing
+          through, which a backdrop blur alone did not guarantee (browsers
+          that skip backdrop-filter drew the text sharp under the buttons). */}
+      <div
+        data-testid="rich-text-toolbar"
+        className={cn(
+          "sticky z-20 flex flex-wrap items-center gap-0.5 px-3 py-1.5 bg-[color-mix(in_oklab,var(--color-muted)_30%,var(--color-background))]",
+          toolbarPlacement === 'bottom'
+            ? "order-last bottom-0 mx-2 mb-1 rounded-lg border border-border/60 shadow-sm"
+            : "top-0 border-b border-border/50",
+          toolbarPlacement === 'hidden' && "hidden",
+          collapseToolbarOnMobile && "max-md:hidden"
+        )}
+      >
         {/* Font size - two baseline-aligned A's read as "size" at a glance;
             once a size is chosen the button shows that number instead. */}
         <div ref={fontSizeWrapperRef} className="relative">

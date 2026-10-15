@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { JMAPClient, RateLimitError } from '@/lib/jmap/client';
+import { JMAPClient, RateLimitError, RequestTimeoutError } from '@/lib/jmap/client';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { useIdentityStore } from './identity-store';
 import { setClientLookup } from './client-registry';
@@ -207,6 +207,11 @@ function isTransientAuthError(error: unknown): boolean {
   if (error instanceof TransientAuthError) return true;
   // fetch() rejects with TypeError when the network is unreachable.
   if (error instanceof TypeError) return true;
+  // A request that timed out, or a fetch that failed while the no-cors probe
+  // got through (connect() reports that as CORS_ERROR, which is also what a
+  // load balancer switching origins produces), is an outage too. (#1167)
+  if (error instanceof RequestTimeoutError) return true;
+  if (error instanceof Error && error.message === 'CORS_ERROR') return true;
   // JMAPClient.connect()/refreshSession() embed the HTTP status in the
   // message - a 5xx there is the server being down, not an auth failure.
   if (error instanceof Error) {
@@ -804,7 +809,7 @@ export function applyPreferredIdentity(accountId?: string | null): void {
     if (legacy) {
       preferred = legacy;
       const current = useSettingsStore.getState().preferredIdentityIds;
-      useSettingsStore.getState().updateSetting('preferredIdentityIds', { ...current, [targetId]: legacy });
+      useSettingsStore.getState().updateSetting('preferredIdentityIds', { ...current, [targetId]: legacy }, { internal: true });
     }
   }
   if (!preferred) return;
@@ -926,7 +931,7 @@ function initializeFeatureStores(client: IJMAPClient): void {
     // user has already made an explicit choice (`null` = not yet decided).
     const settings = useSettingsStore.getState();
     if (settings.trustedSendersAddressBook === null) {
-      settings.updateSetting('trustedSendersAddressBook', true);
+      settings.updateSetting('trustedSendersAddressBook', true, { internal: true });
     }
   } else {
     useContactStore.getState().setSupportsSync(false);
@@ -1238,6 +1243,25 @@ function performFullLogout(set: (state: Partial<AuthState>) => void): void {
   broadcastSignOut();
 }
 
+/**
+ * How long sign-out waits for plugins to tidy up. Plugins observe sign-out;
+ * they cannot stop it or hold it up, or a plugin could keep the user signed
+ * in on a shared computer.
+ */
+export const LOGOUT_HOOK_BUDGET_MS = 2000;
+
+function notifySignedIn(state: { activeAccountId: string | null; username: string | null }): void {
+  if (!state.activeAccountId) return;
+  void authHooks.onLogin.emit({ accountId: state.activeAccountId, username: state.username ?? '' });
+}
+
+function beforeLogoutHooks(accountId: string): Promise<void> {
+  return Promise.race([
+    authHooks.onBeforeLogout.emit({ accountId }),
+    new Promise<void>((resolve) => setTimeout(resolve, LOGOUT_HOOK_BUDGET_MS)),
+  ]);
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -1489,6 +1513,7 @@ export const useAuthStore = create<AuthState>()(
             });
           }).catch(() => {});
 
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Login error:', error);
@@ -1603,6 +1628,7 @@ export const useAuthStore = create<AuthState>()(
           }).catch(() => {});
 
           resumeSettingsSync({ id: accountId, username, serverUrl });
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Token login error:', error);
@@ -1668,6 +1694,7 @@ export const useAuthStore = create<AuthState>()(
             activeAccountId: demoAccountId,
             isDemoMode: true,
           });
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Demo login error:', error);
@@ -1811,6 +1838,7 @@ export const useAuthStore = create<AuthState>()(
             sessionStorage.removeItem('oauth_cookie_slot');
           }
 
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('OAuth login error:', error);
@@ -1948,6 +1976,7 @@ export const useAuthStore = create<AuthState>()(
             });
           }).catch(() => {});
 
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Server SSO login error:', error);
@@ -2042,6 +2071,7 @@ export const useAuthStore = create<AuthState>()(
 
             resetRefreshBackoff(accountId ?? undefined);
             scheduleRefresh(expires_in, get().refreshAccessToken, accountId ?? undefined);
+            if (accountId) void authHooks.onTokenRefresh.emit({ accountId });
             return access_token;
           } catch (error) {
             // Network failure (offline, Wi-Fi switch, server unreachable) -
@@ -2075,13 +2105,7 @@ export const useAuthStore = create<AuthState>()(
         const userInitiated = options?.endProviderSession !== false;
         const endProviderSession = userInitiated && !wasDemoMode && shouldEndProviderSession(account);
 
-        const ok = await authHooks.onBeforeLogout.intercept({
-          accountId: accountId ?? 'all',
-        });
-
-        if(!ok){
-          return;
-        }
+        await beforeLogoutHooks(accountId ?? 'all');
 
         // From here on nothing may renew this slot's session; the cleanup
         // below reopens it once the credentials are gone.
@@ -2106,13 +2130,19 @@ export const useAuthStore = create<AuthState>()(
         await useSettingsStore.getState().flushSync();
         useSettingsStore.getState().disableSync();
 
-        await authHooks.onAfterLogout.emit({
+        void authHooks.onAfterLogout.emit({
           accountId: accountId ?? 'all',
         });
 
         // Check if there are remaining accounts to switch to. Read the store
         // afresh: `accountStore` is the state from before removeAccount().
-        const nextAccount = wasDemoMode ? undefined : useAccountStore.getState().accounts[0];
+        // Prefer an account that is signed in here: one restored from the
+        // account list backup (or otherwise not connected) has no client, and
+        // picking it signs out every account left.
+        const remainingAccounts = useAccountStore.getState().accounts;
+        const nextAccount = wasDemoMode
+          ? undefined
+          : remainingAccounts.find((a) => clients.has(a.id)) ?? remainingAccounts[0];
         const droppedAccounts: AccountEntry[] = [];
 
         if (nextAccount) {
@@ -2223,13 +2253,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logoutAll: async () => {
-        const ok = await authHooks.onBeforeLogout.intercept({
-          accountId: 'all'
-        });
-
-        if(!ok){
-          return;
-        }
+        await beforeLogoutHooks('all');
 
         const accountStore = useAccountStore.getState();
         const allAccounts = [...accountStore.accounts];
@@ -2261,7 +2285,7 @@ export const useAuthStore = create<AuthState>()(
           accountStore.removeAccount(account.id);
         }
 
-        await authHooks.onAfterLogout.emit({
+        void authHooks.onAfterLogout.emit({
           accountId: 'all'
         });
 
@@ -2279,6 +2303,12 @@ export const useAuthStore = create<AuthState>()(
         const accountStore = useAccountStore.getState();
         const targetAccount = accountStore.getAccountById(accountId);
         if (!targetAccount) return;
+        // Restored from the account list backup and never signed in here:
+        // there is no session to resume, so ask for the password instead.
+        if (targetAccount.awaitingSignIn && !clients.has(accountId)) {
+          replaceWindowLocation(`${getLocaleLoginPath()}?mode=add-account&username=${encodeURIComponent(targetAccount.username)}`);
+          return;
+        }
 
         // A switch between two already-connected accounts is done seamlessly:
         // the current account's client and mail stay on screen while we verify
@@ -2560,8 +2590,13 @@ export const useAuthStore = create<AuthState>()(
           // and sync the passthrough auth context. The context write never
           // throws and doesn't depend on the connect result, so its round trip
           // overlaps the connect instead of running after it.
+          // Accounts signed in without "Remember me": a reload ends them on
+          // purpose, so it is not reported as an expired session.
+          let forgottenAccounts = 0;
           const restoreAccount = async (account: (typeof accounts)[number]) => {
             if (clients.has(account.id)) return; // Already connected
+            // Restored from the account list backup: listed until signed in.
+            if (account.awaitingSignIn) return;
 
             // A password or access token login without rememberMe leaves
             // nothing to restore - the user logged in without persisting
@@ -2570,6 +2605,7 @@ export const useAuthStore = create<AuthState>()(
             // way; a missing one surfaces as a 401 from fetchSlotSession below
             // and evicts too.)
             if (account.authMode !== 'oauth' && !account.rememberMe && !IS_LITE) {
+              forgottenAccounts += 1;
               evictAccount(account.id);
               accountStore.removeAccount(account.id);
               return;
@@ -2754,8 +2790,13 @@ export const useAuthStore = create<AuthState>()(
             }
           }
 
-          // No accounts could be restored
-          if (accounts.some((account) => accountStore.getAccountById(account.id))) {
+          // No accounts could be restored. Accounts restored from the account
+          // list backup were never signed in here, so they say nothing about
+          // the connection.
+          if (accounts.some((account) => {
+            const entry = accountStore.getAccountById(account.id);
+            return entry && !entry.awaitingSignIn;
+          })) {
             set({
               isAuthenticated: false,
               isLoading: false,
@@ -2767,7 +2808,8 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
 
-          markSessionExpired();
+          if (forgottenAccounts === accounts.length) saveRedirectAfterLogin();
+          else markSessionExpired();
           set({
             isAuthenticated: false,
             isLoading: false,
@@ -3028,3 +3070,14 @@ if (typeof window !== 'undefined') {
     if (useAuthStore.getState().isAuthenticated) navigateToLogin();
   });
 }
+
+// Plugins hear when a session becomes usable (after start-up or a sign-in)
+// and when another account becomes active, whichever path got there.
+useAuthStore.subscribe((state, prev) => {
+  const ready = state.isAuthenticated && !!state.client && !!state.activeAccountId;
+  const wasReady = prev.isAuthenticated && !!prev.client && !!prev.activeAccountId;
+  if (ready && !wasReady) void authHooks.onAuthReady.emit({ accountId: state.activeAccountId });
+  if (state.activeAccountId && prev.activeAccountId && state.activeAccountId !== prev.activeAccountId) {
+    void authHooks.onAccountSwitch.emit({ accountId: state.activeAccountId, previousAccountId: prev.activeAccountId });
+  }
+});

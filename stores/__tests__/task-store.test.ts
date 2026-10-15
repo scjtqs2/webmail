@@ -105,7 +105,7 @@ describe('task-store', () => {
       const created = await useTaskStore.getState().createTask(mockClient as IJMAPClient, { title: 'New Task' });
 
       expect(mockClient.createCalendarTask).toHaveBeenCalledWith({ title: 'New Task' });
-      expect(created.id).toBe('task-created');
+      expect(created?.id).toBe('task-created');
       expect(useTaskStore.getState().tasks).toContainEqual(created);
     });
 
@@ -119,6 +119,17 @@ describe('task-store', () => {
       const updated = useTaskStore.getState().tasks.find((t) => t.id === 't3');
       expect(updated?.title).toBe('Updated Title');
       expect(updated?.progress).toBe('needs-action');
+    });
+
+    it('reloads the list when a move to a shared calendar gives the task a new id (#1204)', async () => {
+      useTaskStore.setState({ tasks: [makeTask({ id: 't5' })], selectedTaskId: 't5' });
+      (mockClient.updateCalendarTask as ReturnType<typeof vi.fn>).mockResolvedValue('acct-2:new');
+      (mockClient.getCalendarTasks as ReturnType<typeof vi.fn>).mockResolvedValue([makeTask({ id: 'acct-2:new' })]);
+
+      await useTaskStore.getState().updateTask(mockClient as IJMAPClient, 't5', { calendarIds: { 'acct-2:cal-s': true } });
+
+      expect(useTaskStore.getState().tasks.map((t) => t.id)).toEqual(['acct-2:new']);
+      expect(useTaskStore.getState().selectedTaskId).toBe('acct-2:new');
     });
 
     it('deletes a task and resets selectedTaskId if selected', async () => {

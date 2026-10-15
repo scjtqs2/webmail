@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateAccountId, generateAvatarColor, getMaxAccounts } from '@/lib/account-utils';
+import { authHooks } from '@/lib/plugin-hooks';
 
 export interface AccountEntry {
   /** Unique key: `${username}@${serverHostname}` */
@@ -49,6 +50,11 @@ export interface AccountEntry {
   errorMessage?: string;
   /** Whether this is the default account (loaded on app start) */
   isDefault: boolean;
+  /**
+   * Brought back from the account list backup and not signed in on this
+   * device yet. Kept across reloads, and opening it leads to the sign-in form.
+   */
+  awaitingSignIn?: boolean;
 }
 
 interface AccountState {
@@ -93,6 +99,8 @@ export const useAccountStore = create<AccountState>()(
                     errorMessage: undefined,
                     lastLoginAt: entry.lastLoginAt,
                     authMode: entry.authMode,
+                    // Any sign-in ends the wait, whichever way it went.
+                    awaitingSignIn: entry.awaitingSignIn,
                   }
                 : a
             ),
@@ -123,11 +131,13 @@ export const useAccountStore = create<AccountState>()(
           activeAccountId: s.activeAccountId ?? id,
           defaultAccountId: isDefault ? id : s.defaultAccountId,
         }));
+        void authHooks.onAccountAdd.emit({ accountId: id });
 
         return id;
       },
 
       removeAccount: (accountId) => {
+        if (!get().accounts.some((a) => a.id === accountId)) return;
         set((s) => {
           const remaining = s.accounts.filter((a) => a.id !== accountId);
           const wasDefault = s.defaultAccountId === accountId;
@@ -151,6 +161,7 @@ export const useAccountStore = create<AccountState>()(
             defaultAccountId: newDefault,
           };
         });
+        void authHooks.onAccountRemove.emit({ accountId });
       },
 
       setActiveAccount: (accountId) => {
