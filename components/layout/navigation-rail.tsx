@@ -2,32 +2,40 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mail, Calendar, BookUser, HardDrive, Settings, Keyboard, Plus, Shield, LogOut, Check, Search } from "@/components/icons";
+import { Mail, CalendarEvent, Users, Folder, Settings, Keyboard, Plus, Shield, LogOut, Check, Search, Puzzle, Accessibility } from "@/components/icons";
+import { openAccessibilityPanel } from "@/components/accessibility/accessibility-quick-panel";
 import { AccountSwitcher } from "./account-switcher";
 import { iconForName } from "@/components/icons";
 import { useConfig } from "@/hooks/use-config";
 import { useThemeStore } from "@/stores/theme-store";
+import { useShallow } from "zustand/react/shallow";
 import { usePathname, Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useCalendarStore } from "@/stores/calendar-store";
-import { useEmailStore } from "@/stores/email-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { usePolicyStore } from "@/stores/policy-store";
 import { useResolvedSidebarApps } from "@/hooks/use-resolved-sidebar-apps";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAccountStore } from "@/stores/account-store";
 import { useUpdateStore, selectHasUpdate } from "@/stores/update-store";
-import { getActiveAccountSlotHeaders } from "@/lib/auth/active-account-slot";
-import { getMaxAccounts } from "@/lib/account-utils";
+import { accountAvatarName, getMaxAccounts } from "@/lib/account-utils";
 import { isDocumentRTL } from "@/i18n/direction";
 import { cn, formatFileSize } from "@/lib/utils";
-import { useMenuNavigation } from "@/hooks/use-menu-navigation";
+import { quotaLevel, type StorageQuota } from "@/lib/quota";
+import { useContextMenu } from "@/hooks/use-context-menu";
+import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
+import { useStalwartAdmin } from "@/hooks/use-stalwart-admin";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
-import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
+import { getPathPrefix, withBasePath } from "@/lib/browser-navigation";
+import { interceptLeave } from "@/lib/leave-guard";
 import { Avatar } from "@/components/ui/avatar";
-import { IS_LITE } from "@/lib/lite";
 import { toUnicodeEmail } from "@/lib/idn";
+import { usePluginPages, pluginPageHref, isPluginPageActive } from "@/hooks/use-plugin-pages";
+import { NotificationBell } from "@/components/notifications/notification-center";
+import { useBottomControls } from "@/hooks/use-bottom-controls";
+import { useAllInboxesUnread } from "@/hooks/use-all-inboxes-unread";
+import { writeRailHints, type RailHint } from "@/lib/boot-skeleton/hints";
 
 interface NavItem {
   id: string;
@@ -38,11 +46,23 @@ interface NavItem {
   badge?: number;
 }
 
+/**
+ * How wide a phone tab bar entry should be, or null when all of them fit at
+ * the normal width. A bar that doesn't fit shows whole entries and half of
+ * the next: half an entry says there is more to scroll to, a few cut-off
+ * pixels only look broken.
+ */
+export function tabBarItemWidth(barWidth: number, count: number, minWidth = 52): number | null {
+  if (!barWidth || count * minWidth <= barWidth) return null;
+  const whole = Math.max(1, Math.floor(barWidth / minWidth - 0.5));
+  return barWidth / (whole + 0.5);
+}
+
 interface NavigationRailProps {
   orientation?: "vertical" | "horizontal";
   collapsed?: boolean;
   className?: string;
-  quota?: { used: number; total: number } | null;
+  quota?: StorageQuota | null;
   isPushConnected?: boolean;
   onLogout?: () => void;
   onShowShortcuts?: () => void;
@@ -64,13 +84,18 @@ interface NavigationRailProps {
    */
   activeItemId?: 'mail' | 'calendar' | 'contacts' | 'files' | 'settings' | null;
   /**
+   * The admin panel's own rail: shows the Admin entry as the current one,
+   * for password admins too, who are not Stalwart admins.
+   */
+  adminActive?: boolean;
+  /**
    * Pro shell only: renders a Search entry that opens the global search
    * palette (#641) instead of navigating anywhere.
    */
   onOpenSearch?: () => void;
 }
 
-function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; total: number }; usagePercent: number }) {
+function StorageQuotaCircle({ quota, usagePercent }: { quota: StorageQuota; usagePercent: number }) {
   const t = useTranslations("sidebar");
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -111,15 +136,25 @@ function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; to
       ) return;
       setOpen(false);
     };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [open]);
 
   // Usage can legitimately exceed the quota (e.g. limit lowered after the fact)
   const free = Math.max(0, quota.total - quota.used);
-  const strokeColor = usagePercent > 90
+  const level = quotaLevel(quota);
+  const strokeColor = level === "full"
     ? "stroke-destructive"
-    : usagePercent > 70
+    : level === "warn"
       ? "stroke-warning"
       : "stroke-success";
 
@@ -130,6 +165,7 @@ function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; to
         onClick={() => setOpen(!open)}
         className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors cursor-pointer"
         aria-label={t("storage")}
+        aria-expanded={open}
       >
         <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
           <circle cx="16" cy="16" r="12" fill="none" className="stroke-muted" strokeWidth="3" />
@@ -141,7 +177,7 @@ function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; to
             style={{ transition: "stroke-dasharray 0.3s" }}
           />
         </svg>
-        <span className="absolute text-[7px] font-bold text-muted-foreground tabular-nums">
+        <span className="absolute text-[0.4375rem] font-bold text-muted-foreground tabular-nums">
           {Math.round(usagePercent)}%
         </span>
       </button>
@@ -167,16 +203,16 @@ function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; to
             <div
               className={cn(
                 "h-1.5 rounded-full transition-all",
-                usagePercent > 90
+                level === "full"
                   ? "bg-destructive"
-                  : usagePercent > 70
+                  : level === "warn"
                     ? "bg-warning"
                     : "bg-success"
               )}
               style={{ width: `${usagePercent}%` }}
             />
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+          <p className="text-[0.625rem] text-muted-foreground mt-1 tabular-nums">
             {Math.round(usagePercent)}% {t("storage_used").toLowerCase()}
           </p>
         </div>,
@@ -200,19 +236,38 @@ export function NavigationRail({
   onNavigate,
   activeItemId,
   onOpenSearch,
+  adminActive = false,
 }: NavigationRailProps) {
   const t = useTranslations("sidebar");
   const tGlobalSearch = useTranslations("global_search");
+  // The phone tab bar: toasts sit above it.
+  const tabBarRef = useBottomControls(orientation === "horizontal");
   const pathname = usePathname();
+  // Each app draws its own tab bar, so its scroll position starts over: bring
+  // the current entry back into view when it lies past the edge of a full bar.
+  const tabBarScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    tabBarScrollRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [pathname]);
+  const [tabBarWidth, setTabBarWidth] = useState(0);
+  useEffect(() => {
+    const bar = tabBarScrollRef.current;
+    if (!bar || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setTabBarWidth(bar.clientWidth));
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [orientation]);
   const router = useRouter();
   const { appLogoLightUrl, appLogoDarkUrl } = useConfig();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-  const { supportsCalendar } = useCalendarStore();
-  const { mailboxes } = useEmailStore();
+  const { supportsCalendar } = useCalendarStore(useShallow((state) => ({ supportsCalendar: state.supportsCalendar })));
   const client = useAuthStore((s) => s.client);
   const supportsFiles = client?.supportsFiles() ?? false;
   const supportsContacts = client?.supportsContacts() ?? false;
   const showRailAccountList = useSettingsStore((s) => s.showRailAccountList);
+  const showAccessibilityButton = useSettingsStore((s) => s.showAccessibilityButton);
+  const simpleMode = useSettingsStore((s) => s.simpleMode);
+  const mountainView = useSettingsStore((s) => s.interfaceLayout === 'mountain-view');
   const sidebarAppsEnabled = usePolicyStore((s) => s.isFeatureEnabled('sidebarAppsEnabled'));
   const filesEnabled = usePolicyStore((s) => s.isFeatureEnabled('filesEnabled'));
   const contactsEnabled = usePolicyStore((s) => s.isFeatureEnabled('contactsEnabled'));
@@ -220,13 +275,27 @@ export function NavigationRail({
   // Operator-provided apps (#931) plus the user's own; the gate above only
   // removes the user's, so a pinned set still shows when custom apps are off.
   const visibleSidebarApps = useResolvedSidebarApps();
-  const inboxUnread = mailboxes.find(m => m.role === "inbox")?.unreadEmails || 0;
-  const [isStalwartAdmin, setIsStalwartAdmin] = useState(false);
+  // Pages plugins added (api.ui.setPages); listed after the built-in apps.
+  const pluginPages = usePluginPages();
+  // Every signed-in account's inbox, as the favicon and the tab title count
+  // it (mail-6), unless Notifications says to count the open one only.
+  const inboxUnread = useAllInboxesUnread();
+  const isStalwartAdmin = useStalwartAdmin();
   const hasUpdate = useUpdateStore(selectHasUpdate);
   const updateSeverity = useUpdateStore((s) => s.status?.severity);
   const startUpdatePolling = useUpdateStore((s) => s.startPolling);
   useEffect(() => { startUpdatePolling(); }, [startUpdatePolling]);
   const updateImportant = updateSeverity === 'security' || updateSeverity === 'deprecated';
+  const tShell = useTranslations("shell");
+  // Settings > Accessibility: the unread count as a number, as a dot, or not
+  // at all. A dot keeps the count in the link's name; hidden drops it too.
+  const unreadCountStyle = useSettingsStore((s) => s.unreadCountStyle);
+  const badgeShown = (item: NavItem) => item.badge != null && item.badge > 0 && unreadCountStyle !== 'hidden';
+  // "Mail, 3 unread": the badge itself is hidden from screen readers.
+  const itemName = (item: NavItem) =>
+    badgeShown(item) ? tShell("name_unread", { name: t(item.labelKey), count: item.badge ?? 0 }) : t(item.labelKey);
+  // Said with the admin entry; its dot alone is not announced.
+  const updateLabel = hasUpdate ? tShell(updateImportant ? "update_important" : "update_available") : null;
 
   // Account list for rail
   const accounts = useAccountStore((s) => s.accounts);
@@ -236,92 +305,18 @@ export function NavigationRail({
   const switchAccount = useAuthStore((s) => s.switchAccount);
   const logout = useAuthStore((s) => s.logout);
   const logoutAll = useAuthStore((s) => s.logoutAll);
-  const [logoutMenuOpen, setLogoutMenuOpen] = useState(false);
-  const logoutBtnRef = useRef<HTMLButtonElement>(null);
-  // Portalled to <body>, so without explicit focus handling the menu is
-  // unreachable for keyboard and screen reader users (#719).
-  const closeLogoutMenu = useCallback(() => setLogoutMenuOpen(false), []);
-  const { menuRef: logoutPopoverRef, onKeyDown: onLogoutMenuKeyDown } = useMenuNavigation<HTMLDivElement>({
-    open: logoutMenuOpen,
-    onClose: closeLogoutMenu,
-    triggerRef: logoutBtnRef,
-  });
-  const [logoutPopoverStyle, setLogoutPopoverStyle] = useState<React.CSSProperties>({});
+  // Sign out: the app's own menu, as every ⋮ and right-click has it.
+  const logoutMenu = useContextMenu<null>();
+  const logoutMenuOpen = logoutMenu.contextMenu.isOpen;
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
-  const updateLogoutPosition = useCallback(() => {
-    if (!logoutBtnRef.current) return;
-    const rect = logoutBtnRef.current.getBoundingClientRect();
-    setLogoutPopoverStyle(
-      isDocumentRTL()
-        ? {
-            position: "fixed",
-            right: window.innerWidth - rect.left + 8,
-            bottom: Math.max(8, window.innerHeight - rect.bottom),
-          }
-        : {
-            position: "fixed",
-            left: rect.right + 8,
-            bottom: Math.max(8, window.innerHeight - rect.bottom),
-          }
-    );
-  }, []);
 
-  // Position before the first paint (same reasoning as the quota popover above).
-  useLayoutEffect(() => {
-    if (logoutMenuOpen) updateLogoutPosition();
-  }, [logoutMenuOpen, updateLogoutPosition]);
-
-  useEffect(() => {
-    if (!logoutMenuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        logoutBtnRef.current?.contains(e.target as Node) ||
-        logoutPopoverRef.current?.contains(e.target as Node)
-      ) return;
-      setLogoutMenuOpen(false);
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLogoutMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [logoutMenuOpen, logoutPopoverRef]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const headers = getActiveAccountSlotHeaders();
-    // No admin console in the static Lite build.
-    if (IS_LITE || !headers['X-JMAP-Cookie-Slot']) return;
-    apiFetch('/api/admin/auth', { headers })
-      .then(res => res.json())
-      .then(data => {
-        if (cancelled || !data.stalwartAdmin) return;
-        setIsStalwartAdmin(true);
-        // Only "auto" mode may mint the admin session here; in "password"
-        // mode the shield leads to /admin/login instead (#870).
-        if (!data.authenticated && data.stalwartAutoLogin === true) {
-          // Pre-create admin session so /admin works even after full page navigation
-          apiFetch('/api/admin/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...headers },
-            body: JSON.stringify({ stalwartAuth: true }),
-          }).catch(() => {});
-        }
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
 
   const navItems: NavItem[] = [
     { id: "mail", icon: Mail, labelKey: "mail", href: "/", badge: inboxUnread },
-    { id: "calendar", icon: Calendar, labelKey: "calendar", href: "/calendar", hidden: !supportsCalendar || !calendarEnabled },
-    { id: "contacts", icon: BookUser, labelKey: "contacts", href: "/contacts", hidden: !supportsContacts || !contactsEnabled },
-    { id: "files", icon: HardDrive, labelKey: "files", href: "/files", hidden: !supportsFiles || !filesEnabled },
+    { id: "calendar", icon: CalendarEvent, labelKey: "calendar", href: "/calendar", hidden: !supportsCalendar || !calendarEnabled },
+    { id: "contacts", icon: Users, labelKey: "contacts", href: "/contacts", hidden: !supportsContacts || !contactsEnabled },
+    { id: "files", icon: Folder, labelKey: "files", href: "/files", hidden: !supportsFiles || !filesEnabled },
   ];
 
   // When the host (e.g. the Pro shell) takes over navigation via `onNavigate`,
@@ -332,19 +327,38 @@ export function NavigationRail({
 
   const visibleItems = navItems.filter((item) => !item.hidden);
 
+  // Leave the next page load's skeleton a note of what this rail shows
+  // (lib/boot-skeleton/hints.ts). Only once a session is up: before that the
+  // rail is still missing the apps the server offers.
+  const quotaShown = !!quota && quota.total > 0;
+  useEffect(() => {
+    if (!client) return;
+    const items: RailHint[] = [];
+    for (const item of navItems) if (item.id !== 'mail' && !item.hidden) items.push(item.id as RailHint);
+    if (sidebarAppsEnabled && onManageApps) items.push('add-app');
+    if (isStalwartAdmin) items.push('admin');
+    if (showAccessibilityButton) items.push('a11y');
+    if (quotaShown) items.push('quota');
+    writeRailHints(items);
+    // navItems is rebuilt every render; its inputs are listed instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, supportsCalendar, calendarEnabled, supportsContacts, contactsEnabled, supportsFiles, filesEnabled, sidebarAppsEnabled, !!onManageApps, isStalwartAdmin, showAccessibilityButton, quotaShown]);
+
   const getIsActive = (href: string, itemId: string) => {
     if (activeAppId) return false;
     if (onNavigate) {
       return activeItemId === itemId;
     }
     if (href === "/") {
-      return pathname === "/" || pathname === "";
+      // Mountain View's bottom bar marks the mail tab on mail routes too.
+      return pathname === "/" || pathname === "" || (mountainView && pathname.startsWith("/mail"));
     }
     return pathname.startsWith(href);
   };
 
   const handleNavClick = (itemId: 'mail' | 'calendar' | 'contacts' | 'files' | 'settings') =>
     (e: React.MouseEvent) => {
+      if (interceptLeave(e)) return;
       if (onNavigate) {
         const intercepted = onNavigate(itemId);
         if (intercepted !== false) {
@@ -358,12 +372,34 @@ export function NavigationRail({
     };
 
   if (orientation === "horizontal") {
+    // Settings stays outside the part that scrolls: plugin pages and apps fill
+    // the bar, and the last entry must not end up off screen with nothing to
+    // say there is more. Sized by item count so all entries are equally wide.
+    const scrollingCount = visibleItems.length + pluginPages.length
+      + visibleSidebarApps.filter((app) => app.showOnMobile).length
+      + (isStalwartAdmin || adminActive ? 1 : 0);
+    const itemWidth = tabBarItemWidth(tabBarWidth, scrollingCount);
     return (
       <nav
-        className={cn("flex items-center bg-background border-t border-border shrink-0 overflow-x-auto mobile-scroll-hidden pb-[calc(env(safe-area-inset-bottom)/2)]", className)}
+        ref={tabBarRef}
+        data-mobile-navigation=""
+        className={cn(
+          "flex items-center bg-background border-t border-border shrink-0 pb-[calc(env(safe-area-inset-bottom)/2)]",
+          mountainView && "min-h-16 border-t-0 bg-secondary shadow-[0_-1px_3px_rgb(0_0_0/0.08)]",
+          className
+        )}
         role="navigation"
         aria-label={t("nav_label")}
       >
+        <div
+          ref={tabBarScrollRef}
+          data-mobile-navigation-scroll=""
+          className="flex items-center min-w-0 overflow-x-auto mobile-scroll-hidden"
+          style={{
+            flex: `${scrollingCount} 1 ${scrollingCount * 52}px`,
+            ...(itemWidth ? { "--tab-item-width": `${itemWidth}px` } as React.CSSProperties : {}),
+          }}
+        >
         {visibleItems.map((item) => {
           const isActive = getIsActive(item.href, item.id);
           const Icon = item.icon;
@@ -372,8 +408,51 @@ export function NavigationRail({
               key={item.id}
               href={item.href}
               onClick={handleNavClick(item.id as 'mail' | 'calendar' | 'contacts' | 'files' | 'settings')}
+              data-tour={`nav-${item.id}`}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-2 px-1 min-h-[44px] grow shrink-0 basis-[64px]",
+                "flex flex-col items-center justify-center gap-1 py-2 px-0.5 min-h-[44px] grow shrink-0 basis-[var(--tab-item-width,52px)]",
+                "transition-colors duration-150",
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              aria-current={isActive ? "page" : undefined}
+              aria-label={itemName(item)}
+            >
+              <div className={cn(
+                "relative",
+                mountainView && isActive && "min-w-14 rounded-full bg-primary/15 px-4 py-[3px]"
+              )}>
+                <Icon className="w-5 h-5" />
+                {badgeShown(item) && (unreadCountStyle === 'dot' ? (
+                  <span aria-hidden="true" data-testid="rail-unread-dot" className="absolute -top-0.5 -end-1 w-2.5 h-2.5 rounded-full bg-red-500" />
+                ) : (
+                  <span aria-hidden="true" className="absolute -top-1.5 -end-2.5 flex items-center justify-center min-w-[16px] h-4 text-[0.625rem] font-bold rounded-full bg-red-600 text-white px-1">
+                    {item.badge! > 99 ? "99+" : item.badge}
+                  </span>
+                ))}
+                {isActive && !mountainView && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
+                )}
+              </div>
+              <span className="text-[0.625rem] font-medium leading-tight truncate max-w-full">{t(item.labelKey)}</span>
+            </Link>
+          );
+        })}
+
+        {/* Plugin pages, after the built-in apps */}
+        {pluginPages.map((page) => {
+          const isActive = !activeAppId && isPluginPageActive(pathname, page);
+          const PageIcon = iconForName(page.icon) ?? Puzzle;
+          return (
+            <Link
+              key={`plugin-page:${page.pluginId}:${page.id}`}
+              href={pluginPageHref(page)}
+              onClick={(e) => { if (interceptLeave(e)) return; if (activeAppId) onCloseInlineApp?.(); }}
+              data-plugin-page-link={`${page.pluginId}/${page.id}`}
+              title={page.pluginName}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 py-2 px-0.5 min-h-[44px] grow shrink-0 basis-[var(--tab-item-width,52px)]",
                 "transition-colors duration-150",
                 isActive
                   ? "text-primary"
@@ -381,18 +460,16 @@ export function NavigationRail({
               )}
               aria-current={isActive ? "page" : undefined}
             >
-              <div className="relative">
-                <Icon className="w-5 h-5" />
-                {item.badge != null && item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2.5 flex items-center justify-center min-w-[16px] h-4 text-[10px] font-bold rounded-full bg-red-500 text-white px-1">
-                    {item.badge > 99 ? "99+" : item.badge}
-                  </span>
-                )}
-                {isActive && (
+              <div className={cn(
+                "relative",
+                mountainView && isActive && "min-w-14 rounded-full bg-primary/15 px-4 py-[3px]"
+              )}>
+                <PageIcon className="w-5 h-5" />
+                {isActive && !mountainView && (
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
                 )}
               </div>
-              <span className="text-[10px] font-medium leading-tight truncate max-w-full">{t(item.labelKey)}</span>
+              <span className="text-[0.625rem] font-medium leading-tight truncate max-w-full">{page.title}</span>
             </Link>
           );
         })}
@@ -414,7 +491,7 @@ export function NavigationRail({
                 }
               }}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-2 px-1 min-h-[44px] grow shrink-0 basis-[64px]",
+                "flex flex-col items-center justify-center gap-1 py-2 px-0.5 min-h-[44px] grow shrink-0 basis-[var(--tab-item-width,52px)]",
                 "transition-colors duration-150",
                 isActive
                   ? "text-primary"
@@ -427,43 +504,51 @@ export function NavigationRail({
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
                 )}
               </div>
-              <span className="text-[10px] font-medium leading-tight truncate max-w-full">{app.name}</span>
+              <span className="text-[0.625rem] font-medium leading-tight truncate max-w-full">{app.name}</span>
             </button>
           );
         })}
 
         {/* Admin (Stalwart admins) - hard nav because /admin lives outside the [locale] tree */}
-        {isStalwartAdmin && (
+        {(isStalwartAdmin || adminActive) && (
           <a
             href={`${getPathPrefix()}/admin`}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 py-2 px-1 min-h-[44px] grow shrink-0 basis-[64px]",
+              "flex flex-col items-center justify-center gap-1 py-2 px-0.5 min-h-[44px] grow shrink-0 basis-[var(--tab-item-width,52px)]",
               "transition-colors duration-150",
-              "text-muted-foreground hover:text-foreground"
+              adminActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
+            aria-current={adminActive ? "page" : undefined}
           >
             <span className="relative">
               <Shield className="w-5 h-5" />
+              {adminActive && !mountainView && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
+              )}
               {hasUpdate && (
                 <span
                   className={cn(
-                    "absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-background",
+                    "absolute -top-0.5 -end-0.5 w-2 h-2 rounded-full ring-2 ring-background",
                     updateImportant ? "bg-red-500" : "bg-amber-500",
                   )}
-                  aria-label={updateImportant ? "Important update available" : "Update available"}
+                  aria-hidden="true"
                 />
               )}
             </span>
-            <span className="text-[10px] font-medium leading-tight truncate max-w-full">{t("admin") || "Admin"}</span>
+            <span className="text-[0.625rem] font-medium leading-tight truncate max-w-full">{t("admin") || "Admin"}</span>
+            {updateLabel && <span className="sr-only">{`, ${updateLabel}`}</span>}
           </a>
         )}
+
+        </div>
 
         {/* Settings */}
         <Link
           href="/settings"
           onClick={handleNavClick('settings')}
+          data-tour="nav-settings"
           className={cn(
-            "flex flex-col items-center justify-center gap-1 py-2 px-1 min-h-[44px] grow shrink-0 basis-[64px]",
+            "flex flex-col items-center justify-center gap-1 py-2 px-0.5 min-h-[44px] grow shrink-0 basis-[52px]",
             "transition-colors duration-150",
             isSettingsActive
               ? "text-primary"
@@ -477,7 +562,7 @@ export function NavigationRail({
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
             )}
           </div>
-          <span className="text-[10px] font-medium leading-tight truncate max-w-full">{t("settings")}</span>
+          <span className="text-[0.625rem] font-medium leading-tight truncate max-w-full">{t("settings")}</span>
         </Link>
       </nav>
     );
@@ -488,7 +573,9 @@ export function NavigationRail({
   return (
     <div
       className={cn(
-        "flex flex-col h-full",
+        // On a short window (a phone on its side) the whole rail scrolls: the
+        // pinned group at the bottom left the apps room for two icons.
+        "flex flex-col h-full scroll-hidden [@media(max-height:32rem)]:overflow-y-auto",
         collapsed ? "items-center" : "",
         className
       )}
@@ -507,8 +594,9 @@ export function NavigationRail({
       })()}
 
       <nav
+        data-window-rail=""
         className={cn(
-          "flex flex-col flex-1 min-h-0 overflow-y-auto scroll-hidden",
+          "flex flex-col flex-1 min-h-0 overflow-y-auto scroll-hidden [@media(max-height:32rem)]:flex-none [@media(max-height:32rem)]:overflow-visible",
           collapsed ? "items-center gap-1 py-3 px-1" : "gap-0.5 py-2 px-2",
         )}
         role="navigation"
@@ -522,7 +610,7 @@ export function NavigationRail({
             className={cn(
               "relative flex items-center gap-2.5 rounded-md transition-colors duration-150 cursor-pointer",
               collapsed ? "justify-center w-10 h-10" : "px-2.5 text-sm",
-              "max-lg:min-h-[44px]",
+              "tap:min-h-[44px]",
               "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             title={collapsed ? tGlobalSearch("title") : undefined}
@@ -546,25 +634,62 @@ export function NavigationRail({
                 collapsed
                   ? "justify-center w-10 h-10"
                   : "px-2.5 text-sm",
-                "max-lg:min-h-[44px]",
+                "tap:min-h-[44px]",
                 isActive
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               aria-current={isActive ? "page" : undefined}
+              aria-label={itemName(item)}
               title={collapsed ? t(item.labelKey) : undefined}
               style={collapsed ? undefined : { paddingBlock: 'var(--density-sidebar-py)' }}
             >
               <Icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-primary")} />
               {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
-              {item.badge != null && item.badge > 0 && (
-                <span className={cn(
-                  "absolute flex items-center justify-center min-w-[16px] h-4 text-[10px] font-bold rounded-full bg-red-500 text-white px-1",
-                  collapsed ? "-top-0.5 -right-0.5" : "right-1.5"
+              {badgeShown(item) && (unreadCountStyle === 'dot' ? (
+                <span aria-hidden="true" data-testid="rail-unread-dot" className={cn(
+                  "absolute w-2.5 h-2.5 rounded-full bg-red-500",
+                  collapsed ? "top-1 end-1" : "end-2.5"
+                )} />
+              ) : (
+                <span aria-hidden="true" className={cn(
+                  "absolute flex items-center justify-center min-w-[16px] h-4 text-[0.625rem] font-bold rounded-full bg-red-600 text-white px-1",
+                  collapsed ? "-top-0.5 -end-0.5" : "end-1.5"
                 )}>
-                  {item.badge > 99 ? "99+" : item.badge}
+                  {item.badge! > 99 ? "99+" : item.badge}
                 </span>
+              ))}
+            </Link>
+          );
+        })}
+
+        {/* Plugin pages, after the built-in apps */}
+        {pluginPages.map((page) => {
+          const isActive = !activeAppId && isPluginPageActive(pathname, page);
+          const PageIcon = iconForName(page.icon) ?? Puzzle;
+          return (
+            <Link
+              key={`plugin-page:${page.pluginId}:${page.id}`}
+              href={pluginPageHref(page)}
+              onClick={(e) => { if (interceptLeave(e)) return; if (activeAppId) onCloseInlineApp?.(); }}
+              data-plugin-page-link={`${page.pluginId}/${page.id}`}
+              className={cn(
+                "relative flex items-center gap-2.5 rounded-md transition-colors duration-150",
+                collapsed
+                  ? "justify-center w-10 h-10"
+                  : "px-2.5 text-sm",
+                "tap:min-h-[44px]",
+                isActive
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
+              aria-current={isActive ? "page" : undefined}
+              aria-label={collapsed ? page.title : undefined}
+              title={collapsed ? `${page.title} (${page.pluginName})` : page.pluginName}
+              style={collapsed ? undefined : { paddingBlock: 'var(--density-sidebar-py)' }}
+            >
+              <PageIcon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-primary")} />
+              {!collapsed && <span className="truncate">{page.title}</span>}
             </Link>
           );
         })}
@@ -599,7 +724,7 @@ export function NavigationRail({
                 collapsed
                   ? "justify-center w-10 h-10"
                   : "px-2.5 text-sm",
-                "max-lg:min-h-[44px]",
+                "tap:min-h-[44px]",
                 isActive
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -622,7 +747,7 @@ export function NavigationRail({
               collapsed
                 ? "justify-center w-10 h-10"
                 : "px-2.5 text-sm",
-              "max-lg:min-h-[44px]",
+              "tap:min-h-[44px]",
               "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             title={collapsed ? t("add_app") : undefined}
@@ -638,23 +763,44 @@ export function NavigationRail({
 
       {/* Footer: Admin + Settings + Help + Storage Quota + Sign Out + Push Status */}
       <div className="mt-auto flex flex-col items-center gap-2 pb-3 px-1">
-        {isStalwartAdmin && (
+        {(isStalwartAdmin || adminActive) && (
           <a
             href={`${getPathPrefix()}/admin`}
-            className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted relative"
+            className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-md transition-colors relative",
+              adminActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
             title={t("admin") || "Admin"}
+            aria-label={updateLabel ? `${t("admin") || "Admin"}, ${updateLabel}` : undefined}
+            aria-current={adminActive ? "page" : undefined}
           >
             <Shield className="w-[18px] h-[18px]" />
             {hasUpdate && (
               <span
                 className={cn(
-                  "absolute top-2 right-2 w-2 h-2 rounded-full ring-2 ring-background",
+                  "absolute top-2 end-2 w-2 h-2 rounded-full ring-2 ring-background",
                   updateImportant ? "bg-red-500" : "bg-amber-500",
                 )}
-                aria-label={updateImportant ? "Important update available" : "Update available"}
+                aria-hidden="true"
               />
             )}
           </a>
+        )}
+
+        <NotificationBell placement="side" className="w-10 h-10 rounded-md" />
+
+        {showAccessibilityButton && (
+          <button
+            type="button"
+            onClick={openAccessibilityPanel}
+            data-testid="rail-accessibility"
+            className="flex items-center justify-center w-10 h-10 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={t("accessibility")}
+            aria-label={t("accessibility")}
+            aria-keyshortcuts="Alt+Shift+A"
+          >
+            <Accessibility className="w-[18px] h-[18px]" />
+          </button>
         )}
 
         <Link
@@ -708,7 +854,7 @@ export function NavigationRail({
           </div>
         )}
 
-        {onLogout && showRailAccountList && accounts.length > 0 && (
+        {onLogout && showRailAccountList && !simpleMode && accounts.length > 0 && (
           <>
             <div className="w-8 border-t my-1" style={{ borderColor: 'rgba(128, 128, 128, 0.3)' }} />
 
@@ -731,14 +877,14 @@ export function NavigationRail({
                   title={`${toUnicodeEmail(account.displayName || account.label)} (${toUnicodeEmail(account.email || account.username)})`}
                 >
                   <Avatar
-                    name={account.displayName || account.label}
+                    name={accountAvatarName(account, accounts)}
                     email={account.email || account.username}
                     size="sm"
                     disableFavicon
                     fallbackColor={account.avatarColor}
                   />
                   {isActive && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary flex items-center justify-center">
+                    <span className="absolute -bottom-0.5 -end-0.5 w-3 h-3 rounded-full bg-primary flex items-center justify-center">
                       <Check className="w-2 h-2 text-primary-foreground" />
                     </span>
                   )}
@@ -757,10 +903,9 @@ export function NavigationRail({
             )}
             </div>
 
-            {/* Logout button with popover */}
+            {/* Sign out, with a menu */}
             <button
-              ref={logoutBtnRef}
-              onClick={() => setLogoutMenuOpen(!logoutMenuOpen)}
+              onClick={(ev) => (logoutMenuOpen ? logoutMenu.closeContextMenu() : logoutMenu.openContextMenuFrom(ev.currentTarget, null, "start"))}
               className="flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title={t("sign_out")}
               aria-label={t("sign_out")}
@@ -769,37 +914,18 @@ export function NavigationRail({
             >
               <LogOut className="w-4 h-4" />
             </button>
-
-            {logoutMenuOpen && createPortal(
-              <div
-                ref={logoutPopoverRef}
-                onKeyDown={onLogoutMenuKeyDown}
-                style={logoutPopoverStyle}
-                className="w-56 rounded-lg border border-border bg-background text-foreground shadow-lg z-50 overflow-hidden"
-                role="menu"
-                aria-label={t("sign_out")}
-              >
-                <button
-                  onClick={() => { setLogoutMenuOpen(false); logout(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
-                  role="menuitem"
-                >
-                  <LogOut className="w-4 h-4" />
-                  {t("sign_out")}
-                </button>
-                {accounts.length > 1 && (
-                  <button
-                    onClick={() => { setLogoutMenuOpen(false); logoutAll(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
-                    role="menuitem"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    {t("sign_out_all")}
-                  </button>
-                )}
-              </div>,
-              document.body
-            )}
+            <ContextMenu
+              ref={logoutMenu.menuRef}
+              isOpen={logoutMenuOpen}
+              position={logoutMenu.contextMenu.position}
+              onClose={logoutMenu.closeContextMenu}
+              label={t("sign_out")}
+            >
+              <ContextMenuItem icon={LogOut} label={t("sign_out")} onClick={() => { logoutMenu.closeContextMenu(); logout(); }} />
+              {accounts.length > 1 && (
+                <ContextMenuItem icon={LogOut} label={t("sign_out_all")} onClick={() => { logoutMenu.closeContextMenu(); logoutAll(); }} />
+              )}
+            </ContextMenu>
           </>
         )}
 

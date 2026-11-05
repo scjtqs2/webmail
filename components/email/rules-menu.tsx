@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { Email, Mailbox } from "@/lib/jmap/types";
 import { ContextMenuItem, ContextMenuSeparator, ContextMenuSubMenu } from "@/components/ui/context-menu";
 import {
@@ -17,6 +17,7 @@ import {
   Inbox,
   List,
   MailOpen,
+  Play,
   Plus,
   Send,
   Settings,
@@ -26,6 +27,7 @@ import {
 import { useRouter } from "@/i18n/navigation";
 import { buildMailboxTree, cn, generateUUID, type MailboxNode } from "@/lib/utils";
 import { localizeMailboxName } from "@/lib/mailbox-label";
+import { sortFolderTree } from "@/lib/move-menu";
 import { useAuthStore } from "@/stores/auth-store";
 import { useFilterStore } from "@/stores/filter-store";
 import { useQuickRuleStore, type FiltersStatus } from "@/stores/quick-rule-store";
@@ -47,14 +49,24 @@ import {
   type RulesMenuAvailability,
 } from "@/lib/filters/quick-rules";
 import {
-  getOwnAddresses,
+  getRuleAccountAddresses,
   knownListId,
   loadListIds,
+  resolveMailboxRuleTarget,
   resolveQuickRuleTarget,
   sourceMailboxOf,
   type QuickRuleTarget,
 } from "@/lib/filters/quick-rule-target";
-import { ensureFiltersStatus, openFilterSettings, runPresetRule, type QuickRuleText } from "@/lib/filters/quick-rule-flow";
+import {
+  ensureFiltersStatus,
+  openFilterSettings,
+  runPresetRule,
+  runRuleOnFolder,
+  type QuickRuleText,
+} from "@/lib/filters/quick-rule-flow";
+import { readAccountFilters } from "@/lib/filters/account-filters";
+import { retroactiveSupport } from "@/lib/filters/retroactive";
+import type { FilterRule } from "@/lib/jmap/sieve-types";
 
 /** Translators for the rule flows, which outlive the menu that starts them. */
 export function useQuickRuleText(): QuickRuleText {
@@ -141,7 +153,10 @@ function useRulesModel(anchor: Email, senderEmails: Email[], target: QuickRuleTa
   const emailKeywords = useSettingsStore((s) => s.emailKeywords);
   const status = useFiltersStatus(target);
 
-  const own = useMemo(() => getOwnAddresses(), []);
+  // Only this account's own addresses: mail from another account the user
+  // is signed in to is someone else's here (mail-p3-9).
+  const addresses = useMemo(() => getRuleAccountAddresses(target), [target]);
+  const own = addresses.own;
   const senders = useMemo(() => collectSenders(senderEmails, own), [senderEmails, own]);
 
   // Rows carry no headers, so the List-Id is asked for when the menu opens.
@@ -162,7 +177,12 @@ function useRulesModel(anchor: Email, senderEmails: Email[], target: QuickRuleTa
   }), [senders, listIds]);
 
   const targetIds = useMemo(() => ruleTargetMailboxIds(target.mailboxes), [target]);
-  const tree = useMemo(() => filterTree(buildMailboxTree(target.mailboxes), targetIds), [target, targetIds]);
+  // In the order every Move list has (lib/move-menu.ts).
+  const locale = useLocale();
+  const tree = useMemo(
+    () => sortFolderTree(filterTree(buildMailboxTree(target.mailboxes), targetIds), locale),
+    [target, targetIds, locale],
+  );
   const junk = useMemo(() => findJunkMailbox(target.mailboxes), [target]);
   const sourceMailboxId = useMemo(() => sourceMailboxOf(anchor, target)?.id ?? null, [anchor, target]);
 
@@ -192,7 +212,7 @@ function useRulesModel(anchor: Email, senderEmails: Email[], target: QuickRuleTa
       mode: "prefill",
       target,
       rule: buildPrefillRule(subject, text.filters, generateUUID()),
-      suggestions: buildSuggestions(source, subject, own, text.filters),
+      suggestions: buildSuggestions(source, subject, own, addresses.main, text.filters),
       sourceMailboxId,
     });
   };
@@ -237,21 +257,18 @@ function ContextFolderItems({
   const render = (nodes: MailboxNode[]): React.ReactNode => nodes.map((node) => {
     const Icon = mailboxIcon(node.role);
     const label = localizeMailboxName(node.role, node.name, (k) => tSidebar(`mailboxes.${k}`));
+    // Greyed, not plain text, so the desktop app's native copy keeps it as
+    // the head of its subfolders' submenu (data-native-submenu).
+    const enabled = model.targetIds.has(node.id);
     return (
-      <div key={node.id}>
-        {model.targetIds.has(node.id) ? (
-          <ContextMenuItem
-            icon={Icon}
-            label={label}
-            testId={`rules:${kind}:${node.id}`}
-            onClick={() => { model.moveTo(kind, node); onDone(); }}
-          />
-        ) : (
-          <div className="px-3 py-1.5 text-sm flex items-center gap-2 text-muted-foreground">
-            <Icon className="w-4 h-4 flex-shrink-0" />
-            <span>{label}</span>
-          </div>
-        )}
+      <div key={node.id} data-native-submenu={node.children.length > 0 ? "" : undefined}>
+        <ContextMenuItem
+          icon={Icon}
+          label={label}
+          disabled={!enabled}
+          testId={`rules:${kind}:${node.id}`}
+          onClick={() => { model.moveTo(kind, node); onDone(); }}
+        />
         {node.children.length > 0 && <div className="ps-4">{render(node.children)}</div>}
       </div>
     );
@@ -396,10 +413,13 @@ export function RulesContextSubMenu({
   anchor,
   senderEmails,
   onClose,
+  disabled = false,
 }: {
   anchor: Email;
   senderEmails: Email[];
   onClose: () => void;
+  /** Rules are saved on the server: greyed out offline. */
+  disabled?: boolean;
 }) {
   const t = useTranslations("context_menu");
   const accountEmails = useMemo(
@@ -413,12 +433,26 @@ export function RulesContextSubMenu({
       icon={Filter}
       label={t("rules.title")}
       testId="ctx-rules"
-      disabled={availability === "cross_account"}
+      disabled={disabled || availability === "cross_account"}
       hint={availability === "cross_account" ? t("rules.cross_account") : undefined}
     >
       {target && <ContextRulesContent anchor={anchor} senderEmails={senderEmails} target={target} onDone={onClose} />}
     </ContextMenuSubMenu>
   );
+}
+
+/**
+ * RulesContextSubMenu's entries without the submenu around them: the menu a
+ * selection view's Rules button opens (mail-p3-8).
+ */
+export function RulesContextList({ anchor, senderEmails, onClose }: { anchor: Email; senderEmails: Email[]; onClose: () => void }) {
+  const accountEmails = useMemo(
+    () => (senderEmails.some((e) => e.id === anchor.id) ? senderEmails : [anchor, ...senderEmails]),
+    [anchor, senderEmails],
+  );
+  const { availability, target } = useRulesAvailability(accountEmails);
+  if (availability === "hidden" || availability === "cross_account" || !target) return null;
+  return <ContextRulesContent anchor={anchor} senderEmails={senderEmails} target={target} onDone={onClose} />;
 }
 
 // ── Reading pane ⋮ menu ──────────────────────────────────────────────────
@@ -703,4 +737,104 @@ export function RulesPanel({
   onDone: () => void;
 }) {
   return <PanelContent key={email.id} email={email} target={target} variant={variant} onDone={onDone} />;
+}
+
+// ── Folder menu ──────────────────────────────────────────────────────────
+
+type FolderRules =
+  | { state: "loading" }
+  | { state: "error" }
+  | { state: "opaque" }
+  | { state: "ready"; rules: FilterRule[] };
+
+function FolderRulesContent({
+  mailbox,
+  target,
+  onDone,
+}: {
+  mailbox: Mailbox;
+  target: QuickRuleTarget;
+  onDone: () => void;
+}) {
+  const t = useTranslations("context_menu");
+  const tFilters = useTranslations("settings.filters");
+  const tSidebar = useTranslations("sidebar");
+  const text = useQuickRuleText();
+  const router = useRouter();
+  const [rules, setRules] = useState<FolderRules>({ state: "loading" });
+
+  // Read from the server: the filter store only holds the rules while
+  // Settings has loaded them, and may hold another account's.
+  useEffect(() => {
+    let cancelled = false;
+    readAccountFilters(target.client, target.sieveAccountId)
+      .then((filters) => {
+        if (cancelled) return;
+        setRules(filters.parsed.isOpaque ? { state: "opaque" } : { state: "ready", rules: filters.parsed.rules });
+      })
+      .catch(() => { if (!cancelled) setRules({ state: "error" }); });
+    return () => { cancelled = true; };
+  }, [target]);
+
+  const folderName = localizeMailboxName(mailbox.role, mailbox.name, (k) => tSidebar(`mailboxes.${k}`));
+  const note = (key: string, testId: string) => (
+    <div className="px-3 py-1.5 text-xs text-muted-foreground" data-testid={testId}>{t(key)}</div>
+  );
+
+  return (
+    <div className="max-w-[22rem]">
+      {rules.state === "loading" && note("rules.loading", "folder-rules:loading")}
+      {rules.state === "error" && note("rules.load_failed", "folder-rules:error")}
+      {rules.state === "opaque" && note("rules.opaque_hint", "rules:opaque-hint")}
+      {rules.state === "ready" && rules.rules.length === 0 && note("rules.none", "folder-rules:empty")}
+      {rules.state === "ready" && rules.rules.map((rule) => {
+        const support = retroactiveSupport(rule);
+        return (
+          <ContextMenuItem
+            key={rule.id}
+            icon={Play}
+            label={rule.name}
+            title={support.ok ? undefined : tFilters(support.reason === "period" ? "apply_existing_period" : "apply_existing_unsupported")}
+            hint={support.ok ? undefined : t("rules.new_mail_only")}
+            disabled={!support.ok}
+            testId={`folder-rules:run:${rule.id}`}
+            onClick={() => {
+              void runRuleOnFolder(target, rule, mailbox.id, folderName, text);
+              onDone();
+            }}
+          />
+        );
+      })}
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        icon={Settings}
+        label={t("rules.manage")}
+        testId="folder-rules:manage"
+        onClick={() => {
+          void openFilterSettings(target, (href) => router.push(href));
+          onDone();
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * The "Rules" entry of a folder's right-click menu: runs one of the account's
+ * saved rules over the mail already in the folder (#1166). Hidden for shared
+ * folders and accounts without Sieve.
+ */
+export function FolderRulesSubMenu({ mailbox, onClose, disabled = false }: { mailbox: Mailbox; onClose: () => void; disabled?: boolean }) {
+  const t = useTranslations("context_menu");
+  const client = useAuthStore((s) => s.client);
+  const target = useMemo(
+    () => (client && !mailbox.isShared ? resolveMailboxRuleTarget(mailbox) : null),
+    [client, mailbox],
+  );
+  if (!target || !target.supportsSieve) return null;
+  return (
+    <ContextMenuSubMenu icon={Filter} label={t("rules.title")} testId="mailbox-rules" disabled={disabled}>
+      <FolderRulesContent mailbox={mailbox} target={target} onDone={onClose} />
+    </ContextMenuSubMenu>
+  );
 }

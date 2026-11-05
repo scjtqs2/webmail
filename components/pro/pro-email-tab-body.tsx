@@ -3,22 +3,53 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { EmailViewer } from "@/components/email/email-viewer";
+import { MoveToDialog } from "@/components/email/move-to-dialog";
 import { ErrorBoundary, EmailViewerErrorFallback } from "@/components/error";
 import { useAuthStore } from "@/stores/auth-store";
-import { useEmailStore } from "@/stores/email-store";
+import { useEmailStore, resolveEmailBlobContext, bulkDeleteIsPermanent, restoreBatchesFor, type EmailBlobContext, type EmailWriteSource } from "@/stores/email-store";
 import { useIdentityStore } from "@/stores/identity-store";
 import { useProMultiAccountIdentities } from "@/hooks/use-pro-multi-account-identities";
-import { findDraftIdentityId } from "@/lib/reply-identity";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useIsFocusedProTab } from "@/hooks/use-pane-context";
+import { findDraftIdentityIdForLogin } from "@/lib/draft-source";
+import { deliveryAddresses } from "@/lib/reply-identity";
 import { useSettingsStore } from "@/stores/settings-store";
 import { toast } from "@/stores/toast-store";
-import { useProTabStore, type ProEmailTabData, type ProReplyContext } from "@/stores/pro-tab-store";
+import { useProTabStore, type ProComposeTabData, type ProEmailTabData, type ProReplyContext } from "@/stores/pro-tab-store";
+import { emailHooks } from "@/lib/plugin-hooks";
+import { composeOptionsFor, runBeforeCompose, type ComposePrefill } from "@/lib/plugin-compose-gate";
 import type { Email } from "@/lib/jmap/types";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import { buildReplySubject, buildForwardSubject } from "@/lib/subject-prefix";
 import { getQuoteBodies } from "@/lib/email-composer-utils";
 import { buildForwardAsAttachmentPayload } from "@/lib/forward-as-attachment";
-import { KEYWORD_PREFIX, KEYWORD_PREFIX_LEGACY } from "@/lib/thread-utils";
+import { KEYWORD_PREFIX, KEYWORD_PREFIX_LEGACY, emailKeyFor } from "@/lib/thread-utils";
+import { emailInMailbox } from "@/lib/move-targets";
+import { archiveInboxTarget } from "@/lib/archive-inbox";
 import { cn } from "@/lib/utils";
+import { getDraftComposerBody } from '@/lib/email-body-selection';
+import { messagePriorityFromHeaders } from '@/lib/message-priority';
+import { labelSourceHeaders, reopenedLabelChoice } from '@/lib/outgoing/classification';
+import { useArchiveActionEnabled } from '@/lib/archive-gate';
+import { confirmMailRemoval } from '@/lib/mail-removal-confirm';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { takeTabReply, useNotificationTabReply } from '@/lib/pwa-notify/tab-reply';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { saveQuickReplyDraft } from '@/lib/outgoing/quick-reply-envelope';
+import { canDownload } from '@/lib/device-policy';
+import { phishingMarkedNow } from '@/hooks/use-phishing-report';
+import { useOpenEmailInWindow } from '@/hooks/use-popouts-available';
+import { isFilePreviewable } from '@/lib/file-preview';
+import { useDesktopCommands } from '@/lib/desktop/commands';
+import { isPopoutWindow } from '@/lib/popout/window-role';
+import { offerMoveUndo } from '@/lib/popout/moved-undo';
+import { useViewConversation } from './use-view-conversation';
+import dynamic from 'next/dynamic';
+
+// Only needed when the device policy turns downloads off.
+const FilePreviewModal = dynamic(() => import('@/components/files/file-preview-modal').then((m) => m.FilePreviewModal), { ssr: false });
+// Only a message window opens the shortcuts help from here.
+const KeyboardShortcutsModal = dynamic(() => import('@/components/keyboard-shortcuts-modal').then((m) => m.KeyboardShortcutsModal), { ssr: false });
 
 interface ProEmailTabBodyProps {
   tabId: string;
@@ -33,6 +64,13 @@ interface ProEmailViewProps {
    */
   client?: IJMAPClient | null;
   /**
+   * The connected account `client` belongs to. Given, the message is read
+   * through `client` and a draft reopened from here is saved over and removed
+   * through that login. Absent, nothing says which login the message came
+   * through, and the composer goes by the draft's From.
+   */
+  clientAccountId?: string;
+  /**
    * Owner JMAP accountId for messages in shared/group folders. When set, the
    * message is fetched via `getEmail(emailId, accountId)` directly -
    * `fetchEmailContent`'s fallback derives the owner from the *globally*
@@ -42,6 +80,23 @@ interface ProEmailViewProps {
   /** Fires once the full message is loaded (tab retitling, sidebar highlight). */
   onLoaded?: (email: Email) => void;
   /**
+   * Opens a reply, forward or draft somewhere else than a Pro tab: a pop-out
+   * window (components/popout) has no tabs. Resolves true once it is on screen
+   * there: a draft leaves this view only then.
+   */
+  onOpenCompose?: (data: Omit<ProComposeTabData, 'sessionId'>) => Promise<boolean>;
+  /** Flags and folders as the server has them now, when the host tracks them (a pop-out). */
+  liveState?: Pick<Email, 'keywords' | 'mailboxIds'> | null;
+  /** This view changed the message's flags, for a host other windows should hear from. */
+  onMailChanged?: () => void;
+  /** See EmailViewer. */
+  noAutomaticActions?: boolean;
+  /**
+   * Show the message inside its conversation, as the mail page's reading
+   * pane does (a message window). "Show emails as individual messages" keeps one.
+   */
+  conversation?: boolean;
+  /**
    * The message left this view: deleted, archived, moved, or reopened in the
    * composer. The host decides what that means (close the tab / clear the
    * folder tab's selection).
@@ -50,21 +105,53 @@ interface ProEmailViewProps {
   className?: string;
 }
 
-function buildReplyContext(email: Email): ProReplyContext {
+/**
+ * A message the tab read through another login, or from a shared or group
+ * account, carries where it came from (sourceClientAccountId,
+ * sourceAccountId), as rows of the unified inbox do: then actions that
+ * route by the message (Report phishing, the remote-content lock of that
+ * account) reach its own account. A message of the active login's own
+ * account stays as it is.
+ */
+export function stampProSource(email: Email, source: EmailBlobContext, loginId: string | undefined): Email {
+  if (email.sourceClientAccountId && email.sourceAccountId) return email;
+  const activeLogin = useAuthStore.getState().activeAccountId ?? undefined;
+  const login = loginId ?? source.clientAccountId ?? activeLogin;
+  const ownAccount = source.client?.getAccountId?.();
+  const account = source.accountId ?? ownAccount;
+  const foreign = (!!login && login !== activeLogin) || (!!account && !!ownAccount && account !== ownAccount);
+  if (!foreign || !login || !account) return email;
+  return { ...email, sourceClientAccountId: login, sourceAccountId: account };
+}
+
+/**
+ * The login holding the message, for ProReplyContext.accountId: the composer
+ * defaults its From to that account and copies the original's parts from it
+ * (#1104, #1511). email.accountId can't say: it is for display, and a message
+ * read through client.getEmail() has none.
+ */
+function replyLogin(email: Email, source: EmailWriteSource): string | undefined {
+  return email.sourceClientAccountId ?? source.clientAccountId;
+}
+
+export function buildReplyContext(email: Email, source: EmailWriteSource): ProReplyContext {
   return {
+    phishingMarked: phishingMarkedNow(email),
     from: email.from,
     replyToAddresses: email.replyTo,
     to: email.to,
     cc: email.cc,
     bcc: email.bcc,
+    deliveredTo: deliveryAddresses(email.headers),
     subject: email.subject,
     ...getQuoteBodies(email),
     receivedAt: email.receivedAt,
-    accountId: email.accountId,
+    accountId: replyLogin(email, source),
     attachments: email.attachments,
     messageId: email.messageId,
     inReplyTo: email.inReplyTo,
     references: email.references,
+    headers: labelSourceHeaders(email.headers),
   };
 }
 
@@ -75,12 +162,21 @@ function buildReplyContext(email: Email): ProReplyContext {
  * Hosted by `ProEmailTabBody` (a dedicated email tab) and by the folder tab's
  * reading pane.
  */
-export function ProEmailView({ emailId, client: clientOverride, accountId, onLoaded, onClose, className }: ProEmailViewProps) {
+export function ProEmailView({ emailId, client: clientOverride, clientAccountId, accountId, onLoaded, onOpenCompose, liveState, onMailChanged, noAutomaticActions, conversation, onClose, className }: ProEmailViewProps) {
   const t = useTranslations();
   const tNotifications = useTranslations('notifications');
+  const tRemove = useTranslations('email_list.confirm_remove');
+  const tP3 = useTranslations('mail_p3_actions');
+  const tActions = useTranslations('reader_actions');
+  const { dialogProps: confirmDialogProps, confirm: confirmDialog } = useConfirmDialog();
+  const archiveActionEnabled = useArchiveActionEnabled();
 
   const activeClient = useAuthStore((s) => s.client);
   const client = clientOverride ?? activeClient;
+  // Only a login the host names: without one the message is read through
+  // fetchEmailContent, which routes by the main list (the login browsed
+  // there, a row with the same id) - not necessarily the active login.
+  const localAccountId = clientOverride ? clientAccountId : undefined;
   const fetchEmailContent = useEmailStore((s) => s.fetchEmailContent);
   const deleteEmail = useEmailStore((s) => s.deleteEmail);
   const markAsRead = useEmailStore((s) => s.markAsRead);
@@ -91,11 +187,61 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
   const identities = useIdentityStore((s) => s.identities);
   const multiAccountIdentities = useProMultiAccountIdentities();
 
-  const openComposeTab = useProTabStore((s) => s.openComposeTab);
+  const openComposeTabNow = useProTabStore((s) => s.openComposeTab);
 
   const [email, setEmail] = useState<Email | null>(null);
+  const [blobSource, setBlobSource] = useState<EmailBlobContext>({ client: null });
+  // The login and account the message was read in, for its $answered /
+  // $forwarded flag once a reply or forward from here is sent.
+  const activeAccountId = useAuthStore((s) => s.activeAccountId);
+  const writeSource = useMemo<EmailWriteSource>(() => ({
+    clientAccountId: blobSource.clientAccountId ?? (clientOverride ? localAccountId : activeAccountId ?? undefined),
+    accountId: blobSource.accountId,
+  }), [blobSource, clientOverride, localAccountId, activeAccountId]);
+  // A reader owns its load, including an in-flight one across account switches.
+  // Only a different message or explicit tab context starts a new load.
+  const loadRef = useRef<{
+    emailId: string;
+    clientOverride: typeof clientOverride;
+    accountId: typeof accountId;
+    blobSource: EmailBlobContext;
+    promise: Promise<Email | null>;
+    applied: boolean;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const composerSessionIdRef = useRef(0);
+
+  // Every compose tab opened from here asks onBeforeCompose first: a plugin
+  // may stop it or prefill it. Opens straight away when nobody listens.
+  const openComposeTab = useCallback((
+    data: Omit<ProComposeTabData, 'sessionId'>,
+    fields: Omit<NonNullable<Parameters<typeof composeOptionsFor>[1]>, 'ownEmails' | 'replyPrefix' | 'forwardPrefix'>,
+    onOpened?: () => void,
+  ) => {
+    const open = (prefill: ComposePrefill | null) => {
+      if (onOpenCompose) {
+        void onOpenCompose({ ...data, prefill }).then((shown) => {
+          if (shown) onOpened?.();
+        });
+        return;
+      }
+      composerSessionIdRef.current += 1;
+      openComposeTabNow({ ...data, sessionId: composerSessionIdRef.current, prefill });
+      onOpened?.();
+    };
+    if (emailHooks.onBeforeCompose.size === 0) {
+      open(null);
+      return;
+    }
+    void runBeforeCompose(composeOptionsFor(data.mode, {
+      ...fields,
+      ownEmails: identities.map((i) => i.email).filter((e): e is string => Boolean(e)),
+      replyPrefix: t('email_composer.prefix.reply'),
+      forwardPrefix: t('email_composer.prefix.forward'),
+    })).then((prefill) => {
+      if (prefill) open(Object.keys(prefill).length > 0 ? prefill : null);
+    });
+  }, [identities, onOpenCompose, openComposeTabNow, t]);
 
   // Held in a ref so a host passing an inline callback doesn't refetch the
   // message on every render.
@@ -105,11 +251,34 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
   useEffect(() => {
     let cancelled = false;
     if (!client) return;
+    let load = loadRef.current;
+    if (!load || load.emailId !== emailId || load.clientOverride !== clientOverride || load.accountId !== accountId) {
+      const state = useEmailStore.getState();
+      const ref = state.selectedEmail?.id === emailId
+        ? state.selectedEmail
+        : state.emails.find((e) => e.id === emailId);
+      // Folder/search panes supply their own context. A primary folder must
+      // not inherit an unrelated globally selected shared folder's owner.
+      const source = accountId || clientOverride
+        ? { client, accountId: accountId ?? client.getAccountId() }
+        : resolveEmailBlobContext(ref ?? null, client);
+      load = {
+        emailId, clientOverride, accountId, blobSource: source, applied: false,
+        promise: accountId || clientOverride
+          ? client.getEmail(emailId, source.accountId)
+          : fetchEmailContent(client, emailId),
+      };
+      loadRef.current = load;
+    }
+    const pending = load;
+    if (pending.applied) return;
     setIsLoading(true);
-    (accountId ? client.getEmail(emailId, accountId) : fetchEmailContent(client, emailId))
+    pending.promise
       .then((loaded) => {
         if (cancelled) return;
-        setEmail(loaded);
+        pending.applied = true;
+        setEmail(loaded ? stampProSource(loaded, pending.blobSource, clientOverride ? clientAccountId : undefined) : loaded);
+        setBlobSource(pending.blobSource);
         if (loaded) onLoadedRef.current?.(loaded);
       })
       .catch((err) => {
@@ -121,7 +290,14 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
     return () => {
       cancelled = true;
     };
-  }, [client, emailId, accountId, fetchEmailContent]);
+  }, [client, clientOverride, clientAccountId, emailId, accountId, fetchEmailContent]);
+
+  useEffect(() => {
+    if (!liveState) return;
+    setEmail((prev) => (prev && prev.id === emailId
+      ? { ...prev, keywords: liveState.keywords ?? prev.keywords, mailboxIds: liveState.mailboxIds ?? prev.mailboxIds }
+      : prev));
+  }, [liveState, emailId]);
 
   const currentMailboxRole = useMemo(() => {
     if (!email) return undefined;
@@ -131,42 +307,64 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
     return mb?.role;
   }, [email, mailboxes]);
 
+  const replyToMessage = useCallback((target: Email, draftText?: string) => {
+    openComposeTab({
+      mode: 'reply',
+      replyTo: buildReplyContext(target, writeSource),
+      sourceEmailId: target.id,
+      sourceEmailSource: writeSource,
+      initialDraftText: draftText,
+      title: buildReplySubject(target.subject || t('email_composer.new_message'), t('email_composer.prefix.reply')),
+    }, { source: target, body: draftText ?? '' });
+  }, [openComposeTab, t, writeSource]);
+
   const handleReply = useCallback((draftText?: string) => {
     if (!email) return;
-    composerSessionIdRef.current += 1;
+    replyToMessage(email, draftText);
+  }, [email, replyToMessage]);
+
+  // A notification's Reply, once this tab has the message (mail-app.tsx).
+  const pendingTabReply = useNotificationTabReply((s) => s.pending);
+  useEffect(() => {
+    if (!email || pendingTabReply?.emailId !== email.id) return;
+    const text = takeTabReply(email.id);
+    if (text !== null) handleReply(text);
+  }, [email, pendingTabReply, handleReply]);
+
+  const replyAllToMessage = useCallback((target: Email) => {
     openComposeTab({
-      sessionId: composerSessionIdRef.current,
-      mode: 'reply',
-      replyTo: buildReplyContext(email),
-      sourceEmailId: email.id,
-      initialDraftText: draftText,
-      title: buildReplySubject(email.subject || t('email_composer.new_message'), t('email_composer.prefix.reply')),
-    });
-  }, [email, openComposeTab, t]);
+      mode: 'replyAll',
+      replyTo: buildReplyContext(target, writeSource),
+      sourceEmailId: target.id,
+      sourceEmailSource: writeSource,
+      title: buildReplySubject(target.subject || t('email_composer.new_message'), t('email_composer.prefix.reply')),
+    }, { source: target });
+  }, [openComposeTab, t, writeSource]);
 
   const handleReplyAll = useCallback(() => {
     if (!email) return;
-    composerSessionIdRef.current += 1;
+    replyAllToMessage(email);
+  }, [email, replyAllToMessage]);
+
+  // A message window reads the message in its conversation (mail-p2-5).
+  const disableThreading = useSettingsStore((s) => s.disableThreading);
+  const conversationView = !!conversation && !disableThreading;
+  const viewConversation = useViewConversation({ enabled: conversationView, email, source: blobSource, onChanged: onMailChanged });
+
+  const forwardMessage = useCallback((target: Email) => {
     openComposeTab({
-      sessionId: composerSessionIdRef.current,
-      mode: 'replyAll',
-      replyTo: buildReplyContext(email),
-      sourceEmailId: email.id,
-      title: buildReplySubject(email.subject || t('email_composer.new_message'), t('email_composer.prefix.reply')),
-    });
-  }, [email, openComposeTab, t]);
+      mode: 'forward',
+      replyTo: buildReplyContext(target, writeSource),
+      sourceEmailId: target.id,
+      sourceEmailSource: writeSource,
+      title: buildForwardSubject(target.subject || t('email_composer.new_message'), t('email_composer.prefix.forward')),
+    }, { source: target });
+  }, [openComposeTab, t, writeSource]);
 
   const handleForward = useCallback(() => {
     if (!email) return;
-    composerSessionIdRef.current += 1;
-    openComposeTab({
-      sessionId: composerSessionIdRef.current,
-      mode: 'forward',
-      replyTo: buildReplyContext(email),
-      sourceEmailId: email.id,
-      title: buildForwardSubject(email.subject || t('email_composer.new_message'), t('email_composer.prefix.forward')),
-    });
-  }, [email, openComposeTab, t]);
+    forwardMessage(email);
+  }, [email, forwardMessage]);
 
   // Mirrors handleForward, but attaches the original as a message/rfc822
   // file instead of quoting it inline - see lib/forward-as-attachment.ts.
@@ -193,15 +391,17 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
     });
     if (!payload) return;
 
-    composerSessionIdRef.current += 1;
     openComposeTab({
-      sessionId: composerSessionIdRef.current,
       mode: 'forward',
       replyTo: {
         subject: email.subject,
         attachments: [payload.attachment],
+        headers: labelSourceHeaders(email.headers),
+        originalFrom: email.from,
+        accountId: replyLogin(email, writeSource),
       },
       sourceEmailId: email.id,
+      sourceEmailSource: writeSource,
       // payload.subject is intentionally blank for a subject-less email (to
       // match normal Forward's *composer* subject behavior - see
       // buildForwardAsAttachmentPayload). The Pro tab *title* is a separate
@@ -209,37 +409,81 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
       // above uses - reusing payload.subject here would give the tab an
       // empty title instead of e.g. "Fwd: New message".
       title: buildForwardSubject(email.subject || t('email_composer.new_message'), t('email_composer.prefix.forward')),
-    });
-  }, [email, openComposeTab, t]);
+    }, { subject: payload.subject });
+  }, [email, openComposeTab, t, writeSource]);
 
   const handleDelete = useCallback(async () => {
     if (!client || !email) return;
+    // The folder the message is in: the one browsed when it is there, else
+    // its own (a message window has no list, mail-p3-1).
+    const { selectedMailbox } = useEmailStore.getState();
+    const current = mailboxes.find((m) => m.id === selectedMailbox && emailInMailbox(email, m))
+      ?? mailboxes.find((m) => emailInMailbox(email, m));
+    // In Trash (and wherever deleting destroys mail) this is a delete for
+    // good: ask the main window's question first, and tell the store so, or
+    // it "moves" the message to the Trash it is already in.
+    const permanent = bulkDeleteIsPermanent(current);
+    if (permanent) {
+      const confirmed = await confirmDialog({
+        title: tP3('delete_forever_title'),
+        message: tP3('delete_forever_message'),
+        confirmText: tActions('delete_forever'),
+        variant: 'destructive',
+      });
+      if (!confirmed) return;
+    } else if (!(await confirmMailRemoval('delete', 1, confirmDialog, tRemove))) {
+      return;
+    }
+    // Where it was, for Undo; a delete for good has none.
+    const restore = permanent ? null : restoreBatchesFor([email], client);
     try {
-      await deleteEmail(client, email.id);
-      onClose();
+      // false: not deleted (a plugin stopped it), so the tab stays open.
+      if (await deleteEmail(client, email.id, permanent, emailKeyFor(email))) {
+        await offerMoveUndo('delete', client, restore, t, isPopoutWindow());
+        onClose();
+      }
     } catch (err) {
       console.error('Delete failed:', err);
       toast.error(tNotifications('error_deleting'));
     }
-  }, [client, email, deleteEmail, onClose, tNotifications]);
+  }, [client, email, mailboxes, deleteEmail, onClose, t, tNotifications, tP3, tActions, confirmDialog, tRemove]);
 
   const handleArchive = useCallback(async () => {
     if (!client || !email) return;
+    // In Archive the same action brings it back to the Inbox (mail-p3-4).
+    const { selectedMailbox } = useEmailStore.getState();
+    const current = mailboxes.find((m) => m.id === selectedMailbox && emailInMailbox(email, m))
+      ?? mailboxes.find((m) => emailInMailbox(email, m));
+    const archiveInbox = archiveInboxTarget(mailboxes, current?.id);
+    if (archiveInbox) {
+      const restore = restoreBatchesFor([email], client);
+      try {
+        if (!(await moveToMailbox(client, email.id, archiveInbox.id, emailKeyFor(email)))) return;
+        await offerMoveUndo('move', client, restore, t, isPopoutWindow());
+        onClose();
+      } catch (err) {
+        console.error('Move to Inbox failed:', err);
+      }
+      return;
+    }
     const archiveMb = mailboxes.find((m) => m.role === 'archive');
     if (!archiveMb) return;
+    if (!(await confirmMailRemoval('archive', 1, confirmDialog, tRemove))) return;
+    const restore = restoreBatchesFor([email], client);
     try {
-      await moveToMailbox(client, email.id, archiveMb.id);
-      toast.success(tNotifications('email_archived'));
+      if (!(await moveToMailbox(client, email.id, archiveMb.id, emailKeyFor(email)))) return;
+      await offerMoveUndo('archive', client, restore, t, isPopoutWindow());
       onClose();
     } catch (err) {
       console.error('Archive failed:', err);
     }
-  }, [client, email, mailboxes, moveToMailbox, onClose, tNotifications]);
+  }, [client, email, mailboxes, moveToMailbox, onClose, t, confirmDialog, tRemove]);
 
   const handleToggleStar = useCallback(async () => {
     if (!client || !email) return;
     try {
-      await toggleStar(client, email.id);
+      if (!(await toggleStar(client, email.id, emailKeyFor(email)))) return;
+      onMailChanged?.();
       // Reflect locally - the viewer re-reads from email-store's selectedEmail
       // shape only for the mail tab; here we update our local copy too.
       setEmail((prev) => prev ? {
@@ -251,21 +495,25 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
       } : prev);
     } catch (err) {
       console.error('Toggle star failed:', err);
+      toast.error(tNotifications('error_updating'));
     }
-  }, [client, email, toggleStar]);
+  }, [client, email, toggleStar, tNotifications, onMailChanged]);
 
-  const handleMarkAsRead = useCallback(async (emailIdToMark: string, read: boolean) => {
+  const handleMarkAsRead = useCallback(async (emailIdToMark: string, read: boolean, opts?: { automatic?: boolean }) => {
     if (!client) return;
     try {
-      await markAsRead(client, emailIdToMark, read);
+      if (!(await markAsRead(client, emailIdToMark, read))) return;
+      onMailChanged?.();
       setEmail((prev) => prev && prev.id === emailIdToMark ? {
         ...prev,
         keywords: { ...prev.keywords, $seen: read },
       } : prev);
     } catch (err) {
       console.error('Mark as read failed:', err);
+      // A refused mark-as-read on opening needs no notice (see EmailViewer).
+      if (!opts?.automatic) toast.error(tNotifications('error_updating'));
     }
-  }, [client, markAsRead]);
+  }, [client, markAsRead, tNotifications, onMailChanged]);
 
   const handleSetTag = useCallback((emailIdToTag: string, tagId: string | null) => {
     if (!email || email.id !== emailIdToTag) return;
@@ -293,54 +541,126 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
     setEmail({ ...email, keywords });
   }, [email, setEmailKeywordsLocal]);
 
+  // In a pop-out this message is all there is, so the menu bar's Message menu means it.
+  const inOwnWindow = typeof window !== 'undefined' && isPopoutWindow();
+  const seen = !!email?.keywords?.$seen;
+  // Message > Move to… in a pop-out: the same folder list the command palette opens.
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  useDesktopCommands({
+    'message.reply': () => handleReply(),
+    'message.replyAll': handleReplyAll,
+    'message.forward': handleForward,
+    'message.markRead': () => { if (email) void handleMarkAsRead(email.id, true); },
+    'message.markUnread': () => { if (email) void handleMarkAsRead(email.id, false); },
+    'message.star': () => void handleToggleStar(),
+    'message.archive': archiveActionEnabled ? () => void handleArchive() : undefined,
+    'message.delete': () => void handleDelete(),
+    'message.move': () => { if (email) setMoveDialogOpen(true); },
+  }, {
+    'message.reply': !!email,
+    'message.replyAll': !!email,
+    'message.forward': !!email,
+    'message.markRead': !!email && !seen,
+    'message.markUnread': !!email && seen,
+    'message.star': !!email,
+    'message.archive': !!email && archiveActionEnabled,
+    'message.delete': !!email,
+    'message.move': !!email,
+  }, inOwnWindow);
+
   const handleMoveToMailbox = useCallback(async (mailboxId: string) => {
     if (!client || !email) return;
+    const restore = restoreBatchesFor([email], client);
     try {
-      await moveToMailbox(client, email.id, mailboxId);
-      onClose();
+      if (await moveToMailbox(client, email.id, mailboxId, emailKeyFor(email))) {
+        await offerMoveUndo('move', client, restore, t, isPopoutWindow());
+        onClose();
+      }
     } catch (err) {
       console.error('Move failed:', err);
     }
-  }, [client, email, moveToMailbox, onClose]);
+  }, [client, email, moveToMailbox, onClose, t]);
 
-  const handleDownloadAttachment = useCallback(async (blobId: string, name: string, type?: string) => {
-    if (!client) return;
+  // This view's message answers the same keys as a message in the mail tab,
+  // while its tab is the one in front. c comes from the mail page, as on any tab.
+  const isFocusedTab = useIsFocusedProTab();
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const singleKeyShortcuts = useSettingsStore((s) => s.singleKeyShortcuts);
+  const shortcutEmails = useMemo(() => (email ? [email] : []), [email]);
+  const shortcutHandlers = useMemo(() => ({
+    onReply: () => handleReply(),
+    onReplyAll: handleReplyAll,
+    onForward: handleForward,
+    onToggleStar: () => void handleToggleStar(),
+    onArchive: archiveActionEnabled ? () => void handleArchive() : undefined,
+    onDelete: () => void handleDelete(),
+    onMarkAsUnread: email ? () => void handleMarkAsRead(email.id, false) : undefined,
+    onMarkAsRead: email ? () => void handleMarkAsRead(email.id, true) : undefined,
+    // A message window has no mail page behind it to answer ?.
+    onShowHelp: inOwnWindow ? () => setShowShortcuts(true) : undefined,
+  }), [email, handleReply, handleReplyAll, handleForward, handleToggleStar, archiveActionEnabled, handleArchive, handleDelete, handleMarkAsRead, inOwnWindow]);
+  // A Pro tab answers while it is the one in front; a message window is
+  // always in front of itself (it has no tabs).
+  useKeyboardShortcuts({
+    enabled: (isFocusedTab || inOwnWindow) && !!email && !showShortcuts,
+    singleKeyShortcuts,
+    emails: shortcutEmails,
+    selectedEmailId: email?.id,
+    handlers: shortcutHandlers,
+  });
+
+  // An attachment shown in the preview because the message's account turned
+  // downloads off (Organisation > Devices); the tab downloads otherwise.
+  const [preview, setPreview] = useState<{ blobId: string; name: string; type?: string; context: EmailBlobContext; policyAccount: string | null } | null>(null);
+  const handleDownloadAttachment = useCallback(async (blobId: string, name: string, type?: string, forceDownload?: boolean, source?: EmailBlobContext) => {
+    const context = source ?? blobSource;
+    if (!context.client) return;
+    const policyAccount = context.clientAccountId ?? localAccountId ?? email?.sourceClientAccountId ?? null;
+    if (!forceDownload && !canDownload(policyAccount ?? { client: context.client }) && isFilePreviewable(name, type)) {
+      setPreview({ blobId, name, type, context, policyAccount });
+      return;
+    }
     try {
-      await client.downloadBlob(blobId, name, type);
+      // Refused (and said so) by the device policy when downloads are off.
+      await context.client.downloadBlob(blobId, name, type, context.accountId);
     } catch (err) {
       console.error('Download failed:', err);
     }
-  }, [client]);
+  }, [blobSource, localAccountId, email?.sourceClientAccountId]);
+  const getPreviewContent = useCallback(async () => {
+    if (!preview?.context.client) throw new Error('No attachment selected');
+    const blob = await preview.context.client.fetchBlob(preview.blobId, preview.name, preview.type, preview.context.accountId);
+    return { blob, contentType: preview.type || blob.type };
+  }, [preview]);
+
+  const openInWindow = useOpenEmailInWindow();
 
   const handleQuickReply = useCallback(async (body: string) => {
     handleReply(body);
   }, [handleReply]);
 
+  // Before an automatic sign-out: the typed quick reply is kept as a draft.
+  const handleSaveQuickReplyDraft = useCallback(async (body: string) => {
+    if (!client || !email) return;
+    await saveQuickReplyDraft({ client, email, identities, body, replyPrefix: t('email_composer.prefix.reply') });
+  }, [client, email, identities, t]);
+
   const handleEditDraft = useCallback(() => {
     if (!email) return;
 
-    const bodyText = email.bodyValues
-      ? Object.values(email.bodyValues).map((v) => v.value).join('\n')
-      : '';
-    // A plain-text-only draft lists its text/plain part under htmlBody
-    // (RFC 8621 § 4.1.4 fallback) - only treat it as HTML when it really is.
-    const draftHtmlPart = email.htmlBody?.[0];
-    const htmlBody = draftHtmlPart?.partId
-      && (!draftHtmlPart.type || draftHtmlPart.type.toLowerCase() === 'text/html')
-      && email.bodyValues?.[draftHtmlPart.partId]
-      ? email.bodyValues[draftHtmlPart.partId].value
-      : undefined;
+    const { body, bodyText, plainTextMode } = getDraftComposerBody(email);
 
     // Preserve the identity the draft was composed with — match name + address
-    // against the same list the composer renders (see findDraftIdentityId).
+    // against the same list the composer renders, this login's identities
+    // first (see findDraftIdentityIdForLogin).
     const composerIdentities = multiAccountIdentities.enabled
       ? multiAccountIdentities.allIdentities
       : identities;
-    const matchedIdentityId = findDraftIdentityId(composerIdentities, email.from?.[0]);
+    const matchedIdentityId = findDraftIdentityIdForLogin(composerIdentities, email.from?.[0], localAccountId);
 
-    composerSessionIdRef.current += 1;
+    const draftSubject = email.subject && email.subject !== t('email_composer.no_subject') ? email.subject : '';
+    const addresses = (list: Email['to']) => (list ?? []).map((a) => a.email).filter(Boolean);
     openComposeTab({
-      sessionId: composerSessionIdRef.current,
       mode: 'compose',
       title: email.subject || t('email_composer.new_message'),
       initialData: {
@@ -350,39 +670,70 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
         // Drafts saved before #1189 stored an empty subject as the composer's
         // "(No Subject)" placeholder; reopen those with an empty field.
         subject: email.subject && email.subject !== t('email_composer.no_subject') ? email.subject : '',
-        body: htmlBody || bodyText,
+        body,
+        // Re-open in the format the draft was written in, as the classic
+        // view does: without it the composer's setting decided.
+        plainTextMode,
         showCc: (email.cc?.length || 0) > 0,
         showBcc: (email.bcc?.length || 0) > 0,
         selectedIdentityId: matchedIdentityId,
         subAddressTag: '',
         mode: 'compose',
         draftId: email.id,
+        // A draft in a shared or group folder is removed there when the
+        // composer replaces, sends or discards it, through the login this
+        // view names (see ComposerDraftData).
+        draftAccountId: accountId,
+        draftLocalAccountId: localAccountId,
         // The draft's already-uploaded parts - the classic path carries them
         // since #849; without this the Pro draft tab still opened the
         // composer without its files and the next save stripped them.
         attachments: email.attachments,
+        priority: messagePriorityFromHeaders(email.headers),
+        classification: reopenedLabelChoice(email.headers, localAccountId),
       },
-    });
-    onClose();
-  }, [email, identities, multiAccountIdentities, openComposeTab, onClose, t]);
+    }, { to: addresses(email.to), cc: addresses(email.cc), subject: draftSubject, body: bodyText }, onClose);
+  }, [email, accountId, localAccountId, identities, multiAccountIdentities, openComposeTab, onClose, t]);
 
   return (
     <div className={cn("flex h-full flex-col bg-background", className)}>
       <ErrorBoundary fallback={EmailViewerErrorFallback}>
         <EmailViewer
+          noAutomaticActions={noAutomaticActions}
           email={email}
+          mvConversation={conversationView ? viewConversation.emails : undefined}
+          conversationPane={conversationView}
+          mvConversationPending={conversationView && viewConversation.pending}
+          onLoadConversationEmail={conversationView ? (e) => void viewConversation.loadBody(e) : undefined}
+          onMarkConversationEmailRead={conversationView ? (e) => void viewConversation.markRead(e) : undefined}
+          onReplyConversationEmail={conversationView ? async (e) => {
+            // The reply quotes the message, so it needs the body.
+            const full = e.bodyValues ? e : await viewConversation.loadBody(e);
+            replyToMessage(full ?? e);
+          } : undefined}
+          onReplyAllConversationEmail={conversationView ? async (e) => {
+            const full = e.bodyValues ? e : await viewConversation.loadBody(e);
+            replyAllToMessage(full ?? e);
+          } : undefined}
+          onForwardConversationEmail={conversationView ? async (e) => {
+            const full = e.bodyValues ? e : await viewConversation.loadBody(e);
+            forwardMessage(full ?? e);
+          } : undefined}
+          blobSource={blobSource}
           isLoading={isLoading}
           onReply={handleReply}
           onReplyAll={handleReplyAll}
           onForward={handleForward}
           onForwardAsAttachment={handleForwardAsAttachment}
           onDelete={handleDelete}
-          onArchive={handleArchive}
+          onArchive={archiveActionEnabled ? handleArchive : undefined}
           onToggleStar={handleToggleStar}
           onMarkAsRead={handleMarkAsRead}
           onSetTag={handleSetTag}
           onDownloadAttachment={handleDownloadAttachment}
+          onOpenInWindow={openInWindow && email ? () => openInWindow(email) : undefined}
           onQuickReply={handleQuickReply}
+          onSaveQuickReplyDraft={handleSaveQuickReplyDraft}
           onEditDraft={handleEditDraft}
           onMoveToMailbox={handleMoveToMailbox}
           currentUserEmail={client?.getUsername()}
@@ -390,8 +741,29 @@ export function ProEmailView({ emailId, client: clientOverride, accountId, onLoa
           currentMailboxRole={currentMailboxRole}
           mailboxes={mailboxes}
           className="flex-1"
+          withListSelection={false}
         />
       </ErrorBoundary>
+      <ConfirmDialog {...confirmDialogProps} />
+      {inOwnWindow && <KeyboardShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />}
+      {inOwnWindow && (
+        <MoveToDialog
+          emails={moveDialogOpen && email ? [email] : []}
+          mailboxes={mailboxes}
+          selectedMailbox=""
+          onClose={() => setMoveDialogOpen(false)}
+          onMove={(mailboxId) => void handleMoveToMailbox(mailboxId)}
+        />
+      )}
+      {preview && (
+        <FilePreviewModal
+          name={preview.name}
+          onClose={() => setPreview(null)}
+          onDownload={() => void handleDownloadAttachment(preview.blobId, preview.name, preview.type, true, preview.context)}
+          getFileContent={getPreviewContent}
+          policyAccount={preview.policyAccount}
+        />
+      )}
     </div>
   );
 }
@@ -421,15 +793,17 @@ export function ProEmailTabBody({ tabId, data }: ProEmailTabBodyProps) {
     return mb?.isShared ? mb.accountId : undefined;
   }, [mailboxes, data.mailboxId]);
 
-  // A hit opened from another login (global search) is fetched through that
-  // login's client, targeting the owner accountId stamped on the hit (#847).
+  // A message opened with its login (a list row, a search hit of another
+  // login) is fetched through that login's client, targeting the owner
+  // accountId it came with (#847).
   const clientOverride = data.clientAccountId ? getClientForAccount(data.clientAccountId) ?? null : null;
 
   return (
     <ProEmailView
       emailId={data.emailId}
       client={clientOverride ?? undefined}
-      accountId={clientOverride ? data.accountId : ownerAccountId}
+      clientAccountId={clientOverride ? data.clientAccountId : undefined}
+      accountId={clientOverride ? (data.accountId || undefined) : ownerAccountId}
       onLoaded={handleLoaded}
       onClose={handleClose}
       className="w-full"

@@ -9,7 +9,7 @@ import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { debug } from "@/lib/debug";
 import { cn, formatFileSize } from "@/lib/utils";
 import { getFileIconByName } from "@/components/files/file-icons";
-import { loadFilesSettings } from "@/components/files/files-settings-dialog";
+import { getFilesSettings } from "@/components/files/files-settings";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import type { FileNode } from "@/lib/jmap/types";
 
@@ -45,13 +45,14 @@ function byFolderThenName(a: FileNode, b: FileNode): number {
 export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogProps) {
   const t = useTranslations("files");
   const tComposer = useTranslations("email_composer");
+  const tCommon = useTranslations("common");
   const [nodes, setNodes] = useState<FileNode[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [trail, setTrail] = useState<{ id: string; name: string }[]>([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Map<string, FileNode>>(() => new Map());
-  const [showHidden] = useState(() => loadFilesSettings().showHiddenFiles);
+  const [showHidden] = useState(() => getFilesSettings().showHiddenFiles);
 
   const modalRef = useFocusTrap({ isActive: true, onEscape: onClose, restoreFocus: true });
 
@@ -144,7 +145,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
         <span className="block truncate">{name}</span>
         {detail && <span className="block truncate text-xs text-muted-foreground">{detail}</span>}
       </span>
-      <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:rotate-180" />
+      <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
     </button>
   );
 
@@ -159,7 +160,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
         onClick={() => toggle(node)}
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-md text-start text-sm transition-colors",
-          checked ? "bg-primary/10" : "hover:bg-muted",
+          checked ? "bg-selection" : "hover:bg-muted",
         )}
       >
         <span
@@ -175,7 +176,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
           <span className="block truncate">{node.name}</span>
           {detail && <span className="block truncate text-xs text-muted-foreground">{detail}</span>}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatFileSize(node.size)}</span>
+        <bdi dir="ltr" className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatFileSize(node.size)}</bdi>
       </button>
     );
   };
@@ -210,7 +211,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
         {here === null && !needle && sharedRoots.length > 0 && folderRow(
           SHARED_WITH_ME,
           t("shared_with_me"),
-          <Users className="w-5 h-5 shrink-0 text-blue-500" />,
+          <Users className="w-5 h-5 shrink-0 text-primary" />,
           () => openFolder(SHARED_WITH_ME, t("shared_with_me")),
         )}
         {entries.map((node) =>
@@ -218,7 +219,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
             ? folderRow(
                 node.id,
                 node.name,
-                <Folder className="w-5 h-5 shrink-0 text-blue-500" />,
+                <Folder className="w-5 h-5 shrink-0 text-primary" />,
                 () => openFolder(node.id, node.name),
                 sharedBy(node),
               )
@@ -245,7 +246,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
           <button
             type="button"
             onClick={onClose}
-            aria-label={t("cancel")}
+            aria-label={tCommon("close")}
             className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
           >
             <X className="w-4 h-4" />
@@ -256,6 +257,7 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
           <div className="relative">
             <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
+              aria-label={t("search_placeholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("search_placeholder")}
@@ -272,11 +274,11 @@ export function FilePickerDialog({ client, onClose, onPick }: FilePickerDialogPr
                   trail.length === 0 ? "font-medium text-foreground" : "text-muted-foreground",
                 )}
               >
-                {t("breadcrumb_root")}
+                {t("my_files")}
               </button>
               {trail.map((crumb, i) => (
                 <span key={crumb.id} className="flex items-center gap-1 min-w-0">
-                  <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground rtl:rotate-180" />
+                  <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                   <button
                     type="button"
                     onClick={() => setTrail(trail.slice(0, i + 1))}

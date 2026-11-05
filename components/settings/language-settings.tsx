@@ -1,39 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { useLocaleStore } from '@/stores/locale-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import type { DateFormat, DateLocale, TimeFormat, FirstDayOfWeek } from '@/stores/settings-store';
 import { formatDate } from '@/lib/utils';
-import { AUTO_TIME_ZONE, getBrowserTimeZone, getEffectiveTimeZone, listTimeZones } from '@/lib/timezone';
+import { getEffectiveLocale } from '@/i18n/detect-locale';
+import { getEffectiveTimeZone } from '@/lib/timezone';
+import { useIsDesktopApp } from '@/hooks/use-is-desktop-app';
 import { SettingsSection, SettingItem, Select, RadioGroup } from './settings-section';
+import { TimeZonePicker } from './time-zone-picker';
 
 export function LanguageSettings() {
   const t = useTranslations('settings.language_region');
   const tDays = useTranslations('calendar.days');
+  const tGeneral = useTranslations('uxs_general');
+  const desktop = useIsDesktopApp();
 
   const { dateFormat, dateLocale, timeFormat, firstDayOfWeek, timeZone, updateSetting } = useSettingsStore();
-
-  // Browser zone + zone list are read after mount: SSR has no browser, and a
-  // server/client mismatch in the option list would trip hydration.
-  const [browserTimeZone, setBrowserTimeZone] = useState('UTC');
-  const [timeZones, setTimeZones] = useState<string[]>([]);
-  useEffect(() => {
-    setBrowserTimeZone(getBrowserTimeZone());
-    setTimeZones(listTimeZones());
-  }, []);
-
-  const timeZoneOptions = useMemo(() => {
-    const options = [{ value: AUTO_TIME_ZONE, label: t('time_zone.auto', { zone: browserTimeZone }) }];
-    // A zone synced from another browser (newer tz database) may be missing
-    // from this runtime's list; keep it selectable rather than snapping the
-    // <select> to the first entry.
-    const zones = timeZone !== AUTO_TIME_ZONE && !timeZones.includes(timeZone) ? [...timeZones, timeZone].sort() : timeZones;
-    for (const zone of zones) options.push({ value: zone, label: zone.replace(/_/g, ' ') });
-    return options;
-  }, [t, browserTimeZone, timeZones, timeZone]);
 
   // Subscribe to locale changes so the preview re-renders on language switch
   // (formatDate reads it via getState() and would otherwise stay stale).
@@ -53,12 +39,35 @@ export function LanguageSettings() {
     const older = new Date(now);
     older.setMonth(now.getMonth() - 2);
     older.setHours(15, 31, 0, 0);
+    // The date order samples use last year: this year's dates read "Oct 24"
+    // when the order follows the language.
+    const lastYear = new Date(older);
+    lastYear.setFullYear(now.getFullYear() - 1);
     return {
       today: formatDate(today),
       thisWeek: formatDate(thisWeek),
       older: formatDate(older),
+      // Every dropdown option carries a sample of what it renders, so the
+      // choices read alike instead of mixing names, hints and patterns.
+      dateFormat: {
+        smart: formatDate(thisWeek, { dateFormat: 'smart' }),
+        relative: formatDate(thisWeek, { dateFormat: 'relative' }),
+        full: formatDate(older, { dateFormat: 'full' }),
+      },
+      dateLocale: {
+        auto: formatDate(lastYear, { dateFormat: 'smart', dateLocale: 'auto' }),
+        iso: formatDate(lastYear, { dateFormat: 'smart', dateLocale: 'iso' }),
+        'en-GB': formatDate(lastYear, { dateFormat: 'smart', dateLocale: 'en-GB' }),
+        'en-US': formatDate(lastYear, { dateFormat: 'smart', dateLocale: 'en-US' }),
+      },
     };
   }, [locale, dateFormat, dateLocale, timeFormat, timeZone]);
+
+  // CJK labels use full-width parentheses.
+  const withExample = (label: string, example: string) => {
+    if (!example) return label;
+    return /^(zh|ja)/.test(getEffectiveLocale()) ? `${label}（${example}）` : `${label} (${example})`;
+  };
 
   // Current wall-clock in the effective zone so a pick can be sanity-checked.
   const timeZonePreview = useMemo(() => {
@@ -77,7 +86,7 @@ export function LanguageSettings() {
   }, [timeZone, timeFormat, locale]);
 
   return (
-    <SettingsSection title={t('title')} description={t('description')}>
+    <SettingsSection id="language" title={t('title')} description={t('description')}>
       <SettingItem label={t('language.label')} description={t('language.description')}>
         <LanguageSwitcher />
       </SettingItem>
@@ -88,9 +97,9 @@ export function LanguageSettings() {
             value={dateFormat}
             onChange={(value) => updateSetting('dateFormat', value as DateFormat)}
             options={[
-              { value: 'smart', label: t('date_format.smart') },
-              { value: 'relative', label: t('date_format.relative') },
-              { value: 'full', label: t('date_format.full') },
+              { value: 'smart', label: withExample(t('date_format.smart'), preview.dateFormat.smart) },
+              { value: 'relative', label: withExample(t('date_format.relative'), preview.dateFormat.relative) },
+              { value: 'full', label: withExample(t('date_format.full'), preview.dateFormat.full) },
             ]}
           />
           <div className="text-xs text-muted-foreground text-end space-y-0.5 font-mono">
@@ -110,15 +119,15 @@ export function LanguageSettings() {
         </div>
       </SettingItem>
 
-      <SettingItem label={t('date_locale.label')} description={t('date_locale.description')}>
+      <SettingItem advanced label={t('date_locale.label')} description={t('date_locale.description')}>
         <Select
           value={dateLocale}
           onChange={(value) => updateSetting('dateLocale', value as DateLocale)}
           options={[
-            { value: 'auto', label: t('date_locale.auto') },
-            { value: 'iso', label: t('date_locale.iso') },
-            { value: 'en-GB', label: t('date_locale.dmy') },
-            { value: 'en-US', label: t('date_locale.mdy') },
+            { value: 'auto', label: withExample(t('date_locale.auto'), preview.dateLocale.auto) },
+            { value: 'iso', label: withExample(t('date_locale.iso'), preview.dateLocale.iso) },
+            { value: 'en-GB', label: withExample(t('date_locale.dmy'), preview.dateLocale['en-GB']) },
+            { value: 'en-US', label: withExample(t('date_locale.mdy'), preview.dateLocale['en-US']) },
           ]}
         />
       </SettingItem>
@@ -134,14 +143,12 @@ export function LanguageSettings() {
         />
       </SettingItem>
 
-      <SettingItem label={t('time_zone.label')} description={t('time_zone.description')}>
+      <SettingItem
+        label={t('time_zone.label')}
+        description={desktop ? tGeneral('time_zone_desktop_description') : t('time_zone.description')}
+      >
         <div className="flex flex-col items-end gap-2">
-          <Select
-            value={timeZone}
-            onChange={(value) => updateSetting('timeZone', value)}
-            options={timeZoneOptions}
-            className="max-w-[16rem]"
-          />
+          <TimeZonePicker value={timeZone} onChange={(value) => updateSetting('timeZone', value)} />
           {timeZonePreview && (
             <div className="text-xs text-muted-foreground text-end font-mono">
               <span className="opacity-70">{t('time_zone.preview_now')} </span>

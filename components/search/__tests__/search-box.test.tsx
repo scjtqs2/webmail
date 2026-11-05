@@ -1,8 +1,9 @@
 // React's onFocus/onBlur listen to focusin/focusout — RTL's fireEvent fires both.
 import { render, screen, act, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { SearchBox } from '../search-box';
+import { useEmailStore } from '@/stores/email-store';
 import { useSearchHistoryStore } from '@/stores/search-history-store';
 
 vi.mock('@/components/ui/avatar', () => ({
@@ -192,5 +193,136 @@ describe('SearchBox suggestions (#845)', () => {
     render(<Harness disabled />);
     fireEvent.focus(input());
     expect(screen.queryByRole('listbox')).toBeNull();
+  });
+});
+
+describe('SearchBox and password managers', () => {
+  it('is a search field, which Bitwarden never offers to fill', () => {
+    // data-bwignore only works when the user opted in to it in Bitwarden.
+    render(<Harness />);
+    expect(input()).toHaveAttribute('type', 'search');
+  });
+});
+
+describe('SearchBox draft', () => {
+  beforeEach(() => {
+    useSearchHistoryStore.setState({ recentSearches: [] });
+  });
+
+  it('keeps the typed text to itself until it is submitted', () => {
+    const onChange = vi.fn();
+    const onSubmit = vi.fn();
+    render(<Harness onChange={onChange} onSubmit={onSubmit} />);
+    fireEvent.change(input(), { target: { value: 'i' } });
+    fireEvent.change(input(), { target: { value: 'in' } });
+    fireEvent.change(input(), { target: { value: 'invoice' } });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input().value).toBe('invoice');
+
+    fireEvent.submit(input().closest('form')!);
+    expect(onSubmit).toHaveBeenCalledWith('invoice');
+  });
+
+  it('hands the typed text over when focus leaves the box', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    fireEvent.change(input(), { target: { value: 'invoice' } });
+    fireEvent.blur(input());
+    expect(onChange).toHaveBeenCalledWith('invoice');
+  });
+
+  it('leaves the search on Enter in an emptied box, like the clear button', () => {
+    const onClear = vi.fn();
+    const onSubmit = vi.fn();
+    render(<Harness initial="invoice" onClear={onClear} onSubmit={onSubmit} />);
+    fireEvent.change(input(), { target: { value: '' } });
+    fireEvent.submit(input().closest('form')!);
+
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on Enter in an empty box when no search is in force', () => {
+    const onClear = vi.fn();
+    render(<Harness onClear={onClear} />);
+    fireEvent.submit(input().closest('form')!);
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it('shows a query set from outside', () => {
+    function Outside() {
+      const [value, setValue] = React.useState('');
+      return (
+        <>
+          <button onClick={() => setValue('from:alice')}>set</button>
+          <SearchBox value={value} onChange={setValue} onSubmit={() => {}} onClear={() => {}} onSelectContact={() => {}} />
+        </>
+      );
+    }
+    render(<Outside />);
+    fireEvent.click(screen.getByText('set'));
+    expect(input().value).toBe('from:alice');
+  });
+});
+
+// At 1440 the list column cut "Search mail... (press /)" to "Search mail...
+// (pres". The placeholder is short now; the "/" shortcut shows as a key cap
+// at the end of the empty field and is named for assistive tech.
+describe('SearchBox shortcut hint', () => {
+  it('keeps the placeholder short and shows the / key apart', () => {
+    const { container } = render(<Harness />);
+    expect(input().getAttribute('placeholder')).toBe('search_placeholder');
+    expect(input().getAttribute('aria-keyshortcuts')).toBe('/');
+    const kbd = container.querySelector('kbd');
+    expect(kbd?.textContent).toBe('/');
+    expect(kbd?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('drops the key cap once something is typed', () => {
+    const { container } = render(<Harness initial="invoice" />);
+    expect(container.querySelector('kbd')).toBeNull();
+  });
+});
+
+describe('SearchBox end controls', () => {
+  it('keeps the clear button inside the field, where the wrapper places it', () => {
+    render(<SearchBox value="test" onChange={() => {}} onSubmit={() => {}} onClear={() => {}} onSelectContact={() => {}} />);
+    const clear = screen.getByTestId('search-clear');
+    // The touch hit area's `relative` once overrode the button's `absolute`,
+    // dropping it under the input and stretching the field.
+    expect(clear.className.split(/\s+/)).not.toContain('absolute');
+    expect(clear.closest('.absolute')?.closest('form')).toBeTruthy();
+  });
+
+  it('shows the trailing control next to the clear button', () => {
+    render(<SearchBox value="test" onChange={() => {}} onSubmit={() => {}} onClear={() => {}} onSelectContact={() => {}} trailing={<button>filters</button>} />);
+    expect(screen.getByText('filters').parentElement).toBe(screen.getByTestId('search-clear').parentElement);
+  });
+});
+
+// mail-16: an account with no matching contact still gets suggestions from
+// the senders of the mail on screen.
+describe('SearchBox suggestions from the list', () => {
+  beforeEach(() => {
+    useSearchHistoryStore.setState({ recentSearches: [] });
+  });
+  afterEach(() => {
+    useEmailStore.setState({ emails: [] });
+  });
+
+  it('offers senders of loaded mail that match what is typed', () => {
+    useEmailStore.setState({
+      emails: [
+        { id: '1', from: [{ name: 'Greta Sørensen', email: 'greta@example.com' }] },
+        { id: '2', from: [{ name: 'Greta Sørensen', email: 'greta@example.com' }] },
+        { id: '3', from: [{ name: 'Tobias Brenner', email: 'tobias@example.com' }] },
+      ] as never,
+    });
+    render(<Harness />);
+    fireEvent.change(input(), { target: { value: 'greta' } });
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent('greta@example.com');
   });
 });

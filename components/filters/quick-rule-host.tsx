@@ -10,6 +10,7 @@ import { readAccountFilters } from "@/lib/filters/account-filters";
 import { forwardsAround, inRunOrder } from "@/lib/filters/forward-limit";
 import { createFolderAndRunPreset, saveEditorRule } from "@/lib/filters/quick-rule-flow";
 import { supportsPeriods } from "@/lib/sieve/period";
+import { supportsRegex } from "@/lib/sieve/regex";
 
 /**
  * Draws what a rule made from a message opens: the rule editor ("Create
@@ -20,6 +21,8 @@ import { supportsPeriods } from "@/lib/sieve/period";
 export function QuickRuleHost() {
   const text = useQuickRuleText();
   const tFolderMenu = useTranslations("mailbox_context_menu");
+  // The dialog's title without the menu item's "…" (mail-29).
+  const tFolderTitle = useTranslations("mail_list_extra");
   const editor = useQuickRuleStore((s) => s.editor);
   const newFolder = useQuickRuleStore((s) => s.newFolder);
   const closeEditor = useQuickRuleStore((s) => s.closeEditor);
@@ -61,6 +64,7 @@ export function QuickRuleHost() {
           forwardsBefore={forwards.before}
           forwardsAfter={forwards.after}
           periodsSupported={supportsPeriods(editor.target.client.getSieveCapabilities(editor.target.sieveAccountId)?.sieveExtensions)}
+          regexSupported={supportsRegex(editor.target.client.getSieveCapabilities(editor.target.sieveAccountId)?.sieveExtensions)}
           onSave={(rule, options) => {
             closeEditor();
             void saveEditorRule(editor, rule, options?.applyToExisting ?? false, text);
@@ -76,7 +80,7 @@ export function QuickRuleHost() {
           closeNewFolder();
           if (request && name.trim()) void createFolderAndRunPreset(request, name, text);
         }}
-        title={tFolderMenu("new_folder")}
+        title={tFolderTitle("new_folder_title")}
         message={tFolderMenu("prompt_new_folder")}
         placeholder={tFolderMenu("placeholder_folder_name")}
       />

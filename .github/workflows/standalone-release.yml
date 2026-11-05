@@ -1,4 +1,4 @@
-name: Publish Standalone Tarball on Release
+name: "Standalone: Release tarball"
 
 # The tarballs build without a write token. The release job, which runs no
 # checked-out code, publishes each one with a `.sha256` next to it and a
@@ -7,6 +7,7 @@ name: Publish Standalone Tarball on Release
 
 on:
   release:
+    name: Attach to release
     types: [published]
   workflow_dispatch:
 
@@ -15,6 +16,7 @@ permissions:
 
 jobs:
   build:
+    name: Build (${{ matrix.arch }})
     strategy:
       fail-fast: false
       matrix:
@@ -27,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -38,8 +40,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # With browser and server source maps; Turbopack gives every chunk a
+      # debug ID. The maps go to Bugsink and never into the tarball.
+      # https://bulwarkmail.org/docs/deployment/monitoring
       - name: Build standalone
+        env:
+          BULWARK_SOURCE_MAPS: "1"
         run: npm run build
+
+      # .next/server holds the server chunks' maps; standalone copies the
+      # chunks only. It doesn't ship, but its maps are needed for server frames.
+      - name: Move source maps out of the build
+        run: node scripts/sourcemaps.mjs collect --out sourcemaps .next/static .next/standalone .next/server
+
+      # Turbopack chunks were not checked for being the same on both
+      # platforms, so each one uploads its own.
+      - name: Upload source maps to Bugsink
+        env:
+          BUGSINK_AUTH_TOKEN: ${{ secrets.BUGSINK_AUTH_TOKEN }}
+        run: bash scripts/upload-sourcemaps.sh sourcemaps
 
       - name: Package tarball
         env:
@@ -57,8 +76,11 @@ jobs:
           tar -czf "$TARBALL" bulwark-standalone/
           echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
 
+      - name: Check the tarball holds no source maps
+        run: node scripts/sourcemaps.mjs check "$TARBALL"
+
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: standalone-${{ matrix.arch }}
           path: ${{ env.TARBALL }}
@@ -66,6 +88,7 @@ jobs:
           retention-days: 7
 
   release:
+    name: Attach to release
     needs: build
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
@@ -76,7 +99,7 @@ jobs:
       attestations: write
     steps:
       - name: Download tarballs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: standalone-*
           path: tarballs

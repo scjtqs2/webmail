@@ -13,10 +13,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 let pluginsEnabled = true;
+let allowedFrameAncestors = '';
 vi.mock('@/lib/admin/config-manager', () => ({
   configManager: {
     ensureLoaded: vi.fn(async () => {}),
-    get: vi.fn((_key: string, fallback: unknown) => fallback),
+    get: vi.fn((key: string, fallback: unknown) => (key === 'allowedFrameAncestors' ? allowedFrameAncestors : fallback)),
     getPolicy: vi.fn(() => ({ features: { pluginsEnabled } })),
   },
 }));
@@ -41,6 +42,7 @@ const IFRAME_LOAD = { 'sec-fetch-dest': 'iframe', 'sec-fetch-site': 'same-origin
 beforeEach(() => {
   vi.clearAllMocks();
   pluginsEnabled = true;
+  allowedFrameAncestors = '';
 });
 
 describe('plugin sandbox routes (GHSA-96cx-gx36-3g79)', () => {
@@ -51,6 +53,17 @@ describe('plugin sandbox routes (GHSA-96cx-gx36-3g79)', () => {
     const csp = response.headers.get('content-security-policy') ?? '';
     expect(csp).toContain("'unsafe-eval'");
     expect(csp).toContain("frame-ancestors 'self'");
+  });
+
+  // frame-ancestors is checked against every ancestor, so a portal allowed to
+  // frame the mail UI must be allowed on the plugin frames inside it too (#1533).
+  it.each(SANDBOX_ROUTES)('lets %s load inside a mail UI framed by an allowed portal', async (path) => {
+    allowedFrameAncestors = 'https://portal.example';
+    const response = await load(path, IFRAME_LOAD);
+
+    expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'self' https://portal.example;");
+    // X-Frame-Options can't name the portal and would block it in browsers that read it.
+    expect(response.headers.get('x-frame-options')).toBeNull();
   });
 
   it.each(SANDBOX_ROUTES)('refuses %s as a top-level document opened by another site', async (path) => {
@@ -90,6 +103,39 @@ describe('plugin sandbox routes (GHSA-96cx-gx36-3g79)', () => {
 
     expect((await load(path, IFRAME_LOAD)).status).toBe(403);
     expect((await load(path)).status).toBe(403);
+  });
+
+  // H-03: a plugin's network access must go through api.http.fetch, which
+  // checks the manifest's httpOrigins. If the iframe itself may reach any
+  // https origin, a plugin with only email:read can post every message it
+  // sees to its own server with fetch(), an <img>, a CSS url() or a font.
+  it.each(SANDBOX_ROUTES)('gives %s no direct network access beyond its own origin', async (path) => {
+    const response = await load(path, IFRAME_LOAD);
+    const directives: Record<string, string[]> = Object.fromEntries(
+      (response.headers.get('content-security-policy') ?? '')
+        .split(';')
+        .map((d) => d.trim().split(/\s+/))
+        .map(([name, ...sources]) => [name, sources]),
+    );
+
+    for (const name of ['connect-src', 'img-src', 'font-src', 'media-src', 'default-src']) {
+      const sources = directives[name] ?? [];
+      for (const wide of ['https:', 'http:', 'ws:', 'wss:', '*']) {
+        expect(sources, `${name} allows ${wide}`).not.toContain(wide);
+      }
+    }
+    // The router refetches the sandbox page itself, so its own origin stays.
+    expect(directives['connect-src']).toEqual(["'self'"]);
+    // Plugin frames may use forms (allow-forms) but not post them anywhere.
+    expect(directives['form-action']).toEqual(["'none'"]);
+  });
+
+  it('keeps https images and connections for the mail UI itself', async () => {
+    const response = await load('/en/mail', { 'sec-fetch-dest': 'document' });
+    const csp = response.headers.get('content-security-policy') ?? '';
+
+    expect(csp).toMatch(/img-src [^;]*https:/);
+    expect(csp).toMatch(/connect-src [^;]*https:/);
   });
 
   it('leaves ordinary pages alone and never hands them the eval CSP', async () => {

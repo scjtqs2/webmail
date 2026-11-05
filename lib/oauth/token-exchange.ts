@@ -1,16 +1,21 @@
 import { logger } from '@/lib/logger';
+import { observeUpstream } from '@/lib/metrics/upstream';
 import { discoverOAuth } from '@/lib/oauth/discovery';
 import type { EndpointValidator, OAuthMetadata } from '@/lib/oauth/discovery';
 import { isPublicHttpUrl } from '@/lib/security/url-guard';
 import { readFileEnv } from '@/lib/read-file-env';
 import { configManager } from '@/lib/admin/config-manager';
 import { parseJmapServers, findServerById } from '@/lib/admin/jmap-servers';
+import { stalwartDefaultClientId } from '@/lib/auth/stalwart-password-login';
+import { getOauthResource } from '@/lib/oauth/tokens';
+import type { CustomUpstream } from '@/lib/oauth/custom-upstream';
 
 // Fallback OAuth client id used when no client is configured. The password+TOTP
 // login route mints tokens against the mail server's built-in OAuth with this
-// id (Stalwart accepts any client id unless `require_client_registration` is
-// enabled), so refreshing/revoking those tokens must fall back to the same id
-// instead of failing on the missing OAUTH_CLIENT_ID (#873).
+// id (Stalwart 0.16 accepts any client id unless `require_client_registration`
+// is enabled; 1.0 gets a client of its own, see defaultClientOptions), so
+// refreshing/revoking those tokens must fall back to the same id instead of
+// failing on the missing OAUTH_CLIENT_ID (#873).
 export const DEFAULT_CLIENT_ID = 'bulwark-webmail';
 
 export interface ClientConfigOptions {
@@ -21,6 +26,12 @@ export interface ClientConfigOptions {
    * so a misconfiguration surfaces at login rather than as a broken session.
    */
   fallbackClientId?: string;
+  /**
+   * The server this token belongs to when it's in no configured list: the
+   * desktop app's accounts (lib/oauth/custom-upstream.ts). Wins over `serverId`
+   * and the global server, and the configured client secret is never sent to it.
+   */
+  upstream?: CustomUpstream | null;
 }
 
 function httpOrigin(url: string): string | null {
@@ -97,6 +108,10 @@ function discoveryBase(url: string): string {
 }
 
 export function getRequiredConfig(serverId?: string | null, options?: ClientConfigOptions) {
+  if (options?.upstream) {
+    const { clientId, serverUrl } = options.upstream;
+    return { clientId, serverUrl, discoveryUrl: discoveryBase(serverUrl), serverId: undefined, endSessionUrl: undefined, resource: undefined };
+  }
   const entry = getServerEntry(serverId);
 
   const globalClientId = configManager.get<string>('oauthClientId', '') || process.env.OAUTH_CLIENT_ID;
@@ -118,7 +133,28 @@ export function getRequiredConfig(serverId?: string | null, options?: ClientConf
   if (issuerUrl !== undefined && issuerUrl !== '' && !issuerUrl.trim()) {
     logger.warn('OAUTH_ISSUER_URL is set but empty, falling back to JMAP_SERVER_URL for discovery');
   }
-  return { clientId, serverUrl, discoveryUrl, serverId: entry?.id };
+  // Belongs to the same provider as the issuer, so the same rule applies:
+  // the global OAUTH_END_SESSION_URL only without a server entry (#1279).
+  const endSessionUrl = entry
+    ? entry.oauth?.endSessionUrl
+    : (configManager.get<string>('oauthEndSessionUrl', '') || process.env.OAUTH_END_SESSION_URL)?.trim() || undefined;
+  // The resource names an API of the global provider, so it follows the
+  // issuer's rule too: never sent to a server entry's provider (#1461).
+  const resource = entry ? undefined : getOauthResource() || undefined;
+  return { clientId, serverUrl, discoveryUrl, serverId: entry?.id, endSessionUrl, resource };
+}
+
+/**
+ * Options for refreshing or revoking a token the password+TOTP login may have
+ * minted without a configured client. On Stalwart 1.0 that login signs in
+ * with a client it registers itself (lib/auth/stalwart-password-login.ts),
+ * whose id the refresh must present instead of the default one.
+ */
+export async function defaultClientOptions(serverId?: string | null, upstream?: CustomUpstream | null): Promise<ClientConfigOptions> {
+  if (upstream) return { upstream };
+  const { clientId, serverUrl } = getRequiredConfig(serverId, { fallbackClientId: DEFAULT_CLIENT_ID });
+  if (clientId !== DEFAULT_CLIENT_ID) return { fallbackClientId: DEFAULT_CLIENT_ID };
+  return { fallbackClientId: await stalwartDefaultClientId(serverUrl, DEFAULT_CLIENT_ID, true) };
 }
 
 export function getClientSecret(serverId?: string | null): string {
@@ -151,9 +187,17 @@ export async function getMetadata(serverId?: string | null, options?: ClientConf
 }
 
 export function buildOAuthParams(base: Record<string, string>, serverId?: string | null, options?: ClientConfigOptions): URLSearchParams {
-  const { clientId } = getRequiredConfig(serverId, options);
+  const { clientId, resource } = getRequiredConfig(serverId, options);
   const params = new URLSearchParams({ ...base, client_id: clientId });
-  const secret = getClientSecret(serverId);
+  // RFC 8707 section 2.2: the resource indicator from the authorization request
+  // also goes on the token request. IdPs built on node-oidc-provider with
+  // useGrantedResource off (Logto, for one) only issue a JWT for the API when
+  // the token request names it, and otherwise return an opaque token that
+  // Stalwart rejects. Revocation (no grant_type) does not take a resource.
+  if (resource && (base.grant_type === 'authorization_code' || base.grant_type === 'refresh_token')) {
+    params.set('resource', resource);
+  }
+  const secret = options?.upstream ? '' : getClientSecret(serverId);
   if (secret) {
     params.set('client_secret', secret);
   }
@@ -173,25 +217,26 @@ export async function exchangeCodeForTokens(
   codeVerifier: string,
   redirectUri: string,
   serverId?: string | null,
+  options?: ClientConfigOptions,
 ): Promise<TokenResult> {
-  const tokenEndpoint = await getTokenEndpoint(serverId);
+  const tokenEndpoint = await getTokenEndpoint(serverId, options);
 
   const params = buildOAuthParams({
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
-  }, serverId);
+  }, serverId, options);
 
   // The body carries the code, the PKCE verifier and the client secret. The
   // endpoint was validated; a redirect would re-send all of it to a host
   // that was not, so none is followed.
-  const tokenResponse = await fetch(tokenEndpoint, {
+  const tokenResponse = await observeUpstream('oauth', () => fetch(tokenEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString(),
     redirect: 'error',
-  });
+  }));
 
   if (!tokenResponse.ok) {
     const errorText = await tokenResponse.text();

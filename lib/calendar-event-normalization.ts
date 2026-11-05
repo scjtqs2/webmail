@@ -39,6 +39,21 @@ export function parseDurationSeconds(duration: string | undefined): number | nul
   return (((weeks * 7 + days) * 24 + hours) * 60 + minutes) * 60 + seconds;
 }
 
+/** A duration in whole minutes, 0 when there is none. */
+export function parseDuration(duration: string | undefined): number {
+  if (!duration) return 0;
+  let totalMinutes = 0;
+  const weekMatch = duration.match(/(\d+)W/);
+  const hourMatch = duration.match(/(\d+)H/);
+  const minMatch = duration.match(/(\d+)M/);
+  const dayMatch = duration.match(/(\d+)D/);
+  if (weekMatch) totalMinutes += parseInt(weekMatch[1]) * 7 * 24 * 60;
+  if (dayMatch) totalMinutes += parseInt(dayMatch[1]) * 24 * 60;
+  if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60;
+  if (minMatch) totalMinutes += parseInt(minMatch[1]);
+  return totalMinutes;
+}
+
 export function normalizeAllDayDurationValue(duration: string | undefined): string | undefined {
   const totalSeconds = parseDurationSeconds(duration);
   if (totalSeconds === null || totalSeconds < 86400 || totalSeconds % 86400 !== 0) {
@@ -113,12 +128,25 @@ function normalizeStalwartPropertyNames<T extends Partial<CalendarEvent>>(event:
   return result;
 }
 
+/**
+ * A timed event without a duration lasts zero seconds (RFC 8984 default
+ * PT0S). Stalwart drops a DTEND equal to DTSTART and then ends such an
+ * event at 23:59:59 of its start day, so its utcEnd is wrong. Only server
+ * objects carry utcStart, which keeps partial update patches untouched. (#837)
+ */
+function withZeroDurationEnd<T extends Partial<CalendarEvent>>(event: T): T {
+  if (event.showWithoutTime || event.duration || !event.start || !event.utcStart) {
+    return event;
+  }
+  return { ...event, duration: 'PT0S', utcEnd: event.utcStart } as T;
+}
+
 export function normalizeCalendarEventLike<T extends Partial<CalendarEvent>>(event: T): T {
   // First normalize Stalwart's singular property names to RFC 8984 plural forms
   const normalized = normalizeStalwartPropertyNames(event);
 
   if (!isAllDayEventLike(normalized)) {
-    return normalized;
+    return withZeroDurationEnd(normalized);
   }
 
   return {

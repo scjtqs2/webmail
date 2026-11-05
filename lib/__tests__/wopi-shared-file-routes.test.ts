@@ -72,7 +72,7 @@ function editorCall(data: { url: string; accessToken: string }) {
 
 // The shared node as Stalwart 0.16.23 reports it to the user it is shared with.
 let node: { id: string; name: string; type: string; blobId: string; size: number; modified: string; myRights: Record<string, boolean> };
-let setCalls: Array<{ accountId: string; update: Record<string, { blobId: string }> }>;
+let setCalls: Array<{ accountId: string; update: Record<string, { blobId: string; modified?: null }> }>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -140,7 +140,18 @@ describe('WOPI on a file shared with the user (#1094)', () => {
 
     const info = await checkFileInfo(request(`/api/wopi/files/${documentId}?${token}`), params(documentId));
     expect(info.status).toBe(200);
-    expect(await info.json()).toMatchObject({ BaseFileName: 'new-file.docx', UserCanWrite: true, Version: 'Gshared' });
+    const body = await info.json();
+    expect(body).toMatchObject({ BaseFileName: 'new-file.docx', UserCanWrite: true, Version: 'Gshared' });
+    expect(body).not.toHaveProperty('UserCanReview');
+  });
+
+  it('describes a file shared read-only so ONLYOFFICE opens it without a warning (#1187)', async () => {
+    node.myRights.mayModifyContent = false;
+    const { data, documentId, token } = await openShared();
+    expect(data.readOnly).toBe(true);
+
+    const info = await checkFileInfo(request(`/api/wopi/files/${documentId}?${token}`), params(documentId));
+    expect(await info.json()).toMatchObject({ UserCanWrite: false, UserCanReview: true, SupportsReviewing: false });
   });
 
   it('GetFile reads the blob through the owner account', async () => {
@@ -164,7 +175,7 @@ describe('WOPI on a file shared with the user (#1094)', () => {
     const [uploadUrl, uploadInit] = (fetchJmapServer as Mock).mock.calls[0];
     expect(uploadInit.method).toBe('POST');
     expect(uploadUrl).toContain(`/jmap/upload/${OWN}/`);
-    expect(setCalls).toEqual([{ accountId: OWNER, update: { b: { blobId: `upload-${OWN}-1` } } }]);
+    expect(setCalls).toEqual([{ accountId: OWNER, update: { b: { blobId: `upload-${OWN}-1`, modified: null } } }]);
   });
 
   it('shares one editor session with the owner opening the same file', async () => {

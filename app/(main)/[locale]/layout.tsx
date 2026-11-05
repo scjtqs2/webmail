@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
+import { AppLockGate } from "@/components/app-lock/app-lock-gate";
 import { IntlProvider } from "@/components/providers/intl-provider";
+import { addPlainLanguage } from "@/i18n/plain-language";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { CalendarAlertProvider } from "@/components/providers/calendar-alert-provider";
+import { PushBindingsHost } from "@/components/providers/push-bindings-host";
+import { FilesSyncPrompts } from "@/components/files-sync/files-sync-prompts";
 import { EmbeddedBridgeProvider } from "@/components/providers/embedded-bridge-provider";
 import { RateLimitToastProvider } from "@/components/providers/rate-limit-toast-provider";
 import { TourProvider } from "@/components/tour/tour-provider";
@@ -9,11 +13,41 @@ import { ProtocolLaunchHandlerProvider } from "@/components/protocol/protocol-la
 import { ProInterfaceRedirect } from "@/components/pro/pro-interface-redirect";
 import { ImpersonationReconciler } from "@/components/impersonation/impersonation-reconciler";
 import { PluginDialogHost } from "@/components/plugins/plugin-dialog-host";
+import { ExternalRecipientConfirmHost } from "@/components/email/external-recipient-confirm";
+import { PhishingReportHost } from "@/components/email/phishing-report-host";
+import { PluginPageNavigator } from "@/components/plugins/plugin-page-navigator";
+import { PaneCycleHost } from "@/components/layout/pane-cycle";
+import { FocusRescueHost } from "@/components/layout/focus-rescue";
+import { CommandPaletteHost } from "@/components/command-palette/command-palette";
+import { AccessibilityQuickPanelHost } from "@/components/accessibility/accessibility-quick-panel";
+import { TotpReauthDialog } from "@/components/totp-reauth-dialog";
+import { PluginConnectDialog } from "@/components/plugins/plugin-connect-dialog";
 import { QuickRuleHost } from "@/components/filters/quick-rule-host";
+import { MailTransferHost } from "@/components/mail-transfer/mail-transfer-host";
 import { PluginConsentDialog } from "@/components/plugins/plugin-consent-dialog";
+import { PluginAppEvents } from "@/components/providers/plugin-app-events";
 import { PluginOAuthCallbackListener } from "@/components/providers/plugin-oauth-callback-listener";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { AppUpdatePrompt } from "@/components/app-update-prompt";
+import { OfflineHost } from "@/components/offline/offline-host";
+import { DeviceWipeHost } from "@/components/offline/device-wipe-host";
+import { NotificationActionsHost } from "@/components/providers/notification-actions-host";
+import { DesktopOsHost } from "@/components/desktop/desktop-os-host";
+import { FileDropHost } from "@/components/file-drop/file-drop-host";
+import { EditedFilesHost } from "@/components/desktop/edited-files-host";
+import { FilesSyncHost } from "@/components/providers/files-sync-host";
+import { DevicePolicyHost } from "@/components/device/device-policy-host";
 import { PushNotificationPrompt } from "@/components/push-notification-prompt";
+import { AccountArchiveRestorePrompt } from "@/components/account-archive-prompt";
+import { SessionTimeoutGuard } from "@/components/session/session-timeout-guard";
+import { AccountTemplateSync } from "@/components/templates/account-template-sync";
+import { FreeBusyAutoShare } from "@/components/calendar/free-busy-auto-share";
+import { MainWindowOnly } from "@/components/popout/main-window-only";
+import { PopoutHost } from "@/components/popout/popout-host";
+import { WindowSyncHost } from "@/components/popout/window-sync-host";
+import { DesktopHost } from "@/components/desktop/desktop-host";
+import { WindowMenuBar } from "@/components/layout/window-menu-bar";
+import { IS_LITE } from "@/lib/lite";
 import { setRequestLocale } from "next-intl/server";
 import { locales } from "@/i18n/routing";
 import { generateLiteLocaleParams } from "@/lib/lite-static-params";
@@ -37,15 +71,22 @@ export default async function LocaleLayout({
   // the tree render without request headers (static export).
   setRequestLocale(locale);
 
+  // Lite leaves the catalog out: a prop here is baked into every exported page
+  // (the HTML and three RSC payloads per route and locale), which pushed the
+  // Stalwart zip past its size limit. IntlProvider loads it as a chunk instead.
   let messages;
-  try {
-    messages = (await import(`@/locales/${locale}/common.json`)).default;
-  } catch {
-    notFound();
+  if (!IS_LITE) {
+    try {
+      messages = (await import(`@/locales/${locale}/common.json`)).default;
+    } catch {
+      notFound();
+    }
+    messages = await addPlainLanguage(locale, messages);
   }
 
   return (
     <IntlProvider locale={locale} messages={messages}>
+      <AppLockGate>
       <ThemeProvider>
         <CalendarAlertProvider>
           <RateLimitToastProvider>
@@ -53,20 +94,62 @@ export default async function LocaleLayout({
               <TourProvider>
                 <ProtocolLaunchHandlerProvider>
                   <ProInterfaceRedirect />
-                  <ImpersonationReconciler />
+                  <MainWindowOnly>
+                    <ImpersonationReconciler />
+                    <PushBindingsHost />
+                    <DesktopOsHost />
+                    {!IS_LITE && <EditedFilesHost />}
+                    {!IS_LITE && <FilesSyncHost />}
+                    <FreeBusyAutoShare />
+                    {!IS_LITE && <PopoutHost />}
+                    {!IS_LITE && <FilesSyncPrompts />}
+                  </MainWindowOnly>
+                  {!IS_LITE && <WindowSyncHost />}
+                  {!IS_LITE && <WindowMenuBar />}
+                  {!IS_LITE && <DesktopHost />}
+                  <SessionTimeoutGuard />
+                  <AccountTemplateSync />
                   {children}
+                  <FileDropHost />
                   <PluginDialogHost />
+                  <ExternalRecipientConfirmHost />
+                  <PhishingReportHost />
+                  <MainWindowOnly>
+                    <CommandPaletteHost />
+                  </MainWindowOnly>
+                  <AccessibilityQuickPanelHost />
+                  <PaneCycleHost />
+                  <FocusRescueHost />
+                  <TotpReauthDialog />
+                  <PluginConnectDialog />
                   <QuickRuleHost />
+                  <MailTransferHost />
                   <PluginConsentDialog />
                   <PluginOAuthCallbackListener />
-                  <PWAInstallPrompt />
-                  <PushNotificationPrompt />
+                  <PluginAppEvents />
+                  <MainWindowOnly>
+                    <PluginPageNavigator />
+                    <PWAInstallPrompt />
+                    <AppUpdatePrompt />
+                  </MainWindowOnly>
+                  {/* Offline mode isn't in Lite (no service worker there). */}
+                  {!IS_LITE && <OfflineHost />}
+                  {!IS_LITE && <NotificationActionsHost />}
+                  <DevicePolicyHost />
+                  <MainWindowOnly>
+                    <PushNotificationPrompt />
+                    {/* Lite is a static bundle: no server keeps an archive there. */}
+                    {!IS_LITE && <AccountArchiveRestorePrompt />}
+                  </MainWindowOnly>
                 </ProtocolLaunchHandlerProvider>
               </TourProvider>
             </EmbeddedBridgeProvider>
           </RateLimitToastProvider>
         </CalendarAlertProvider>
       </ThemeProvider>
+      </AppLockGate>
+      {/* Beside the gate, not under it: a stolen device at the lock screen still has to hear a wipe. */}
+      {!IS_LITE && <DeviceWipeHost />}
     </IntlProvider>
   );
 }

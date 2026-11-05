@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPluginBundle, getPlugin } from '@/lib/admin/plugin-registry';
+import { getPluginBundle, getPlugin, getPluginSignature, isBundleMismatch } from '@/lib/admin/plugin-registry';
 import { getDevPlugin, readDevBundle } from '@/lib/admin/plugin-dev';
 import { signBytes } from '@/lib/admin/plugin-signing';
+import { canSeeInstanceDetails } from '@/lib/auth/instance-details';
+import { storeUnavailableResponse } from '@/lib/admin/store-unavailable-response';
+import { devicePolicyPluginRefusal } from '@/lib/desktop/server-policy';
 
 async function safeSign(code: string): Promise<string | null> {
   try { return await signBytes(code); } catch { return null; }
@@ -10,13 +13,18 @@ async function safeSign(code: string): Promise<string | null> {
 /**
  * GET /api/admin/plugins/[id]/bundle - Serve plugin JS bundle
  *
- * Public endpoint so the client-side plugin loader can fetch bundles.
+ * Serves bundles to signed-in users so the client-side plugin loader can fetch them.
  * Only serves plugins that exist in the registry and are enabled.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Bundles are delivered to signed-in users only, like the plugin list
+  // that names them (/api/plugins).
+  if (!(await canSeeInstanceDetails(request))) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
   try {
     const { id } = await params;
 
@@ -24,6 +32,9 @@ export async function GET(
     if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(id)) {
       return NextResponse.json({ error: 'Invalid plugin ID' }, { status: 400 });
     }
+
+    const refused = devicePolicyPluginRefusal(id);
+    if (refused) return refused;
 
     // Dev plugins are read (and optionally bundled) straight from disk and
     // served with no caching so every refresh picks up the latest source.
@@ -50,7 +61,7 @@ export async function GET(
       return NextResponse.json({ error: 'Plugin is disabled' }, { status: 403 });
     }
 
-    const code = await getPluginBundle(id);
+    const code = await getPluginBundle(id, plugin.bundleHash);
     if (!code) {
       return NextResponse.json({ error: 'Bundle not found' }, { status: 404 });
     }
@@ -65,7 +76,7 @@ export async function GET(
     };
     if (etag) headers['ETag'] = etag;
 
-    const signature = await safeSign(code);
+    const signature = await getPluginSignature(id, code, plugin.bundleHash);
     if (signature) headers['X-Bundle-Signature'] = signature;
 
     if (etag && request.headers.get('if-none-match') === etag) {
@@ -74,7 +85,13 @@ export async function GET(
 
     headers['Content-Length'] = String(Buffer.byteLength(code, 'utf-8'));
     return new NextResponse(code, { headers });
-  } catch {
+  } catch (error) {
+    // Logged where it was found. 409 on every replica alike.
+    if (isBundleMismatch(error)) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
+    }
+    const unavailable = storeUnavailableResponse(error);
+    if (unavailable) return unavailable;
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 }

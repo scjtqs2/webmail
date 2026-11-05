@@ -151,6 +151,14 @@ vi.mock('@/stores/toast-store', () => ({
 }));
 
 vi.mock('@/lib/plugin-hooks', () => ({
+  identityHooks: {
+    onSignatureRender: { size: 0, transform: async (value: unknown) => value },
+    onIdentitySelect: { size: 0, emit: async () => {} },
+  },
+  templateHooks: {
+    onTemplateRender: { size: 0, transform: async (value: unknown) => value },
+    onTemplateApply: { size: 0, emit: async () => {} },
+  },
   emailHooks: {
     onComposerOpen: { call: async () => [] },
     onRecipientChange: { call: async () => [] },
@@ -158,9 +166,9 @@ vi.mock('@/lib/plugin-hooks', () => ({
     onRecipientChipsChange: { transform: async (chips: unknown) => chips },
     onDraftChange: { emit: () => {} },
     onBeforeDraftAutoSave: { transform: async (draft: unknown) => draft },
-    onBeforeEmailSend: { intercept: async () => true },
+    onBeforeEmailSend: { intercept: async () => true, interceptOutcome: async () => 'allowed' },
     onBeforeAttachmentUpload: { intercept: hoisted.beforeAttachmentUpload },
-    onComposeSend: { intercept: async () => true },
+    onComposeSend: { takeOver: async () => 'default' },
     onTransformOutgoingEmail: { transform: async (email: unknown) => email },
   },
   contactHooks: {
@@ -219,9 +227,128 @@ function filesClient(overrides: Record<string, unknown> = {}) {
 
 function pickFromFiles(nodes: FileNode[]) {
   hoisted.picked = nodes;
+  fireEvent.click(screen.getByTestId('composer-attach-menu'));
   fireEvent.click(screen.getByTestId('composer-attach-from-files'));
   fireEvent.click(screen.getByTestId('fake-file-picker'));
 }
+
+describe('files handed to a new composer (a share, a launch)', () => {
+  afterEach(() => {
+    useAuthStore.setState({ client: null });
+    vi.clearAllMocks();
+    hoisted.beforeAttachmentUpload.mockImplementation(async () => true);
+  });
+
+  const uploading = () => filesClient({ uploadBlob: vi.fn(() => new Promise(() => {})), getMaxSizeUpload: () => 0 });
+
+  const handedIn = (extra: Record<string, unknown> = {}) => ({
+    to: '', cc: '', bcc: '', subject: 'Shared subject', body: 'Shared text', showCc: false, showBcc: false,
+    selectedIdentityId: null, subAddressTag: '', mode: 'compose', draftId: null, unedited: true, ...extra,
+  }) as never;
+  const settled = (client: Record<string, unknown>) => ({
+    ...client,
+    uploadBlob: vi.fn(async () => ({ blobId: 'blob-shared', size: 1, type: 'text/plain' })),
+    getMaxSizeUpload: () => 0,
+  });
+
+  it('saves no draft from handed-in text and files until the first real edit', async () => {
+    const client = settled(filesClient()) as unknown as ReturnType<typeof filesClient>;
+    useAuthStore.setState({ client: client as never });
+    vi.useFakeTimers();
+    render(<EmailComposer onClose={vi.fn()} initialData={handedIn()} initialFiles={[new File(['x'], 'shared.pdf')]} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(screen.getByText('shared.pdf')).toBeInTheDocument();
+    expect(client.createDraft).not.toHaveBeenCalled();
+
+    // Closing the page doesn't save it either.
+    await act(async () => { window.dispatchEvent(new Event('beforeunload')); await vi.advanceTimersByTimeAsync(100); });
+    expect(client.createDraft).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByPlaceholderText(/subject/i), { target: { value: 'Shared subject, edited' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(client.createDraft).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('closes without asking while nothing is the user\'s own', async () => {
+    const onClose = vi.fn();
+    useAuthStore.setState({ client: settled(filesClient()) as never });
+    const ref = { current: null as ((afterClose?: () => void) => void) | null };
+    render(<EmailComposer onClose={onClose} requestCloseRef={ref} initialData={handedIn()} initialFiles={[new File(['x'], 'shared.pdf')]} />);
+    await screen.findByText('shared.pdf');
+    await act(async () => { ref.current?.(); });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('counts a removed attachment as an edit', async () => {
+    const client = settled(filesClient()) as unknown as ReturnType<typeof filesClient>;
+    useAuthStore.setState({ client: client as never });
+    vi.useFakeTimers();
+    render(<EmailComposer onClose={vi.fn()} initialData={handedIn()} initialFiles={[new File(['x'], 'shared.pdf')]} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    const chip = screen.getByText('shared.pdf').closest('[data-testid], div')!.parentElement!;
+    const remove = chip.querySelector('button[aria-label]') ?? chip.querySelector('button');
+    fireEvent.click(remove!);
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(client.createDraft).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('hands its unedited state back to a remount, without asking to save', async () => {
+    useAuthStore.setState({ client: settled(filesClient()) as never });
+    const onSaveState = vi.fn();
+    const view = render(<EmailComposer onClose={vi.fn()} onSaveState={onSaveState} initialData={handedIn()} initialFiles={[new File(['x'], 'shared.pdf')]} />);
+    await screen.findByText('shared.pdf');
+    view.unmount();
+    expect(onSaveState).toHaveBeenCalledWith(expect.objectContaining({ unedited: true, unsaved: false, subject: 'Shared subject' }));
+  });
+
+  it('attaches them when it opens', async () => {
+    useAuthStore.setState({ client: uploading() as never });
+    render(<EmailComposer onClose={vi.fn()} initialFiles={[new File(['x'], 'shared.pdf', { type: 'application/pdf' })]} />);
+    expect(await screen.findByText('shared.pdf')).toBeInTheDocument();
+  });
+
+  it('waits for the client', async () => {
+    const files = [new File(['x'], 'shared.pdf')];
+    const view = render(<EmailComposer onClose={vi.fn()} initialFiles={files} />);
+    await act(async () => {});
+    expect(hoisted.beforeAttachmentUpload).not.toHaveBeenCalled();
+
+    useAuthStore.setState({ client: uploading() as never });
+    view.rerender(<EmailComposer key="with-client" onClose={vi.fn()} initialFiles={files} />);
+    expect(await screen.findByText('shared.pdf')).toBeInTheDocument();
+  });
+
+  it('attaches an array once, also when the composer remounts with it', async () => {
+    useAuthStore.setState({ client: uploading() as never });
+    const files = [new File(['x'], 'shared.pdf')];
+    const first = render(<EmailComposer onClose={vi.fn()} initialFiles={files} />);
+    await screen.findByText('shared.pdf');
+    first.unmount();
+
+    render(<EmailComposer onClose={vi.fn()} initialFiles={files} />);
+    await act(async () => {});
+    expect(hoisted.beforeAttachmentUpload).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('shared.pdf')).toBeNull();
+  });
+
+  it('runs the same checks as a picked file: a plugin may refuse it', async () => {
+    hoisted.beforeAttachmentUpload.mockImplementation(async (info) => info.name !== 'setup.exe');
+    useAuthStore.setState({ client: uploading() as never });
+    render(<EmailComposer onClose={vi.fn()} initialFiles={[new File(['x'], 'setup.exe'), new File(['x'], 'notes.pdf')]} />);
+    expect(await screen.findByText('notes.pdf')).toBeInTheDocument();
+    expect(screen.queryByText('setup.exe')).toBeNull();
+  });
+
+  it('runs the same checks as a picked file: the size limit', async () => {
+    useAuthStore.setState({ client: filesClient({ getMaxSizeUpload: () => 1 }) as never });
+    render(<EmailComposer onClose={vi.fn()} initialFiles={[new File(['too big'], 'big.pdf')]} />);
+    await act(async () => {});
+    expect(hoisted.toastError).toHaveBeenCalledWith('attachment_too_large');
+    expect(screen.queryByText('big.pdf')).toBeNull();
+  });
+});
 
 describe('attach from Files', () => {
   afterEach(() => {
@@ -234,6 +361,7 @@ describe('attach from Files', () => {
     useAuthStore.setState({ client: filesClient({ supportsFiles: () => false }) as never });
     render(<EmailComposer onClose={vi.fn()} />);
     expect(screen.queryByTestId('composer-attach-from-files')).toBeNull();
+    expect(screen.queryByTestId('composer-attach-menu')).toBeNull();
   });
 
   it('attaches the picked files by their blobId and saves them with the draft', async () => {

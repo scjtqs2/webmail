@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import type { Editor } from '@tiptap/core';
+import { useAuthStore } from '@/stores/auth-store';
+import { useContactStore } from '@/stores/contact-store';
 import { EmailComposer } from '../email-composer';
 import { useSettingsStore } from '@/stores/settings-store';
 
@@ -16,6 +18,9 @@ vi.mock('@/components/ui/avatar', () => ({ Avatar: () => null }));
 vi.mock('@/components/plugins/plugin-slot', () => ({ PluginSlot: () => null }));
 vi.mock('@/components/identity/sub-address-helper', () => ({ SubAddressHelper: () => null }));
 vi.mock('@/components/templates/template-picker', () => ({ TemplatePicker: () => null }));
+vi.mock('@/components/contacts/directory-picker-dialog', () => ({
+  DirectoryPickerDialog: () => <div role="dialog" aria-label="directory"><input aria-label="directory search" /></div>,
+}));
 vi.mock('@/components/templates/template-form', () => ({ TemplateForm: () => null }));
 vi.mock('@/components/files/file-preview-modal', () => ({ FilePreviewModal: () => null }));
 vi.mock('@/hooks/use-focus-trap', () => ({
@@ -84,6 +89,9 @@ vi.mock('@/stores/email-store', () => {
 
 const updateSetting = vi.fn();
 
+// What the address autocomplete finds: contacts, directory, recent recipients.
+const addressBook = vi.hoisted(() => ({ entries: [] as Array<{ name: string; email: string; group?: unknown }> }));
+
 vi.mock('@/stores/settings-store', () => {
   const state = {
     timeFormat: '24h',
@@ -94,6 +102,7 @@ vi.mock('@/stores/settings-store', () => {
     attachmentReminderKeywords: [],
     emptySubjectWarningEnabled: true,
     recipientMentionsEnabled: true,
+    mentionAddsRecipientTo: 'to',
     sendDelaySeconds: 0,
     signaturePosition: 'above_quote',
     signatureSeparatorEnabled: false,
@@ -112,7 +121,10 @@ vi.mock('@/stores/settings-store', () => {
 vi.mock('@/stores/contact-store', () => {
   const state = {
     contacts: [],
-    getAutocomplete: async () => [],
+    // Matches anywhere, as the real one does.
+    getAutocomplete: (query: string) => addressBook.entries.filter((e) =>
+      `${e.name} ${e.email}`.toLowerCase().includes(query.toLowerCase())),
+    getGroupMembers: () => [],
     addToTrustedSendersBook: async () => {},
   };
   const hook = (sel?: (s: typeof state) => unknown) =>
@@ -138,6 +150,14 @@ vi.mock('@/stores/toast-store', () => ({
 }));
 
 vi.mock('@/lib/plugin-hooks', () => ({
+  identityHooks: {
+    onSignatureRender: { size: 0, transform: async (value: unknown) => value },
+    onIdentitySelect: { size: 0, emit: async () => {} },
+  },
+  templateHooks: {
+    onTemplateRender: { size: 0, transform: async (value: unknown) => value },
+    onTemplateApply: { size: 0, emit: async () => {} },
+  },
   emailHooks: {
     onComposerOpen: { call: async () => [] },
     onRecipientChange: { call: async () => [] },
@@ -145,8 +165,8 @@ vi.mock('@/lib/plugin-hooks', () => ({
     onRecipientChipsChange: { transform: async (chips: unknown) => chips },
     onDraftChange: { emit: () => {} },
     onBeforeDraftAutoSave: { transform: async (draft: unknown) => draft },
-    onBeforeEmailSend: { intercept: async () => true },
-    onComposeSend: { intercept: async () => true },
+    onBeforeEmailSend: { intercept: async () => true, interceptOutcome: async () => 'allowed' },
+    onComposeSend: { takeOver: async () => 'default' },
     onTransformOutgoingEmail: { transform: async (email: unknown) => email },
   },
   contactHooks: {
@@ -194,9 +214,9 @@ const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve
 /** Lets the editor's delayed focus (and scroll to the cursor) run inside the test. */
 const nextFrame = () => act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-async function renderComposer() {
+async function renderComposer(draft: Partial<typeof DRAFT> = {}) {
   const onClose = vi.fn();
-  render(<EmailComposer initialData={DRAFT} onClose={onClose} />);
+  render(<EmailComposer initialData={{ ...DRAFT, ...draft }} onClose={onClose} />);
   // An edit makes the draft dirty, so closing asks first instead of closing.
   fireEvent.change(screen.getByDisplayValue('Half-written'), { target: { value: 'Half-written more' } });
   // TipTap keeps its editor on the editable element.
@@ -206,10 +226,12 @@ async function renderComposer() {
     return el!;
   });
   const editor = dom.editor!;
-  // A new message focuses the To field 100ms after opening. Let that happen
-  // first: arriving later, it would blur the editor and close the list.
-  const to = within(screen.getByTestId('composer-to')).getByRole('combobox');
-  await waitFor(() => expect(document.activeElement).toBe(to));
+  // A draft that arrives addressed puts the caret in the body when the editor is ready
+  // (desktop-p3-12). Let that first focus happen before the test clicks in.
+  await waitFor(() => expect(document.activeElement).toBe(editor.view.dom));
+  // The user clicks into the body to place the caret. Without that, the
+  // first focus counts as arriving by keyboard and moves it to the start.
+  fireEvent.mouseDown(editor.view.dom);
   act(() => { editor.commands.setTextSelection(editor.state.doc.content.size - 1); });
   return { editor, onClose };
 }
@@ -226,15 +248,19 @@ const mentionList = () => screen.queryByRole('listbox', { name: 'mention_recipie
 
 describe('composer with the @ recipient list', () => {
   // jsdom has no layout. After an insertion the editor focuses a frame later
-  // and ProseMirror measures a Range to scroll the cursor into view.
+  // and ProseMirror measures a Range to scroll the cursor into view, and a
+  // mousedown in the body asks for the element under the pointer.
   const range = Range.prototype as unknown as Record<string, unknown>;
+  const doc = document as unknown as Record<string, unknown>;
   beforeAll(() => {
     range.getClientRects = () => [];
     range.getBoundingClientRect = () => ({ x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 });
+    doc.elementFromPoint = () => null;
   });
   afterAll(() => {
     delete range.getClientRects;
     delete range.getBoundingClientRect;
+    delete doc.elementFromPoint;
   });
 
   it('lists To recipients only - never Bcc', async () => {
@@ -275,7 +301,7 @@ describe('composer with the @ recipient list', () => {
     }
   });
 
-  it('lets Escape close the open list, not the composer; the next Escape asks to close', async () => {
+  it('lets Escape close the open list, not the composer; the next Escape closes that', async () => {
     const { editor, onClose } = await renderComposer();
     await typeInto(editor, ' @');
     await screen.findByRole('listbox', { name: 'mention_recipients' });
@@ -285,8 +311,10 @@ describe('composer with the @ recipient list', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
 
+    // The composer's close runs: with no connection here its save fails,
+    // which is when it asks.
     press(editor, 'Escape');
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent('close_draft_title');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('save_failed_close');
   });
 
   it('keeps Ctrl+Enter as the send shortcut while the list is open', async () => {
@@ -331,7 +359,7 @@ describe('composer with the @ recipient list', () => {
     await waitFor(() => expect(mentionList()).toBeNull());
 
     fireEvent.keyDown(subject, { key: 'Escape' });
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent('close_draft_title');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('save_failed_close');
   });
 
   it('closes the list on a click elsewhere, but not on a click on the list itself', async () => {
@@ -356,5 +384,203 @@ describe('composer with the @ recipient list', () => {
     await nextFrame();
     expect(editor.getText()).toBe('Hallo @Bob ');
     await waitFor(() => expect(mentionList()).toBeNull());
+  });
+  describe('with contacts', () => {
+    beforeAll(() => {
+      addressBook.entries = [
+        { name: 'Dana Scully', email: 'dana@example.com' },
+        // Already on the message: in To, and blind-copied.
+        { name: 'Bob Builder', email: 'bob@example.com' },
+        { name: 'Geheim', email: 'geheim@example.com' },
+        { name: 'Devs', email: '', group: { id: 'g1', memberCount: 3 } },
+      ];
+    });
+    afterAll(() => {
+      addressBook.entries = [];
+      useSettingsStore.setState({ mentionAddsRecipientTo: 'to' } as never);
+    });
+
+    const toField = () => screen.getByTestId('composer-to');
+
+    it('offers a contact once something is typed, and adds the picked one to To', async () => {
+      const { editor } = await renderComposer();
+      await typeInto(editor, ' @');
+      // A bare @ is about the recipients only.
+      expect(within(await screen.findByRole('listbox', { name: 'mention_recipients' })).getAllByRole('option')).toHaveLength(2);
+      await typeInto(editor, 'd');
+      const options = within(await screen.findByRole('listbox', { name: 'mention_recipients' })).getAllByRole('option');
+      expect(options.map((o) => o.textContent)).toEqual(['@DanaDana Scully · dana@example.com+ to']);
+      expect(within(toField()).queryByText(/Dana/)).toBeNull();
+
+      press(editor, 'Enter');
+      await nextFrame();
+      expect(editor.getText()).toBe('Hallo @Dana ');
+      expect(within(toField()).getByText(/Dana Scully/)).toBeTruthy();
+    });
+
+    it('never offers someone in Bcc, or a contact group', async () => {
+      const { editor } = await renderComposer();
+      await typeInto(editor, ' @ge');
+      expect(mentionList()).toBeNull();
+      await typeInto(editor, ' @dev');
+      expect(mentionList()).toBeNull();
+    });
+
+    it('adds the picked contact to Cc when the settings say so', async () => {
+      useSettingsStore.setState({ mentionAddsRecipientTo: 'cc' } as never);
+      const { editor } = await renderComposer();
+      expect(screen.queryByText('cc_label')).toBeNull();
+      await typeInto(editor, ' @da');
+      const list = await screen.findByRole('listbox', { name: 'mention_recipients' });
+      expect(within(list).getByRole('option')).toHaveTextContent('+ cc');
+      press(editor, 'Tab');
+      await nextFrame();
+      const ccRow = (await screen.findByText('cc_label')).parentElement!;
+      expect(within(ccRow).getByText(/Dana Scully/)).toBeTruthy();
+      expect(within(toField()).queryByText(/Dana/)).toBeNull();
+    });
+
+    it('offers recipients only when contacts are turned off', async () => {
+      useSettingsStore.setState({ mentionAddsRecipientTo: 'off' } as never);
+      const { editor } = await renderComposer();
+      await typeInto(editor, ' @da');
+      expect(mentionList()).toBeNull();
+      await typeInto(editor, ' @b');
+      expect(await screen.findByRole('listbox', { name: 'mention_recipients' })).toBeTruthy();
+    });
+  });
+  describe('mention chips', () => {
+    beforeAll(() => { addressBook.entries = [{ name: 'Dana Scully', email: 'dana@example.com' }]; });
+    afterAll(() => { addressBook.entries = []; });
+
+    const chipPos = (editor: Editor, email: string) => {
+      let at = -1;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'mentionChip' && node.attrs.email === email) at = pos;
+      });
+      return at;
+    };
+    const card = () => screen.queryByTestId('mention-card');
+
+    it('shows who a picked mention is when it is clicked, and removes it from there', async () => {
+      const { editor } = await renderComposer();
+      await typeInto(editor, ' @b');
+      await screen.findByRole('listbox', { name: 'mention_recipients' });
+      press(editor, 'Enter');
+      await nextFrame();
+      const chip = editor.view.dom.querySelector('a.mention')!;
+      expect(chip.textContent).toBe('@Bob');
+      expect(chip.classList.contains('mention-outside')).toBe(false);
+
+      act(() => { editor.commands.setNodeSelection(chipPos(editor, 'bob@example.com')); });
+      const shown = await screen.findByTestId('mention-card');
+      expect(shown).toHaveTextContent('Bob Builder');
+      expect(shown).toHaveTextContent('bob@example.com');
+      expect(shown).toHaveTextContent('action_copy');
+      expect(shown).not.toHaveTextContent('mention_card_not_recipient');
+      expect(within(shown).queryByRole('button', { name: 'mention_card_add' })).toBeNull();
+
+      fireEvent.click(within(shown).getByRole('button', { name: 'mention_card_remove' }));
+      await waitFor(() => expect(card()).toBeNull());
+      expect(editor.view.dom.querySelector('a.mention')).toBeNull();
+      expect(editor.getText()).toBe('Hallo ');
+    });
+
+    it('waits for a click: hovering a chip opens nothing, selecting it does', async () => {
+      const { editor } = await renderComposer({ body: '<p>Hallo <a href="mailto:bob@example.com">@Bob</a></p>' });
+      const chip = editor.view.dom.querySelector('a.mention')!;
+      fireEvent.mouseOver(chip);
+      await act(() => new Promise<void>((resolve) => setTimeout(resolve, 500)));
+      expect(card()).toBeNull();
+
+      act(() => { editor.commands.setNodeSelection(chipPos(editor, 'bob@example.com')); });
+      expect(await screen.findByTestId('mention-card')).toHaveTextContent('Bob Builder');
+      // Moving the cursor off the chip closes it.
+      act(() => { editor.commands.setTextSelection(1); });
+      await waitFor(() => expect(card()).toBeNull());
+    });
+
+    it('marks a mention of someone not on the message and offers to add them', async () => {
+      const { editor } = await renderComposer({ body: '<p>Hallo <a href="mailto:dana@example.com">@Dana</a></p>' });
+      const chip = () => editor.view.dom.querySelector('a.mention')!;
+      expect(chip().classList.contains('mention-outside')).toBe(true);
+      expect(within(screen.getByTestId('composer-to')).queryByText(/dana/)).toBeNull();
+
+      act(() => { editor.commands.setNodeSelection(chipPos(editor, 'dana@example.com')); });
+      const shown = await screen.findByTestId('mention-card');
+      expect(shown).toHaveTextContent('Dana Scully');
+      expect(shown).toHaveTextContent('mention_card_not_recipient');
+      fireEvent.click(within(shown).getByRole('button', { name: 'mention_card_add' }));
+
+      // Added with the name from the contacts, not just the address.
+      expect(within(screen.getByTestId('composer-to')).getByText(/Dana Scully/)).toBeTruthy();
+      await waitFor(() => expect(chip().classList.contains('mention-outside')).toBe(false));
+      expect(card()).not.toHaveTextContent('mention_card_not_recipient');
+    });
+  });
+
+  // The Insert link dialog portals to the body but sits inside the composer
+  // in React's tree, so its keys bubble through the composer's handler.
+  it('lets Escape in the Insert link dialog close only that dialog, not the composer', async () => {
+    const { onClose } = await renderComposer();
+    fireEvent.click(screen.getByTitle('link'));
+    const dialog = await screen.findByRole('dialog', { name: 'insert_link' });
+    fireEvent.keyDown(dialog.querySelector('input')!, { key: 'Escape' });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('lets Escape in a formatting menu close only the menu', async () => {
+    const { onClose } = await renderComposer();
+    fireEvent.click(screen.getByTitle('text_color'));
+    const menu = await screen.findByRole('menu', { name: 'text_color' });
+    fireEvent.keyDown(menu.querySelector('button')!, { key: 'Escape' });
+    expect(screen.queryByRole('menu', { name: 'text_color' })).toBeNull();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // The first Backspace selects the last recipient, it doesn't turn it into text.
+  it('selects the last recipient on Backspace, without the key deleting anything', async () => {
+    await renderComposer({ to: 'Sarah Kim <sarah@example.com>' });
+    const to = within(screen.getByTestId('composer-to')).getByRole('combobox') as HTMLInputElement;
+    // fireEvent returns false when the handler stopped the key's default action.
+    expect(fireEvent.keyDown(to, { key: 'Backspace' })).toBe(false);
+    expect(to.value).toBe('');
+    expect(document.activeElement).toHaveAttribute('data-recipient-chip');
+  });
+
+  // compose-17: the button was there only with a server directory, so
+  // contacts alone were never offered.
+  it('offers the recipient picker for the contacts when the server has no directory', async () => {
+    const contactState = (useContactStore as unknown as { getState: () => { contacts: unknown[] } }).getState();
+    contactState.contacts = [{ id: 'c1', name: { full: 'Zoe Fischer' }, emails: { e: { address: 'zoe@example.com' } } }];
+    try {
+      await renderComposer();
+      const button = screen.getByTestId('composer-directory-picker');
+      expect(button).toHaveAccessibleName('picker_button');
+      fireEvent.click(button);
+      expect(screen.getByRole('dialog', { name: 'directory' })).toBeInTheDocument();
+    } finally {
+      contactState.contacts = [];
+    }
+  });
+
+  // The directory picker is drawn inside the composer itself, not portaled.
+  it('lets Escape in the directory picker leave the composer alone', async () => {
+    // Every other capability answers nothing.
+    const client = new Proxy({ supportsPrincipals: () => true }, {
+      get: (target, key) => (key in target ? target[key as keyof typeof target] : () => undefined),
+    });
+    useAuthStore.setState({ client: client as never });
+    try {
+      const { onClose } = await renderComposer();
+      fireEvent.click(screen.getByTestId('composer-directory-picker'));
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'directory search' }), { key: 'Escape' });
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+    } finally {
+      useAuthStore.setState({ client: null });
+    }
   });
 });

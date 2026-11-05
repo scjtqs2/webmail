@@ -64,6 +64,13 @@ export function EmailIdentityBadge({
   // Determine which tag to display (sent or received)
   const displayTag = matchingIdentity ? parsedFrom.tag : receivedToTag;
 
+  // "via <identity>" only tells the user something when the identity's name
+  // differs from the name already shown as the sender ("User A via User A").
+  const showIdentityName = !!matchingIdentity?.name
+    && matchingIdentity.name !== matchingIdentity.email
+    && matchingIdentity.name !== fromAddress
+    && matchingIdentity.name !== email.from?.[0]?.name;
+
   // Don't show badge if not from user's identity and not to user's sub-address
   if (!matchingIdentity && !receivedToTag) return null;
 
@@ -85,12 +92,7 @@ export function EmailIdentityBadge({
       );
     }
 
-    if (
-      matchingIdentity &&
-      matchingIdentity.name &&
-      matchingIdentity.name !== matchingIdentity.email &&
-      matchingIdentity.name !== fromAddress
-    ) {
+    if (matchingIdentity && showIdentityName) {
       return (
         <div
           className={cn(
@@ -109,7 +111,11 @@ export function EmailIdentityBadge({
     return null;
   }
 
-  // Full view for email viewer - now shows compact badges only
+  // Full view for email viewer - the sub-address tag only. A message of your
+  // own named its identity ("via <identity>"), which read like a delegation
+  // warning; the sender's address, shown right under the name, already says
+  // which of your addresses sent it.
+  if (!displayTag) return null;
   return (
     <div className={cn('inline-flex items-center gap-2', className)}>
       {/* Sub-address tag badge */}
@@ -128,25 +134,6 @@ export function EmailIdentityBadge({
         </div>
       )}
 
-      {/* Identity badge (only if identity has a name and no sub-address tag) */}
-      {!displayTag &&
-        matchingIdentity &&
-        matchingIdentity.name &&
-        matchingIdentity.name !== matchingIdentity.email &&
-        matchingIdentity.name !== fromAddress && (
-          <div
-            className={cn(
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-md',
-              'bg-secondary text-muted-foreground border border-border',
-              'text-xs font-medium'
-            )}
-            title={t('identity_name', { name: matchingIdentity.name })}
-            aria-label={t('identity_name', { name: matchingIdentity.name })}
-          >
-            <Mail className="w-3 h-3" />
-            <span>{t('identity_short', { name: matchingIdentity.name })}</span>
-          </div>
-        )}
     </div>
   );
 }

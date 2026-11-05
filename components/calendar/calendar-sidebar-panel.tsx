@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useLongPress } from "@/hooks/use-long-press";
+import { IconButton } from "@/components/ui/icon-button";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronRight, Globe, ListTodo, Pencil, RefreshCw, Share2, Star, Trash2, Cake, User, Users, Plus, Eraser, Palette, Shuffle } from "@/components/icons";
+import { Check, ChevronDown, ChevronRight, Globe, ListTodo, MoreVertical, Pencil, RefreshCw, Share2, Star, Trash2, Cake, User, Users, Plus, Eraser, Palette, RotateCcw, Shuffle } from "@/components/icons";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { Calendar } from "@/lib/jmap/types";
 import { CalendarColorPicker } from "@/components/settings/calendar-management-settings";
@@ -10,13 +12,21 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useTaskStore } from "@/stores/task-store";
 import { useAccountStore } from "@/stores/account-store";
+import { accountAddress } from "@/lib/calendar-targets";
 import { BIRTHDAY_CALENDAR_ID } from "@/lib/birthday-calendar";
 import { sharedCalendarColorKey } from "@/lib/shared-calendar-colors";
 import { toast } from "@/stores/toast-store";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator, ContextMenuSubMenu } from "@/components/ui/context-menu";
 import { useContextMenu } from "@/hooks/use-context-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
+import { isTaskOverdue, taskListsOf } from "@/components/calendar/task-list-view";
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
-import { displayNow } from "@/lib/timezone";
+import { readableTextOn } from "@/lib/color-transform";
+import { shareRecipientNames, useShareRecipientLabels } from "@/hooks/use-share-recipient-labels";
+import { useCvdColor } from "@/hooks/use-cvd-color";
+import { useCollectionNames } from "@/hooks/use-collection-names";
 
 /**
  * Split a per-account calendar list into "owned" (the user's own) and
@@ -85,9 +95,13 @@ export function CalendarSidebarPanel({
   client,
   multiAccountMode,
 }: CalendarSidebarPanelProps) {
+  const shownName = useCollectionNames();
   const t = useTranslations("calendar");
+  const tUx = useTranslations("ux_pim_calendar");
+  const paint = useCvdColor();
   const tSub = useTranslations("calendar.subscription");
   const tMgmt = useTranslations("calendar.management");
+  const tCompany = useTranslations("company_calendars");
   const isSubscriptionCalendar = useCalendarStore((s) => s.isSubscriptionCalendar);
   const allSubs = useCalendarStore((s) => s.icalSubscriptions);
   const currentAccountId = client?.getAccountId();
@@ -98,6 +112,11 @@ export function CalendarSidebarPanel({
   const refreshICalSubscription = useCalendarStore((s) => s.refreshICalSubscription);
   const removeICalSubscription = useCalendarStore((s) => s.removeICalSubscription);
   const setDefaultCalendar = useCalendarStore((s) => s.setDefaultCalendar);
+  const updateCalendar = useCalendarStore((s) => s.updateCalendar);
+  const viewMode = useCalendarStore((s) => s.viewMode);
+  const hiddenTaskListIds = useCalendarStore((s) => s.hiddenTaskListIds);
+  const toggleTaskListVisibility = useCalendarStore((s) => s.toggleTaskListVisibility);
+  const [renaming, setRenaming] = useState<Calendar | null>(null);
   const timeFormat = useSettingsStore((s) => s.timeFormat);
   const sharedCalendarColors = useSettingsStore((s) => s.sharedCalendarColors);
   const enableCalendarTasks = useSettingsStore((s) => s.enableCalendarTasks);
@@ -105,12 +124,17 @@ export function CalendarSidebarPanel({
   const setViewMode = useCalendarStore((s) => s.setViewMode);
 
   const pendingTaskCount = useMemo(() => tasks.filter(t => t.progress !== 'completed' && t.progress !== 'cancelled').length, [tasks]);
-  const overdueTaskCount = useMemo(() => {
-    const now = displayNow();
-    return tasks.filter(t => t.progress !== 'completed' && t.progress !== 'cancelled' && t.due && new Date(t.due) < now).length;
-  }, [tasks]);
+  // The same rule as the task list's Overdue filter (pim-p2-12).
+  const overdueTaskCount = useMemo(() => tasks.filter(isTaskOverdue).length, [tasks]);
 
-  const { contextMenu, openContextMenu, closeContextMenu, menuRef } = useContextMenu<Calendar>();
+  const { contextMenu, openContextMenu, openContextMenuFrom, closeContextMenu, menuRef } = useContextMenu<Calendar>();
+
+  // A long press on a calendar opens its menu, as a right-click does (R7).
+  const pressedRef = useRef<{ calendar: Calendar; element: HTMLElement } | null>(null);
+  const longPress = useLongPress(() => {
+    const pressed = pressedRef.current;
+    if (pressed) openContextMenuFrom(pressed.element, pressed.calendar);
+  });
   const [refreshingSubId, setRefreshingSubId] = useState<string | null>(null);
 
   // Persisted across mounts so toggle state survives tab switches in the
@@ -137,7 +161,23 @@ export function CalendarSidebarPanel({
   // view but hidden from the event calendar list here.
   const eventCalendars = useMemo(() => calendars.filter(c => !c.isTasksOnly), [calendars]);
 
-  const personalCalendars = useMemo(() => eventCalendars.filter(c => !c.isShared), [eventCalendars]);
+  const personalCalendars = useMemo(() => eventCalendars.filter(c => !c.isShared && !c.isCompany), [eventCalendars]);
+  // Company calendars the admin set: under "Organisation", read-only.
+  const companyCalendars = useMemo(() => eventCalendars.filter(c => c.isCompany), [eventCalendars]);
+
+  // Names for the "shared with" hint. Principal ids belong to one server, so
+  // only calendars of the account `client` talks to are resolved.
+  const resolvesShares = (cal: Calendar) => !cal.localAccountId || cal.localAccountId === activeLocalAccountId;
+  const hasSharedCalendar = eventCalendars.some(
+    (c) => !c.isShared && Object.keys(c.shareWith ?? {}).length > 0 && resolvesShares(c),
+  );
+  const shareLabels = useShareRecipientLabels(client, hasSharedCalendar);
+  const sharedWithLabel = (cal: Calendar) => {
+    const names = resolvesShares(cal) ? shareRecipientNames(cal.shareWith, shareLabels) : null;
+    return names
+      ? tMgmt('shared_with', { names: names.join(', ') })
+      : tMgmt('shared_with_count', { count: Object.keys(cal.shareWith ?? {}).length });
+  };
   const sharedAccountGroups = useMemo(() => {
     const shared = eventCalendars.filter(c => c.isShared);
     const groups = new Map<string, { accountName: string; calendars: Calendar[] }>();
@@ -167,13 +207,15 @@ export function CalendarSidebarPanel({
       list.push(cal);
       byAccount.set(key, list);
     }
-    const ordered: { key: string; label: string; split: AccountCalendarSplit }[] = [];
+    const ordered: { key: string; label: string; name: string; split: AccountCalendarSplit }[] = [];
     // Active account first.
     if (activeLocalAccountId && byAccount.has(activeLocalAccountId)) {
       const acct = localAccounts.find(a => a.id === activeLocalAccountId);
       ordered.push({
         key: activeLocalAccountId,
-        label: acct?.label || acct?.email || acct?.username || activeLocalAccountId,
+        // By address (pim-p2-3): two accounts of one person share a name.
+        label: accountAddress(acct) || activeLocalAccountId,
+        name: acct?.displayName || acct?.label || '',
         split: splitAccountCalendars(byAccount.get(activeLocalAccountId)!),
       });
       byAccount.delete(activeLocalAccountId);
@@ -183,7 +225,8 @@ export function CalendarSidebarPanel({
       if (!byAccount.has(acct.id)) continue;
       ordered.push({
         key: acct.id,
-        label: acct.label || acct.email || acct.username,
+        label: accountAddress(acct),
+        name: acct.displayName || acct.label || '',
         split: splitAccountCalendars(byAccount.get(acct.id)!),
       });
       byAccount.delete(acct.id);
@@ -193,7 +236,7 @@ export function CalendarSidebarPanel({
       const fallbackLabel = key === '__other__'
         ? t('my_calendars')
         : list[0]?.accountName || key;
-      ordered.push({ key, label: fallbackLabel, split: splitAccountCalendars(list) });
+      ordered.push({ key, label: fallbackLabel, name: '', split: splitAccountCalendars(list) });
     }
     return ordered;
   }, [multiAccountMode, eventCalendars, localAccounts, activeLocalAccountId, t]);
@@ -215,8 +258,19 @@ export function CalendarSidebarPanel({
     }
   };
 
+  const { dialogProps: confirmDialogProps, confirm: confirmAction } = useConfirmDialog();
+
+  // Removes the feed's calendar and its events: asked first (R3).
   const handleUnsubscribe = async (subId: string) => {
     if (!client) return;
+    const sub = icalSubscriptions.find((s) => s.id === subId);
+    const ok = await confirmAction({
+      title: t('delete_dialog.subscription_title'),
+      message: tSub('confirm_delete', { name: sub?.name ?? '' }),
+      confirmText: tSub('unsubscribe'),
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await removeICalSubscription(client, subId);
       toast.success(tSub('deleted'));
@@ -224,6 +278,35 @@ export function CalendarSidebarPanel({
       toast.error(tSub('delete_error'));
     }
   };
+
+  const handleRename = async (cal: Calendar, name: string) => {
+    if (!client || !name || name === cal.name) return;
+    try {
+      await updateCalendar(client, cal.id, { name });
+      toast.success(tMgmt('calendar_updated'));
+    } catch {
+      toast.error(tMgmt('error_update'));
+    }
+  };
+
+  // The tasks view lists task lists, each with its own tick (pim-1): a
+  // task-only list never shows in the grid, so the grid's selection can't
+  // say which tasks to list.
+  const inTasksView = enableCalendarTasks && viewMode === 'tasks';
+  const taskLists = useMemo(() => (inTasksView ? taskListsOf(calendars, tasks) : []), [inTasksView, calendars, tasks]);
+  const accountLabel = (localAccountId: string) => {
+    const acct = localAccounts.find(a => a.id === localAccountId);
+    return accountAddress(acct) || localAccountId;
+  };
+  const taskListGroups = useMemo(() => {
+    if (!multiAccountMode) return [{ key: '__all__', label: '', lists: taskLists }];
+    const groups = new Map<string, Calendar[]>();
+    for (const cal of taskLists) {
+      const key = cal.localAccountId || '__other__';
+      groups.set(key, [...(groups.get(key) ?? []), cal]);
+    }
+    return Array.from(groups.entries()).map(([key, lists]) => ({ key, label: key === '__other__' ? '' : key, lists }));
+  }, [multiAccountMode, taskLists]);
 
   const handleSetDefault = async (calendarId: string) => {
     if (!client) return;
@@ -237,53 +320,87 @@ export function CalendarSidebarPanel({
 
   if (calendars.length === 0 && !onSubscribe) return null;
 
-  const renderCalendarItem = (cal: Calendar) => {
-    const isVisible = selectedCalendarIds.includes(cal.id);
-    const color = cal.color || "#3b82f6";
-    const hasMenu = isSubscriptionCalendar(cal.id) ? !!client : true;
+  const renderCalendarItem = (cal: Calendar, asTaskList = false) => {
+    const isVisible = asTaskList ? !hiddenTaskListIds.includes(cal.id) : selectedCalendarIds.includes(cal.id);
+    const onToggle = asTaskList ? () => toggleTaskListVisibility(cal.id) : () => onToggleVisibility(cal.id);
+    const color = paint(cal.color || "#3b82f6");
+    // A company calendar can only be shown or hidden: no menu.
+    const hasMenu = cal.isCompany ? false : isSubscriptionCalendar(cal.id) ? !!client : true;
 
     return (
-      <div key={cal.id} className="relative">
+      <div key={cal.id} className="relative group/cal">
         <button
-          onClick={() => onToggleVisibility(cal.id)}
+          onClick={onToggle}
           onContextMenu={hasMenu ? (e) => openContextMenu(e, cal) : undefined}
-          data-testid="calendar-item"
+          {...(hasMenu ? {
+            onTouchStart: (e: React.TouchEvent<HTMLButtonElement>) => { pressedRef.current = { calendar: cal, element: e.currentTarget }; longPress.onTouchStart(e); },
+            onTouchMove: longPress.onTouchMove,
+            onTouchEnd: longPress.onTouchEnd,
+            onTouchCancel: longPress.onTouchCancel,
+          } : {})}
+          role="checkbox"
+          aria-checked={isVisible}
+          data-testid={asTaskList ? "task-list-item" : "calendar-item"}
           data-calendar-name={cal.name}
           data-account={cal.accountName ?? ''}
           data-visible={isVisible}
           className={cn(
-            "flex items-center gap-2 w-full px-1.5 py-1 rounded-md text-sm transition-colors duration-150",
-            "hover:bg-muted"
+            "flex items-center gap-2 w-full ps-5 pe-3 min-h-8 pointer-coarse:min-h-11 text-sm text-foreground transition-colors duration-150",
+            "hover:bg-muted",
+            hasMenu && "pe-11"
           )}
+          style={{ paddingBlock: 'var(--density-sidebar-py, 4px)' }}
         >
+          {/* A checkbox filled in the calendar colour, empty when hidden. */}
           <span
             className={cn(
-              "w-3 h-3 rounded-sm border-2 flex-shrink-0 transition-colors",
-              isVisible ? "border-transparent" : "border-muted-foreground/40 bg-transparent"
+              "w-3.5 h-3.5 rounded-sm border-2 flex-shrink-0 flex items-center justify-center transition-colors",
+              !isVisible && "border-muted-foreground/40 bg-transparent"
             )}
-            style={isVisible ? { backgroundColor: color, borderColor: color } : undefined}
-          />
-          <span className={cn("truncate", !isVisible && "text-muted-foreground")}>
-            {cal.name}
+            style={isVisible ? { backgroundColor: color, borderColor: color, color: readableTextOn(color) } : undefined}
+            aria-hidden="true"
+          >
+            {isVisible && <Check className="w-2.5 h-2.5" stroke={3.5} />}
+          </span>
+          <span className={cn("truncate", !isVisible && "text-muted-foreground")} title={shownName.calendar(cal)}>
+            {shownName.calendar(cal)}
           </span>
           {isSubscriptionCalendar(cal.id) && (
             <>
               <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               {refreshingSubId === getSubscriptionForCalendar(cal.id)?.id && (
-                <RefreshCw className="w-3 h-3 text-muted-foreground flex-shrink-0 animate-spin" />
+                <RefreshCw className="w-3 h-3 text-muted-foreground flex-shrink-0 animate-spin [animation-direction:reverse]" />
               )}
             </>
           )}
           {cal.id === BIRTHDAY_CALENDAR_ID && (
             <Cake className="w-3 h-3 text-muted-foreground flex-shrink-0" />
           )}
-          {!cal.isShared && Object.keys(cal.shareWith || {}).length > 0 && (
-            <Users
-              className="w-3 h-3 text-muted-foreground flex-shrink-0"
-              aria-label={tMgmt('share')}
-            />
-          )}
+          {!cal.isShared && Object.keys(cal.shareWith || {}).length > 0 && (() => {
+            const label = sharedWithLabel(cal);
+            return (
+              <span className="flex-shrink-0 flex items-center" title={label} data-testid="calendar-shared-indicator">
+                <Users className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+                <span className="sr-only">{label}</span>
+              </span>
+            );
+          })()}
         </button>
+        {hasMenu && (
+          <IconButton
+            onClick={(e) => openContextMenuFrom(e.currentTarget, cal, "end")}
+            aria-haspopup="menu"
+            className={cn(
+              "absolute end-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-opacity",
+              // Hover shows it; keyboard focus and touch screens always do (R7).
+              "opacity-0 group-hover/cal:opacity-100 group-focus-within/cal:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
+              contextMenu.isOpen && contextMenu.data?.id === cal.id && "opacity-100"
+            )}
+            label={t('calendar_options', { name: shownName.calendar(cal) })}
+          >
+            <MoreVertical />
+          </IconButton>
+        )}
       </div>
     );
   };
@@ -324,7 +441,9 @@ export function CalendarSidebarPanel({
     }
 
     const isBirthday = cal.id === BIRTHDAY_CALENDAR_ID;
-    const canCreate = onCreateEvent && !isBirthday && cal.myRights?.mayWriteOwn !== false;
+    const canCreate = onCreateEvent && !isBirthday && !cal.isTasksOnly && cal.myRights?.mayWriteOwn !== false;
+    // The owner names a calendar: a sharee renaming it would rename it for everyone (pim-20).
+    const canRename = !!client && !isBirthday && !cal.isShared;
     const canShare = onShareCalendar && cal.myRights?.mayShare && !cal.isShared;
     const canSetDefault = !!client && !isBirthday && !cal.isShared && !cal.isDefault;
     const canChangeColor = !!onColorChange;
@@ -332,7 +451,7 @@ export function CalendarSidebarPanel({
     const canResetColor = !!onResetColor && hasColorOverride;
     const canClear = onClearCalendar && !isBirthday && cal.myRights?.mayDelete !== false;
     const canDelete = onDeleteCalendar && !isBirthday && !cal.isDefault && !cal.isShared;
-    const showSeparator = (canCreate || canShare || canSetDefault || canChangeColor || canResetColor) && (canClear || canDelete);
+    const showSeparator = (canCreate || canRename || canShare || canSetDefault || canChangeColor || canResetColor) && (canClear || canDelete);
     const color = cal.color || "#3b82f6";
 
     return (
@@ -344,9 +463,16 @@ export function CalendarSidebarPanel({
             onClick={() => { closeContextMenu(); onCreateEvent(cal); }}
           />
         )}
+        {canRename && (
+          <ContextMenuItem
+            icon={Pencil}
+            label={tUx('rename_calendar')}
+            onClick={() => { closeContextMenu(); setRenaming(cal); }}
+          />
+        )}
         {canShare && (
           <ContextMenuItem
-            icon={Users}
+            icon={Share2}
             label={tMgmt('share')}
             onClick={() => { closeContextMenu(); onShareCalendar(cal); }}
           />
@@ -371,8 +497,8 @@ export function CalendarSidebarPanel({
         )}
         {canResetColor && (
           <ContextMenuItem
-            icon={Shuffle}
-            label={tMgmt('random_color')}
+            icon={cal.serverColor ? RotateCcw : Shuffle}
+            label={tMgmt(cal.serverColor ? 'reset_color' : 'random_color')}
             onClick={() => { closeContextMenu(); onResetColor!(cal); }}
           />
         )}
@@ -380,14 +506,16 @@ export function CalendarSidebarPanel({
         {canClear && (
           <ContextMenuItem
             icon={Eraser}
-            label={tMgmt('clear_events')}
+            label={tUx('clear_all_events')}
+            destructive
+            testId="calendar-clear-all"
             onClick={() => { closeContextMenu(); onClearCalendar(cal); }}
           />
         )}
         {canDelete && (
           <ContextMenuItem
             icon={Trash2}
-            label={tMgmt('delete')}
+            label={tUx('delete_calendar')}
             onClick={() => { closeContextMenu(); onDeleteCalendar(cal); }}
             destructive
           />
@@ -396,12 +524,56 @@ export function CalendarSidebarPanel({
     );
   };
 
+  // "My calendars" / "Other calendars" fold away like the account groups,
+  // and share their remembered state.
+  const renderSectionHeader = (key: string, label: string, onAdd?: () => void) => {
+    const expanded = !collapsedAccountGroups.has(key);
+    return (
+      <div className="group flex items-center gap-1 pe-3">
+        <button
+          type="button"
+          onClick={() => toggleAccountGroup(key)}
+          aria-expanded={expanded}
+          className="flex-1 min-w-0 flex items-center gap-1 ps-3 py-1 text-start"
+        >
+          {expanded ? (
+            <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          ) : (
+            <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          )}
+          <span className="text-xs font-medium text-muted-foreground truncate" title={label}>{label}</span>
+        </button>
+        {onAdd && (
+          <IconButton
+            onClick={onAdd}
+            className="text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 hover:text-foreground transition-opacity"
+            label={tMgmt('add_calendar')}
+          >
+            <Plus />
+          </IconButton>
+        )}
+      </div>
+    );
+  };
+
+  const renderSection = (key: string, label: string, list: Calendar[], onAdd?: () => void) => (
+    <div>
+      {renderSectionHeader(key, label, onAdd)}
+      {!collapsedAccountGroups.has(key) && (
+        <div>
+          {list.map((cal) => renderCalendarItem(cal))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="mt-4">
       {enableCalendarTasks && (
         <button
           onClick={() => setViewMode('tasks')}
-          className="flex items-center gap-2 w-full px-1.5 py-1.5 mb-3 rounded-md text-sm hover:bg-muted transition-colors"
+          className="flex items-center gap-2 w-full px-3 mb-2 min-h-8 pointer-coarse:min-h-11 text-sm text-foreground hover:bg-muted transition-colors"
+          style={{ paddingBlock: 'var(--density-sidebar-py, 4px)' }}
         >
           <ListTodo className="w-4 h-4 text-muted-foreground" />
           <span>{t('tasks.label')}</span>
@@ -413,7 +585,22 @@ export function CalendarSidebarPanel({
           )}
         </button>
       )}
-      {multiAccountMode && localAccountGroups.length > 0 ? (
+      {inTasksView ? (
+        <div data-testid="task-lists-section">
+          {renderSectionHeader('__task_lists__', tUx('task_lists'))}
+          {!collapsedAccountGroups.has('__task_lists__') && taskListGroups.map((group) => (
+            <div key={group.key} className={cn(group.label && "mt-1")}>
+              {group.label && (
+                <div className="ps-5 pe-3 py-0.5 text-[0.6875rem] font-medium text-muted-foreground flex items-center gap-1">
+                  <User className="w-3 h-3" aria-hidden="true" />
+                  <span className="truncate">{accountLabel(group.label)}</span>
+                </div>
+              )}
+              {group.lists.map((cal) => renderCalendarItem(cal, true))}
+            </div>
+          ))}
+        </div>
+      ) : multiAccountMode && localAccountGroups.length > 0 ? (
         <>
           {localAccountGroups.map((group, idx) => {
             const expanded = !collapsedAccountGroups.has(group.key);
@@ -423,7 +610,7 @@ export function CalendarSidebarPanel({
               <div key={group.key} className={cn(idx === 0 ? "" : "mt-3")}>
                 <button
                   onClick={() => toggleAccountGroup(group.key)}
-                  className="group w-full flex items-center gap-1.5 px-1 py-1 rounded-sm hover:bg-muted/40 transition-colors"
+                  className="group w-full flex items-center gap-1.5 px-3 py-1 hover:bg-muted/40 transition-colors"
                 >
                   {expanded ? (
                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -431,7 +618,7 @@ export function CalendarSidebarPanel({
                     <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                   )}
                   <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="text-xs font-semibold text-foreground/90 truncate">
+                  <span className="text-xs font-semibold text-foreground/90 truncate" title={group.name && group.name !== group.label ? `${group.name} <${group.label}>` : group.label} data-testid="calendar-account-group">
                     {group.label}
                   </span>
                   {isActive && onCreateCalendar && (
@@ -446,7 +633,7 @@ export function CalendarSidebarPanel({
                           onCreateCalendar();
                         }
                       }}
-                      className="ms-auto p-0.5 rounded text-muted-foreground/70 opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                      className="ms-auto p-0.5 rounded text-muted-foreground/70 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                       title={tMgmt('add_calendar')}
                     >
                       <Plus className="w-3 h-3" />
@@ -454,25 +641,25 @@ export function CalendarSidebarPanel({
                   )}
                 </button>
                 {expanded && (
-                  <div className="mt-1 ps-3">
+                  <div className="mt-1">
                     {owned.length > 0 && (
                       <div>
-                        <div className="px-1 mb-1 text-[10px] font-medium text-muted-foreground/80 uppercase tracking-wider">
+                        <div className="ps-5 pe-3 py-0.5 text-[0.6875rem] font-medium text-muted-foreground">
                           {t('my_calendars')}
                         </div>
-                        <div className="space-y-0.5">
-                          {owned.map(renderCalendarItem)}
+                        <div>
+                          {owned.map((cal) => renderCalendarItem(cal))}
                         </div>
                       </div>
                     )}
                     {sharedGroups.map((sg) => (
                       <div key={`${group.key}-shared-${sg.label}`} className="mt-2">
-                        <div className="px-1 mb-1 text-[10px] font-medium text-muted-foreground/80 uppercase tracking-wider flex items-center gap-1">
+                        <div className="ps-5 pe-3 py-0.5 text-[0.6875rem] font-medium text-muted-foreground flex items-center gap-1">
                           <Share2 className="w-3 h-3" />
                           {sg.label}
                         </div>
-                        <div className="space-y-0.5">
-                          {sg.calendars.map(renderCalendarItem)}
+                        <div>
+                          {sg.calendars.map((cal) => renderCalendarItem(cal))}
                         </div>
                       </div>
                     ))}
@@ -484,41 +671,50 @@ export function CalendarSidebarPanel({
         </>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-2 px-1 group">
-            {onCreateCalendar ? (
-              <button
-                onClick={onCreateCalendar}
-                className="text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex items-center gap-1.5"
-                title={tMgmt('add_calendar')}
-              >
-                {t('my_calendars')}
-                <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            ) : (
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {t('my_calendars')}
-              </h3>
-            )}
-          </div>
-          <div className="space-y-0.5">
-            {personalCalendars.map(renderCalendarItem)}
-          </div>
+          {renderSection(
+            '__mine__',
+            t('my_calendars'),
+            personalCalendars,
+            onCreateCalendar,
+          )}
 
-          {sharedAccountGroups.map((group) => (
-            <div key={group.accountName} className="mt-4">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-                <Share2 className="w-3 h-3" />
-                {group.accountName}
-              </h3>
-              <div className="space-y-0.5">
-                {group.calendars.map(renderCalendarItem)}
-              </div>
+          {companyCalendars.length > 0 && (
+            <div className="mt-2" data-testid="company-calendars-section">
+              {renderSection('__organisation__', tCompany('section'), companyCalendars)}
             </div>
-          ))}
+          )}
+
+          {sharedAccountGroups.length > 0 && (
+            <div className="mt-2">
+              {renderSectionHeader('__others__', t('other_calendars'))}
+              {!collapsedAccountGroups.has('__others__') && sharedAccountGroups.map((group) => (
+                <div key={group.accountName} className="mt-2">
+                  <div className="ps-5 pe-3 py-0.5 text-[0.6875rem] font-medium text-muted-foreground flex items-center gap-1">
+                    <Share2 className="w-3 h-3" />
+                    {group.accountName}
+                  </div>
+                  <div>
+                    {group.calendars.map((cal) => renderCalendarItem(cal))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
       {renderCalendarMenu()}
+      <ConfirmDialog {...confirmDialogProps} />
+      <PromptDialog
+        isOpen={!!renaming}
+        onClose={() => setRenaming(null)}
+        onSubmit={(name) => { const cal = renaming; setRenaming(null); if (cal) void handleRename(cal, name.trim()); }}
+        title={tUx('rename_title')}
+        placeholder={tMgmt('name_placeholder')}
+        defaultValue={renaming?.name ?? ''}
+        confirmText={tUx('rename_confirm')}
+        validate={(value) => (value.trim() ? null : tUx('rename_empty'))}
+      />
     </div>
   );
 }

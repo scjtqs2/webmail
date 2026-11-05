@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useAccountStore } from '@/stores/account-store';
 import { useEmailStore, resolveEmailActionContext } from '@/stores/email-store';
 import { useIdentityStore } from '@/stores/identity-store';
-import { cachedRemoteIdentities } from '@/hooks/use-pro-multi-account-identities';
+import { cachedIdentitiesForAccount, cachedRemoteIdentities } from '@/hooks/use-pro-multi-account-identities';
 import { extractListId, headerValue, normalizeAddress, unfoldHeader } from './quick-rules';
 
 /** The account a rule made from a message goes into. */
@@ -46,7 +46,12 @@ function clientKey(client: IJMAPClient): number {
 export function resolveQuickRuleTarget(email: Email): QuickRuleTarget | null {
   const auth = useAuthStore.getState();
   if (!auth.client) return null;
-  const context = resolveEmailActionContext(email, auth.client);
+  let context: ReturnType<typeof resolveEmailActionContext>;
+  try {
+    context = resolveEmailActionContext(email, auth.client);
+  } catch {
+    return null; // a message of a login that is gone
+  }
   const client = context.client;
   const ownAccountId = client.getAccountId();
   const accountId = context.accountId ?? ownAccountId;
@@ -73,6 +78,31 @@ export function resolveQuickRuleTarget(email: Email): QuickRuleTarget | null {
 }
 
 /**
+ * The account a folder of the sidebar belongs to, for running rules on it.
+ * Resolved like the other folder actions (the viewed account); null when the
+ * folder is not one of that account's own.
+ */
+export function resolveMailboxRuleTarget(mailbox: Mailbox): QuickRuleTarget | null {
+  const auth = useAuthStore.getState();
+  if (!auth.client) return null;
+  const context = resolveEmailActionContext({}, auth.client);
+  const client = context.client;
+  const accountId = client.getAccountId();
+  const mailboxes = context.mailboxes.filter(m => !m.isShared);
+  if (!mailboxes.some(m => m.id === mailbox.id)) return null;
+  return {
+    client,
+    clientAccountId: useEmailStore.getState().viewingAccountId ?? auth.activeAccountId ?? null,
+    key: `${clientKey(client)}|${accountId}`,
+    accountId,
+    sieveAccountId: client.getSieveAccountId(),
+    shared: false,
+    supportsSieve: typeof client.supportsSieve === 'function' && client.supportsSieve(),
+    mailboxes,
+  };
+}
+
+/**
  * The folder `email` is in, within the target account: the selected folder
  * when the message is in it, else the message's own folder (unified, tag and
  * search views have no real folder selected).
@@ -90,6 +120,45 @@ export function sourceMailboxOf(email: Email, target: QuickRuleTarget): Mailbox 
     if (mailbox) return mailbox;
   }
   return undefined;
+}
+
+/** The addresses of the login a rule goes into. */
+export interface RuleAccountAddresses {
+  /** Every address it sends as: its identities and its sign-in address. */
+  own: Set<string>;
+  /** Its sign-in address, which every message to the account reaches. */
+  main: Set<string>;
+}
+
+/**
+ * The addresses of the login `target` belongs to, and only that one: mail
+ * from another account the user is signed in to (a colleague's, a second
+ * mailbox of their own) is mail from someone else here, and a rule in this
+ * account's script can file it (mail-p3-9). Unknown login: every address the
+ * user has, as before.
+ */
+export function getRuleAccountAddresses(target: Pick<QuickRuleTarget, 'clientAccountId'> | null): RuleAccountAddresses {
+  const own = new Set<string>();
+  const main = new Set<string>();
+  const add = (set: Set<string>, value: string | null | undefined) => {
+    const address = normalizeAddress(value);
+    if (address.includes('@')) set.add(address);
+  };
+  const auth = useAuthStore.getState();
+  const login = target?.clientAccountId ?? auth.activeAccountId ?? null;
+  const entry = login ? useAccountStore.getState().accounts?.find(a => a.id === login) : undefined;
+  if (!entry) return { own: getOwnAddresses(), main };
+  for (const value of [entry.email, entry.username]) {
+    add(own, value);
+    add(main, value);
+  }
+  if (login === auth.activeAccountId) {
+    for (const identity of auth.identities ?? []) add(own, identity.email);
+    for (const identity of useIdentityStore.getState().identities ?? []) add(own, identity.email);
+  } else {
+    for (const identity of cachedIdentitiesForAccount(entry.id) ?? []) add(own, identity.email);
+  }
+  return { own, main };
 }
 
 /**

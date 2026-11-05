@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { EmailComposer } from '../email-composer';
+import { usePolicyStore } from '@/stores/policy-store';
 
 // ─── Heavy component mocks (mirrors composer-reopened-draft-signature.test.tsx) ─
 
@@ -10,7 +11,10 @@ vi.mock('@/components/email/rich-text-editor', () => ({
 }));
 
 vi.mock('@/components/plugins/plugin-slot', () => ({ PluginSlot: () => null }));
-vi.mock('@/components/identity/sub-address-helper', () => ({ SubAddressHelper: () => null }));
+vi.mock('@/components/identity/sub-address-helper', () => ({
+  SubAddressHelper: ({ open, hideTrigger }: { open?: boolean; hideTrigger?: boolean }) =>
+    open ? <div role="dialog">sub-address popover</div> : hideTrigger ? null : <button type="button">sub-address button</button>,
+}));
 vi.mock('@/components/templates/template-picker', () => ({ TemplatePicker: () => null }));
 vi.mock('@/components/templates/template-form', () => ({ TemplateForm: () => null }));
 vi.mock('@/components/files/file-preview-modal', () => ({ FilePreviewModal: () => null }));
@@ -94,6 +98,8 @@ vi.mock('@/stores/settings-store', () => {
     // The default position: replies/forwards get the signature appended at
     // send time rather than embedded above the quote.
     signaturePosition: 'below_quote',
+    signatureNewMailEnabled: true,
+    signatureReplyForwardEnabled: true,
     signatureSeparatorEnabled: true,
     requestReadReceiptDefault: false,
     addTrustedSender: () => {},
@@ -136,6 +142,14 @@ vi.mock('@/stores/toast-store', () => ({
 }));
 
 vi.mock('@/lib/plugin-hooks', () => ({
+  identityHooks: {
+    onSignatureRender: { size: 0, transform: async (value: unknown) => value },
+    onIdentitySelect: { size: 0, emit: async () => {} },
+  },
+  templateHooks: {
+    onTemplateRender: { size: 0, transform: async (value: unknown) => value },
+    onTemplateApply: { size: 0, emit: async () => {} },
+  },
   emailHooks: {
     onComposerOpen: { call: async () => [] },
     onRecipientChange: { call: async () => [] },
@@ -143,8 +157,8 @@ vi.mock('@/lib/plugin-hooks', () => ({
     onRecipientChipsChange: { transform: async (chips: unknown) => chips },
     onDraftChange: { emit: () => {} },
     onBeforeDraftAutoSave: { transform: async (draft: unknown) => draft },
-    onBeforeEmailSend: { intercept: async () => true },
-    onComposeSend: { intercept: async () => true },
+    onBeforeEmailSend: { intercept: async () => true, interceptOutcome: async () => 'allowed' },
+    onComposeSend: { takeOver: async () => 'default' },
     onTransformOutgoingEmail: { transform: async (email: unknown) => email },
   },
   contactHooks: {
@@ -238,5 +252,65 @@ describe('composer From override envelope (#1009)', () => {
     const sent = await send(onSend);
     expect(sent.fromEmail).toBe('me@example.com');
     expect(sent.envelopeMailFrom).toBeUndefined();
+  });
+
+  describe('with custom From switched off by the admin', () => {
+    const setCustomFrom = (on: boolean) => usePolicyStore.setState((state) => ({
+      policy: { ...state.policy, features: { ...state.policy.features, customFromEnabled: on } },
+    }));
+    beforeEach(() => setCustomFrom(false));
+    afterEach(() => setCustomFrom(true));
+
+    it('sends a draft saved with a custom From from its identity', async () => {
+      const onSend = vi.fn();
+      render(<EmailComposer initialData={{ ...DRAFT, fromOverrideEmail: 'shop@example.com' }} onSend={onSend} />);
+      expect(screen.queryByDisplayValue('shop@example.com')).not.toBeInTheDocument();
+
+      const sent = await send(onSend);
+      expect(sent.fromEmail).toBe('me@example.com');
+      expect(sent.envelopeMailFrom).toBeUndefined();
+    });
+
+    it('offers no Edit sender', () => {
+      render(<EmailComposer />);
+      expect(screen.queryByRole('option', { name: 'from_edit_sender' })).not.toBeInTheDocument();
+    });
+
+    // Control: the entry is there with the gate on, so the test above is not
+    // passing on a renamed label.
+    it('offers Edit sender with the gate on', () => {
+      setCustomFrom(true);
+      render(<EmailComposer />);
+      expect(screen.getByRole('option', { name: 'from_edit_sender' })).toBeInTheDocument();
+    });
+  });
+});
+
+// compose-20: the rare sender options live at the end of the From list, not
+// as buttons on every message.
+describe('the From list', () => {
+  const from = () => screen.getByTestId('composer-from') as HTMLSelectElement;
+
+  it('has no sub-address or Override button in the row', () => {
+    render(<EmailComposer />);
+    expect(screen.queryByText('sub-address button')).not.toBeInTheDocument();
+    expect(screen.queryByText('from_override.toggle_off')).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'from_sub_address' })).toBeInTheDocument();
+  });
+
+  it('opens the sub-address popover from the list and keeps the identity', () => {
+    render(<EmailComposer />);
+    const before = from().value;
+    fireEvent.change(from(), { target: { value: '__sub_address' } });
+    expect(screen.getByRole('dialog')).toHaveTextContent('sub-address popover');
+    expect(from().value).toBe(before);
+  });
+
+  it('turns From into fields to edit from the list, with a way back', () => {
+    render(<EmailComposer />);
+    fireEvent.change(from(), { target: { value: '__edit_sender' } });
+    expect(screen.getByLabelText('from_override.email_label')).toHaveValue('me@example.com');
+    fireEvent.click(screen.getByText('from_override.toggle_on'));
+    expect(screen.queryByLabelText('from_override.email_label')).not.toBeInTheDocument();
   });
 });

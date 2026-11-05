@@ -4,6 +4,7 @@ import { mergeMessages } from './merge-messages';
 import { localeFromAcceptLanguage } from './locale-matcher';
 import { routing, type Locale } from './routing';
 import { IS_LITE } from '@/lib/lite';
+import { addPlainLanguage } from './plain-language';
 
 export default getRequestConfig(async ({ requestLocale }) => {
   let locale = await requestLocale;
@@ -42,6 +43,9 @@ export default getRequestConfig(async ({ requestLocale }) => {
       break;
     case 'he':
       messages = (await import('../locales/he/common.json')).default;
+      break;
+    case 'et':
+      messages = (await import('../locales/et/common.json')).default;
       break;
     case 'fa':
       messages = (await import('../locales/fa/common.json')).default;
@@ -88,11 +92,17 @@ export default getRequestConfig(async ({ requestLocale }) => {
     case 'sk':
       messages = (await import('../locales/sk/common.json')).default;
       break;
+    case 'th':
+      messages = (await import('../locales/th/common.json')).default;
+      break;
     case 'tr':
       messages = (await import('../locales/tr/common.json')).default;
       break;
     case 'uk':
       messages = (await import('../locales/uk/common.json')).default;
+      break;
+    case 'vi':
+      messages = (await import('../locales/vi/common.json')).default;
       break;
     case 'zh':
       messages = (await import('../locales/zh/common.json')).default;
@@ -108,6 +118,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
     const enBase = (await import('../locales/en/common.json')).default as Record<string, unknown>;
     messages = mergeMessages(enBase, messages as Record<string, unknown>);
   }
+
+  messages = await addPlainLanguage(locale, messages as Record<string, unknown>);
 
   return {
     locale,

@@ -1,8 +1,10 @@
+import { isAppLockOn } from '@/lib/app-lock/state';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useManagedSidebarApps } from '@/hooks/use-resolved-sidebar-apps';
 import { appUrlToFrameOrigin, inlineAppFrameOrigins } from '@/lib/security/app-frame-origins';
 import { readAppFrameOrigins, writeAppFrameOrigins } from '@/lib/security/app-frame-origins-client';
+import { sidebarAppHooks } from '@/lib/plugin-hooks';
 
 export interface InlineAppState {
   id: string;
@@ -48,6 +50,15 @@ export function useSidebarApps() {
   // opening one must not trigger the reload below.
   const managedOrigins = useMemo(() => inlineAppFrameOrigins(managedApps), [managedApps]);
 
+  // Plugins hear when an app opens, and when it closes: closed by the user,
+  // replaced by another app, or gone because the user left the page.
+  const inlineAppId = inlineApp?.id ?? null;
+  useEffect(() => {
+    if (!inlineAppId) return;
+    void sidebarAppHooks.onSidebarAppOpen.emit({ appId: inlineAppId });
+    return () => { void sidebarAppHooks.onSidebarAppClose.emit({ appId: inlineAppId }); };
+  }, [inlineAppId]);
+
   const openInlineApp = useCallback((app: InlineAppState) => {
     setInlineApp(app);
     setLoadedApps((prev) => (prev.some((a) => a.id === app.id) ? prev : [...prev, app]));
@@ -87,11 +98,19 @@ export function useSidebarApps() {
       const origins = inlineAppFrameOrigins(sidebarApps);
       if (!origins.includes(origin)) origins.push(origin);
       if (writeAppFrameOrigins(origins)) {
+        // Only a new document gets the new CSP, and with the app lock on that would ask for
+        // the PIN just to open an app. So this once it opens beside the app, and in place
+        // from the next start on.
+        if (isAppLockOn()) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+          return;
+        }
         try {
           sessionStorage.setItem(PENDING_APP_KEY, JSON.stringify(app));
         } catch {
           // Private mode / storage full - the app just won't reopen itself.
         }
+        // full-load: a document's frame-src can't change without a new document.
         window.location.reload();
         return;
       }

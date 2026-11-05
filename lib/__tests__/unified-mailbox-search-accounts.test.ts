@@ -70,6 +70,8 @@ describe('searchAcrossAccounts', () => {
 
     expect(byId['own-1']).toMatchObject({
       accountId: 'login', sourceClientAccountId: 'login', sourceAccountId: 'me', sourceFolder: 'Inbox',
+      // The role lets the chip say the sidebar's name (usability test 2026-11-04, mail-14).
+      sourceFolderRole: 'inbox',
     });
     expect(byId['grp-1']).toMatchObject({
       accountId: 'group', accountLabel: 'Team', sourceClientAccountId: 'login', sourceAccountId: 'group',
@@ -114,6 +116,28 @@ describe('searchAcrossAccounts', () => {
     );
     expect(plainSearch).toHaveBeenCalledTimes(1);
     expect(plainSearch).toHaveBeenCalledWith(' acesso ', undefined, 'bare', 50, 0);
+  });
+});
+
+describe('deferred snippets across accounts', () => {
+  it("asks every account to defer and hands back each account's snippets under its id", async () => {
+    const ownSearch = vi.fn(async () => ({ ...page([email('a', '2026-09-10T00:00:00Z', 'inbox')]), snippets: Promise.resolve([{ emailId: 'a', subject: '<mark>own</mark>' }]) }));
+    const groupSearch = vi.fn(async () => ({ ...page([email('a', '2026-09-12T00:00:00Z', 'group:g-inbox')]), snippets: Promise.resolve(undefined) }));
+    const own = makeAccount({ accountId: 'login', jmapAccountId: 'me', mailboxes: ownMailboxes }, { searchEmails: ownSearch });
+    const group = makeAccount({ accountId: 'group', isShared: true, mailboxes: groupMailboxes }, { searchEmails: groupSearch });
+
+    const result = await searchAcrossAccounts([own, group], 'x', 50, 0, { deferSnippets: true });
+
+    expect(ownSearch).toHaveBeenCalledWith('x', undefined, undefined, 50, 0, { deferSnippets: true });
+    expect(groupSearch).toHaveBeenCalledWith('x', undefined, 'group', 50, 0, { deferSnippets: true });
+    // A failed or empty snippet request of one account drops out.
+    expect(await result.snippets).toEqual([{ accountId: 'login', list: [{ emailId: 'a', subject: '<mark>own</mark>' }] }]);
+  });
+
+  it('carries no snippets when no account deferred any', async () => {
+    const own = makeAccount({ accountId: 'login' }, { searchEmails: vi.fn(async () => page([])) });
+    const result = await searchAcrossAccounts([own], 'x', 50, 0);
+    expect(result.snippets).toBeUndefined();
   });
 });
 

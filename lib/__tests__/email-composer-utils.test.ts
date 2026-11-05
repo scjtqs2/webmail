@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   plainTextToComposerBody,
   rewriteCidImagesForEditor,
@@ -16,6 +16,7 @@ import {
   extractUserAuthoredText,
   formatRecipientEntry,
   expandRecipients,
+  invalidRecipientAddresses,
   getQuoteBodies,
 } from '../email-composer-utils';
 
@@ -489,6 +490,27 @@ describe("waitForPendingUploads", () => {
     ...over,
   });
 
+  it.each(["success", "failure", "removal"] as const)(
+    "prefers cancellation when upload %s happens before the next poll",
+    async terminal => {
+      vi.useFakeTimers();
+      try {
+        let list = [att({ uploading: true })];
+        let cancelled = false;
+        const result = waitForPendingUploads(() => list, () => cancelled);
+        expect(vi.getTimerCount()).toBe(1);
+        cancelled = true;
+        list = terminal === "removal" ? [] : [att({ error: terminal === "failure" })];
+        await vi.advanceTimersByTimeAsync(150);
+        expect(await result).toBe("cancelled");
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+      }
+    }
+  );
+
   it("resolves 'completed' immediately when nothing is uploading", async () => {
     const result = await waitForPendingUploads(
       () => [att({}), att({})],
@@ -594,6 +616,16 @@ describe('contact group recipients (RFC 5322 group syntax)', () => {
     expect(parsed[1].group?.members).toHaveLength(2);
   });
 
+  it('keeps typed text with a colon as a plain recipient when no member is an address', () => {
+    expect(parseRecipient('Subject: hello;')).toEqual({ email: 'Subject: hello;' });
+  });
+
+  it('lists group members that are not addresses as invalid', () => {
+    const parsed = parseRecipientList('ok@x.de, Team: a@x.de, junk;, nope');
+    expect(invalidRecipientAddresses(parsed)).toEqual(['junk', 'nope']);
+    expect(invalidRecipientAddresses([group])).toEqual([]);
+  });
+
   it('expandRecipients flattens groups and dedupes against individuals', () => {
     const expanded = expandRecipients([
       { name: 'Anna Alt', email: 'ANNA@example.com' },
@@ -638,11 +670,25 @@ describe("getQuoteBodies", () => {
       htmlBody: [part("h", "text/html")],
       bodyValues: {
         t: { value: "plain version" },
-        h: { value: "<p>html version</p>" },
+        h: { value: "<p><b>html</b> version</p>" },
       },
     });
     expect(body).toBe("plain version");
-    expect(htmlBody).toBe("<p>html version</p>");
+    expect(htmlBody).toBe("<p><b>html</b> version</p>");
+  });
+
+  it("quotes the text part when the HTML part is a bare wrapper without line breaks", () => {
+    const text = "Line one\nLine two\nLine three";
+    const { body, htmlBody } = getQuoteBodies({
+      textBody: [part("t", "text/plain")],
+      htmlBody: [part("h", "text/html")],
+      bodyValues: {
+        t: { value: text },
+        h: { value: "<html><body>Line one\nLine two\nLine three</body></html>" },
+      },
+    });
+    expect(body).toBe(text);
+    expect(htmlBody).toBeUndefined();
   });
 
   it("falls back to the preview when body values are missing", () => {

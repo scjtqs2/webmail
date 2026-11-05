@@ -5,6 +5,7 @@ export interface OAuthMetadata {
   revocation_endpoint?: string;
   end_session_endpoint?: string;
   scopes_supported?: string[];
+  registration_endpoint?: string;
 }
 
 // Validates that a discovered endpoint URL is safe to follow. Server-side
@@ -84,6 +85,30 @@ async function findRejectedEndpoint(
   return null;
 }
 
+/**
+ * Fetch a well-known document without following redirects anywhere: the
+ * endpoints inside it are validated, but the document itself was fetched
+ * with `fetch`'s default `follow`, so a configured host that answered with a
+ * redirect had the metadata read from wherever it pointed. One hop is
+ * followed when it stays on the same host (an http -> https upgrade or a
+ * path change); anything else is an error.
+ */
+async function fetchDiscoveryDocument(url: string): Promise<Response> {
+  const first = await fetch(url, { signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS), redirect: 'manual' });
+  const status = typeof first.status === 'number' ? first.status : 200;
+  if (status < 300 || status >= 400) return first;
+  const location = first.headers.get('location');
+  if (!location) throw new Error(`${url} redirected without a Location header`);
+  const next = new URL(location, url);
+  const from = new URL(url);
+  const sameHost = next.hostname === from.hostname;
+  const noDowngrade = next.protocol === 'https:' || next.protocol === from.protocol;
+  if (!sameHost || !noDowngrade) {
+    throw new Error(`${url} redirects to ${next.origin}, which is another host`);
+  }
+  return fetch(next.toString(), { signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS), redirect: 'error' });
+}
+
 // One pass over the well-known documents. Returns usable metadata, or null
 // (pushing diagnostics into `errors`) when neither URL yields a public,
 // complete document. Each fetch is bounded by a timeout so an unresponsive IdP
@@ -95,7 +120,7 @@ async function attemptDiscovery(
 ): Promise<OAuthMetadata | null> {
   for (const url of urls) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) });
+      const response = await fetchDiscoveryDocument(url);
       if (!response.ok) {
         errors.push(`${url} returned HTTP ${response.status}`);
         continue;
@@ -124,6 +149,8 @@ async function attemptDiscovery(
           token_endpoint: data.token_endpoint,
           revocation_endpoint: data.revocation_endpoint,
           end_session_endpoint: data.end_session_endpoint,
+          // Not followed from here: the one caller checks it itself (app/api/auth/desktop-oauth).
+          ...(typeof data.registration_endpoint === 'string' ? { registration_endpoint: data.registration_endpoint } : {}),
           ...(Array.isArray(data.scopes_supported)
             ? { scopes_supported: data.scopes_supported.filter((s: unknown): s is string => typeof s === 'string') }
             : {}),

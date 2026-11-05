@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { JMAPClient, RateLimitError } from '@/lib/jmap/client';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { JMAPClient, RateLimitError, RequestTimeoutError } from '@/lib/jmap/client';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { useIdentityStore } from './identity-store';
 import { setClientLookup } from './client-registry';
@@ -9,24 +9,45 @@ import { useVacationStore } from './vacation-store';
 import { subscriptionOwner, useCalendarStore } from './calendar-store';
 import { useFilterStore } from './filter-store';
 import { useSettingsStore } from './settings-store';
-import { useAccountStore, type AccountEntry } from './account-store';
+import { useAccountStore, type AccountEntry, type AccountRemovalReason } from './account-store';
 import { fetchPrincipalDisplayName } from '@/lib/stalwart/principal';
-import { fetchConfig } from '@/hooks/use-config';
+import { fetchConfig, getCachedConfig } from '@/hooks/use-config';
 import { debug } from '@/lib/debug';
 import { setServerAuthIssue } from '@/lib/server-auth-status';
 import { generateAccountId, MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch } from '@/lib/browser-navigation';
+import { IS_DESKTOP_BUILD } from '@/lib/desktop/flag';
+import { getDesktopBridge } from '@/lib/desktop/bridge';
+import { clearDesktopCertificateChoices, clearDesktopCrashFiles, clearKeystoreGrants, noteDesktopCertificateAccount } from '@/lib/desktop/keystore-grants';
+import { onConnectionsReset } from '@/lib/desktop/connections-reset';
+import { DESKTOP_CLIENT_ID_KEY } from '@/lib/desktop/browser-sign-in';
 import { isEmbedded, notifyParent } from '@/lib/iframe-bridge';
-import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll } from '@/lib/account-state-manager';
+import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll, forgetAccountRows } from '@/lib/account-state-manager';
+import { getDesktopPolicy, onDesktopPolicyChange } from '@/lib/desktop/policy';
+import { accountRefusedByDesktopPolicy, planForRefusedAccounts } from '@/lib/desktop/refused-accounts';
 import { clearAllPluginStorage, clearPluginStorageForAccount } from '@/lib/plugin-sandbox/storage-scope';
-import { broadcastSignOut, onSignedOutElsewhere, purgeSignedOutData } from '@/lib/sign-out-cleanup';
+import { clearPendingCookies, freshLoginDone } from '@/lib/app-lock/sign-out';
+import { isAppLockedNow, isAppLockOn } from '@/lib/app-lock/state';
+import { broadcastSignOut, onSignedOutElsewhere, passSignOutGates, purgeSignedOutData, runBeforeSignOut, type SignOutCleanupOptions } from '@/lib/sign-out-cleanup';
+import { forgetPrincipals } from '@/lib/delegation/known-principals';
 import { useSearchHistoryStore } from './search-history-store';
 import { useCalendarNotificationStore } from './calendar-notification-store';
 import { usePolicyStore } from './policy-store';
+import { policySubjectForClient } from '@/lib/admin/policy-subject';
+import { clearSessionEnd, rememberSessionEnd } from '@/lib/session-policy/sign-out-reason';
+import { SESSION_TOO_OLD } from '@/lib/session-policy/constants';
 import type { Identity } from '@/lib/jmap/types';
 import { authHooks } from '@/lib/plugin-hooks';
 import { IS_LITE, IS_LITE_STALWART } from '@/lib/lite';
+import { withTokenLock } from '@/lib/auth/token-lock';
+import { requestWindowSession, type SharedAccountSession } from '@/lib/popout/channel';
+import { closePopoutWindow, isPopoutWindow, mainWindowStorage } from '@/lib/popout/window-role';
+import { noteCredentialsRejected, type ForcedSignOutKind } from '@/lib/offline/credentials-rejected';
+import { CREDENTIALS_REFUSED_CONFIRM_MS, markLoginRefused, wipeWorkWaiting } from '@/lib/devices/wipe-state';
+import { checkStoreOwner, markEvicted, readEvicted, useOfflineStore } from '@/lib/offline/state';
 import { toAsciiEmail } from '@/lib/idn';
+import { flushComposers } from '@/lib/compose-flush-registry';
+import { sortIdentities } from '@/lib/identity-order';
 import {
   LiteLoginError,
   clearLiteRefreshToken,
@@ -89,15 +110,20 @@ interface AuthState {
   loginWithToken: (serverUrl: string, token: string, rememberMe?: boolean) => Promise<boolean>;
   loginWithOAuth: (serverUrl: string, code: string, codeVerifier: string, redirectUri: string, serverId?: string) => Promise<boolean>;
   loginWithServerSso: (code: string, state: string) => Promise<boolean>;
+  /**
+   * The desktop app on an instance: the one-time code from its browser sign-in, with the
+   * verifier it kept. `blocked` is the device's own list of servers saying no.
+   */
+  loginWithDesktopHandoff: (code: string, verifier: string, options: { remember: boolean; rememberPassword: boolean; allowedServers: string[] | null; customServersAllowed: boolean }) => Promise<'ok' | 'blocked' | 'failed'>;
   loginDemo: () => Promise<boolean>;
   /**
-   * Obtain a usable access token for the active account.
+   * Obtain a usable access token for `accountId`, or the active account.
    *
    * Renews against the IdP by default. `allowCached` lets a session restore
    * reuse the token the server still holds for this slot - IdPs that gate
    * refresh tokens behind an `nbf` claim reject an early renewal outright.
    */
-  refreshAccessToken: (options?: { allowCached?: boolean }) => Promise<string | null>;
+  refreshAccessToken: (options?: { allowCached?: boolean; accountId?: string }) => Promise<string | null>;
   /**
    * Sign out of the active account. Switches to the next signed-in account
    * when there is one; otherwise ends the identity provider's session too
@@ -106,12 +132,19 @@ interface AuthState {
   logout: (options?: LogoutOptions) => Promise<void>;
   /**
    * Sign out of every account. Ends at most one identity provider session:
-   * see {@link pickEndSessionSlot}.
+   * see {@link pickEndSessionSlot}; none with `endProviderSession: false`
+   * (the organisation's session limits, which sign out without asking).
    */
-  logoutAll: () => Promise<void>;
-  removeAccount: (accountId: string) => void;
+  logoutAll: (options?: LogoutOptions) => Promise<void>;
+  removeAccount: (accountId: string, reason?: AccountRemovalReason) => void;
   switchAccount: (accountId: string) => Promise<void>;
   checkAuth: () => Promise<void>;
+  /**
+   * Start-up of a pop-out window, in place of checkAuth: takes the session
+   * from a main window, or from the remembered cookies when none is open.
+   * Never evicts an account and starts no token timers.
+   */
+  startSharedSession: (options?: { accountId?: string }) => Promise<'ready' | 'no-session'>;
   clearError: () => void;
   syncIdentities: () => void;
   /**
@@ -120,9 +153,21 @@ interface AuthState {
    * session still hold the old one, which the server now refuses.
    */
   updateBasicPassword: (newPassword: string) => Promise<void>;
+  /**
+   * Sign in, in the background, to a Basic account restored from the account
+   * list backup with its password. The active account stays as it is.
+   * Resolves false when the server refuses the password or cannot be reached.
+   */
+  signInRestoredAccount: (accountId: string, password: string, rememberMe: boolean) => Promise<boolean>;
   refreshIdentities: () => Promise<void>;
   getClientForAccount: (accountId: string) => JMAPClient | undefined;
   getAllConnectedClients: () => Map<string, JMAPClient>;
+  /**
+   * After a start without the server (offline mode, #523): sign the
+   * accounts that run from this device in for real, now that the server
+   * answers. True when every one of them got a real client.
+   */
+  reconnectOfflineClients: () => Promise<boolean>;
 }
 
 export interface LogoutOptions {
@@ -133,6 +178,14 @@ export interface LogoutOptions {
    * provider, and signing in again should stay a single click.
    */
   endProviderSession?: boolean;
+  /**
+   * The app, not the user, ends this login, and nothing says the login itself
+   * is over (an outage, an unknown refusal): local mail and the outbox stay,
+   * hidden, for the next sign-in or 30 days.
+   */
+  keepLocalData?: boolean;
+  /** It's the organisation's idle or session limit that ended it: with `keepLocalData`, what lib/offline/device-wipe.ts is told. */
+  sessionLimit?: boolean;
 }
 
 const ERROR_PATTERNS: Array<{ key: string; matches: string[] }> = [
@@ -207,6 +260,11 @@ function isTransientAuthError(error: unknown): boolean {
   if (error instanceof TransientAuthError) return true;
   // fetch() rejects with TypeError when the network is unreachable.
   if (error instanceof TypeError) return true;
+  // A request that timed out, or a fetch that failed while the no-cors probe
+  // got through (connect() reports that as CORS_ERROR, which is also what a
+  // load balancer switching origins produces), is an outage too. (#1167)
+  if (error instanceof RequestTimeoutError) return true;
+  if (error instanceof Error && error.message === 'CORS_ERROR') return true;
   // JMAPClient.connect()/refreshSession() embed the HTTP status in the
   // message - a 5xx there is the server being down, not an auth failure.
   if (error instanceof Error) {
@@ -237,9 +295,9 @@ function getClientRateLimitState(client: IJMAPClient | null): Pick<AuthState, 'i
  *
  * The name is captured once by `addAccount` (a no-op for an existing entry),
  * so without this an account keeps whatever name it had at first login
- * forever. On Stalwart the identity name itself is a one-time snapshot of the
- * principal "Full name", so the live value has to come from the principal;
- * elsewhere the primary identity name is the best available source.
+ * forever. The primary identity's name wins: it is what recipients see and
+ * what Settings > Account edits. The Stalwart principal name is only the
+ * fallback for an account without one.
  *
  * Best-effort and never throws: a failed lookup keeps the cached name.
  */
@@ -251,9 +309,16 @@ export async function syncAccountDisplayName(
   const account = useAccountStore.getState().getAccountById(accountId);
   if (!account) return;
 
-  const name = (await fetchPrincipalDisplayName(client, account.cookieSlot))
-    || fallbackName?.trim()
-    || '';
+  // The name people see on sent mail is the sending identity's, and that is
+  // the one name Settings lets them change (settings-p2-2). Stalwart's
+  // principal description ("Full name") is often an admin's note, so it only
+  // names an account that has no identity name. A caller that doesn't know
+  // the identities keeps the name the account already has.
+  let name = fallbackName?.trim() || '';
+  if (!name) {
+    if (fallbackName === undefined && account.displayName) return;
+    name = (await fetchPrincipalDisplayName(client, account.cookieSlot)) || '';
+  }
   if (!name) return;
 
   // Re-read: the entry may have changed (or been removed) during the request.
@@ -305,6 +370,26 @@ function trackSessionWrite<T>(slot: number, run: (signal: AbortSignal) => Promis
   sessionWrites.add(entry);
   void entry.settled.then(() => sessionWrites.delete(entry));
   return request;
+}
+
+/** It holds the token lock, for every window: a request that never answers can't be left to hold it. */
+const TOKEN_RENEWAL_TIMEOUT_MS = 30_000;
+
+function renewalSignal(outer: AbortSignal): { signal: AbortSignal; done: () => void } {
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  if (outer.aborted) stop();
+  else outer.addEventListener('abort', stop, { once: true });
+  const timer = setTimeout(stop, TOKEN_RENEWAL_TIMEOUT_MS);
+  const stopWatching = onConnectionsReset(stop);
+  return {
+    signal: controller.signal,
+    done: () => {
+      clearTimeout(timer);
+      outer.removeEventListener('abort', stop);
+      stopWatching?.();
+    },
+  };
 }
 
 const TIMED_OUT = Symbol('timed out');
@@ -404,15 +489,15 @@ async function exchangePasswordForTokens(params: {
       headers: { 'Content-Type': 'application/json' },
       // server_id isn't passed - the route looks up the server entry by
       // serverUrl, so per-server OAuth still applies for password+TOTP.
-      body: JSON.stringify({ serverUrl, username, password, totp, slot, redirectUri }),
-    });
+      body: JSON.stringify({ serverUrl, username, password, totp, slot, redirectUri, rememberMe }),
+    }).then((res) => noteSessionAnswer(res, slot));
   }
   try {
     const tokens = await liteTokenLogin({ serverUrl, username, password, totp, redirectUri });
     // "Remember me" keeps the refresh token across browser restarts
     // (localStorage); otherwise it lives with the tab (sessionStorage).
     if (tokens.refreshToken) {
-      saveLiteRefreshToken(slot, { serverUrl, username, refreshToken: tokens.refreshToken, clientId: getLiteClientId() }, rememberMe);
+      saveLiteRefreshToken(slot, { serverUrl, username, refreshToken: tokens.refreshToken, clientId: tokens.clientId ?? getLiteClientId() }, rememberMe);
     } else {
       clearLiteRefreshToken(slot);
     }
@@ -432,8 +517,9 @@ async function exchangeOAuthCode(params: {
   redirectUri: string;
   slot: number;
   serverId?: string;
+  remember: boolean;
 }): Promise<Response> {
-  const { serverUrl, code, codeVerifier, redirectUri, slot, serverId } = params;
+  const { serverUrl, code, codeVerifier, redirectUri, slot, serverId, remember } = params;
   if (!IS_LITE) {
     return apiFetch(`/api/auth/token?slot=${slot}`, {
       method: 'POST',
@@ -444,8 +530,11 @@ async function exchangeOAuthCode(params: {
         redirect_uri: redirectUri,
         slot,
         ...(serverId ? { server_id: serverId } : {}),
+        remember,
+        // The desktop app signs in to a server only it knows about.
+        ...(IS_DESKTOP_BUILD ? { custom_server_url: serverUrl, client_id: sessionStorage.getItem(DESKTOP_CLIENT_ID_KEY) } : {}),
       }),
-    });
+    }).then((res) => noteSessionAnswer(res, slot));
   }
   // The login page parked where and as whom to redeem the code
   // (lib/auth/lite-oauth.ts); without it this is not a flow we started. A
@@ -487,9 +576,13 @@ async function exchangeOAuthCode(params: {
  * Credentials a remembered session signs back in with: the password (Basic
  * auth), or the access token of a token login (Bearer auth).
  */
-type RememberedSession =
+type RememberedSession = (
   | { serverUrl: string; username: string; password: string; token?: undefined }
-  | { serverUrl: string; username: string; token: string; password?: undefined };
+  | { serverUrl: string; username: string; token: string; password?: undefined }
+) & {
+  /** The session an impersonation handoff opened (set by the server). */
+  impersonated?: boolean;
+};
 
 /** A client for remembered credentials. */
 function clientForSession(session: RememberedSession): JMAPClient {
@@ -506,32 +599,100 @@ async function persistSession(slot: number, session: RememberedSession): Promise
     saveLiteBasicSession(slot, session);
     return;
   }
+  // A slot being signed out must not get its cookie back; sign-out waits for
+  // a write still running (login doesn't wait for it, see there).
+  if (closingSlots.has(slot)) return;
   try {
-    const res = await apiFetch(`/api/auth/session?slot=${slot}`, {
+    const res = await trackSessionWrite(slot, (signal) => apiFetch(`/api/auth/session?slot=${slot}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...session, slot }),
-    });
+      signal,
+    })).then((answer) => noteSessionAnswer(answer, slot));
     if (!res.ok) debug.error('Failed to store session: server returned', res.status);
   } catch (err) {
     debug.error('Failed to store session:', err);
   }
 }
 
-/** PUT /api/auth/token?slot=N - renew (or, unless `force`, reuse) the slot's access token. */
-async function fetchSlotAccessToken(slot: number, opts: { force?: boolean } = {}): Promise<Response> {
+/**
+ * When the server says each cookie slot signed in, from the sign-in and
+ * restore answers. The organisation's maximum session length counts from
+ * the server's time in the browser too, so the server never refuses a
+ * session before the browser warned (lib/auth/session-age.ts).
+ */
+const serverSignedInAt = new Map<number, number>();
+
+/**
+ * The server's sign-in time for a sign-in to `slot` that just happened, or
+ * the browser's clock. An older answer belongs to an earlier sign-in.
+ */
+export function signedInAtForSlot(slot: number | undefined): number {
+  const now = Date.now();
+  const server = slot !== undefined ? serverSignedInAt.get(slot) : undefined;
+  return server !== undefined && Math.abs(now - server) < 10 * 60 * 1000 ? server : now;
+}
+
+/**
+ * Reads what a sign-in, restore or renewal answer says about the session:
+ * the server's sign-in time, or that it refused the session because it
+ * reached the organisation's maximum length. The login page says so only
+ * when no other account stays signed in here; a later successful restore
+ * takes the reason back.
+ */
+async function noteSessionAnswer(res: Response, slot: number | undefined): Promise<Response> {
+  if (typeof res.clone !== 'function' || (!res.ok && res.status !== 401)) return res;
+  try {
+    const data = await res.clone().json() as { error?: unknown; maxHours?: unknown; signedInAt?: unknown; signed_in_at?: unknown };
+    if (res.ok) {
+      clearSessionEnd();
+      const at = typeof data?.signedInAt === 'number' ? data.signedInAt : data?.signed_in_at;
+      if (typeof at === 'number' && Number.isFinite(at) && slot !== undefined) {
+        serverSignedInAt.set(slot, at);
+        const account = useAccountStore.getState().accounts.find((a) => a.cookieSlot === slot);
+        if (account && account.signedInAt !== at) useAccountStore.getState().updateAccount(account.id, { signedInAt: at });
+      }
+    } else if (data?.error === SESSION_TOO_OLD && typeof data.maxHours === 'number') {
+      const othersSignedIn = useAccountStore.getState().accounts.some((a) => a.cookieSlot !== slot && a.isConnected);
+      if (!othersSignedIn) rememberSessionEnd({ kind: 'max', hours: data.maxHours });
+    }
+  } catch {
+    /* not JSON */
+  }
+  return res;
+}
+
+/**
+ * PUT /api/auth/token?slot=N - renew (or, unless `force`, reuse) the slot's
+ * access token. `remember: false` keeps a rotated refresh token in a cookie
+ * that ends with the browser session.
+ */
+function fetchSlotAccessToken(slot: number, opts: { force?: boolean; remember?: boolean } = {}): Promise<Response> {
   // Renewing would write the tokens of a slot being signed out back.
-  if (closingSlots.has(slot)) return jsonResponse({ error: 'signed_out' }, 401);
-  if (!IS_LITE) {
-    return trackSessionWrite(slot, (signal) => apiFetch(`/api/auth/token?slot=${slot}${opts.force ? '&force=true' : ''}`, { method: 'PUT', signal }));
-  }
-  // Like the route's cookie cache: a restore resumes with the token it had,
-  // since a renewal before the refresh token's `nbf` is refused (#552).
-  if (!opts.force) {
-    const cached = readLiteAccessToken(slot);
-    if (cached) return jsonResponse({ access_token: cached.accessToken, expires_in: cached.expiresIn });
-  }
-  return trackSessionWrite(slot, async () => {
+  if (closingSlots.has(slot)) return Promise.resolve(jsonResponse({ error: 'signed_out' }, 401));
+  // Tracked from before the wait, so a sign-out can call off a renewal still
+  // queued on the lock.
+  return trackSessionWrite(slot, (signal) => withTokenLock(slot, async ({ contended }) => {
+    // The slot may have started closing during the wait.
+    if (closingSlots.has(slot)) return jsonResponse({ error: 'signed_out' }, 401);
+    // One at a time across windows: each must send the refresh token the last
+    // answer wrote (lib/auth/token-lock.ts). After waiting for another window,
+    // what it renewed is what this one wanted: forcing a second renewal this
+    // soon can be refused (Rauthy `nbf`, #552).
+    const force = opts.force && !contended;
+    if (!IS_LITE) {
+      const query = `${force ? '&force=true' : ''}${opts.remember === false ? '&remember=false' : ''}`;
+      const renewal = renewalSignal(signal);
+      return apiFetch(`/api/auth/token?slot=${slot}${query}`, { method: 'PUT', signal: renewal.signal })
+        .then((res) => noteSessionAnswer(res, slot))
+        .finally(renewal.done);
+    }
+    // Like the route's cookie cache: a restore resumes with the token it had,
+    // since a renewal before the refresh token's `nbf` is refused (#552).
+    if (!force) {
+      const cached = readLiteAccessToken(slot);
+      if (cached) return jsonResponse({ access_token: cached.accessToken, expires_in: cached.expiresIn });
+    }
     try {
       const tokens = await liteRefreshTokens(slot);
       return jsonResponse({ access_token: tokens.accessToken, expires_in: tokens.expiresIn });
@@ -539,13 +700,14 @@ async function fetchSlotAccessToken(slot: number, opts: { force?: boolean } = {}
       if (err instanceof LiteLoginError) return jsonResponse({ error: err.code }, liteErrorStatus(err));
       throw err; // network failure - callers treat it as an outage, not a rejection
     }
-  });
+  }, { signal }));
 }
 
 /** PUT /api/auth/session[?slot=N] - the slot's remembered password or access token. */
 async function fetchSlotSession(slot?: number): Promise<Response> {
   if (!IS_LITE) {
-    return apiFetch(slot === undefined ? '/api/auth/session' : `/api/auth/session?slot=${slot}`, { method: 'PUT' });
+    return apiFetch(slot === undefined ? '/api/auth/session' : `/api/auth/session?slot=${slot}`, { method: 'PUT' })
+      .then((res) => noteSessionAnswer(res, slot ?? 0));
   }
   const stored = readLiteBasicSession(slot ?? 0);
   return stored ? jsonResponse(stored) : jsonResponse({ error: 'no_session' }, 401);
@@ -613,7 +775,7 @@ function clearSlotCredentials(slot: number, includeToken: boolean, endSession = 
   closingSlots.add(slot);
   return clearClosingSlots(new Set([slot]), async () => {
     if (IS_LITE) {
-      await revokeLiteSlot(slot);
+      await revokeLiteSlot(slot, getCachedConfig()?.oauthRevokeOnSignOut !== false);
       return null;
     }
     const [, token] = await Promise.all([
@@ -633,7 +795,7 @@ function clearAllCredentials(endSessionSlot: number | null): Promise<string | nu
   for (const slot of slots) closingSlots.add(slot);
   return clearClosingSlots(slots, async () => {
     if (IS_LITE) {
-      await revokeAllLiteSessions();
+      await revokeAllLiteSessions(getCachedConfig()?.oauthRevokeOnSignOut !== false);
       return null;
     }
     const endSession = endSessionSlot === null ? '' : `&end_session_slot=${endSessionSlot}`;
@@ -671,12 +833,91 @@ export function pickEndSessionSlot(accounts: AccountEntry[], activeAccountId: st
   return target ? target.cookieSlot : null;
 }
 
+/** Accounts the server refused during a connect that hasn't reported back yet. */
+const refusedAtConnect = new Set<string>();
+/** errorMessage of an account the server refused as a whole (AccountUnavailableError). */
+const ACCOUNT_REFUSED = 'account_refused';
+const endingRefused = new Set<string>();
+
+/** A client that's connected: what the server said on the way there is over. */
+function holdClient(accountId: string, client: JMAPClient): void {
+  clients.set(accountId, client);
+  refusedAtConnect.delete(accountId);
+}
+
+/**
+ * This login ended with nobody asking: the server refused it, or the organisation's
+ * idle or session limit ran out. The data hides from here on. It waits for the next
+ * sign-in, or goes after 30 days, or now if the organisation asks for that
+ * (lib/devices/wipe-state.ts, lib/offline/device-wipe.ts). The usual cause is a
+ * password changed on another device: nothing goes by itself, unsent mail included.
+ * `certain`: not one bad answer at a connect.
+ */
+function noteRefusedLogin(accountId: string, certain: boolean, kind: ForcedSignOutKind = 'refused'): void {
+  if (useOfflineStore.getState().enabled.includes(accountId)) {
+    const { accounts } = useAccountStore.getState();
+    const account = accounts.find((entry) => entry.id === accountId);
+    markLoginRefused(accountId, {
+      certain,
+      kind,
+      seenBy: accounts.filter((entry) => entry.id !== accountId).map((entry) => entry.id),
+      label: account?.email || account?.username,
+      username: account?.username,
+    });
+    markEvicted(accountId);
+  }
+  noteCredentialsRejected(accountId, certain, kind);
+}
+
+/**
+ * The server kept refusing this login, after a fresh try each time: it signs out
+ * at once. It has no parsed refusal like `invalid_grant` to go by, and this is the
+ * only word a password login ever gets.
+ */
+async function endRefusedLogin(accountId: string, get: () => AuthState): Promise<void> {
+  const account = useAccountStore.getState().getAccountById(accountId);
+  if (!account || endingRefused.has(accountId)) return;
+  endingRefused.add(accountId);
+  try {
+    if (get().activeAccountId !== accountId) {
+      noteRefusedLogin(accountId, true);
+      get().removeAccount(accountId, 'evicted');
+      return;
+    }
+    await saveDraftsBeforeExpiry(account.cookieSlot ?? 0);
+    noteRefusedLogin(accountId, true);
+    notifyParent('sso:session-expired');
+    markSessionExpired();
+    await get().logout({ endProviderSession: false, keepLocalData: true });
+  } finally {
+    endingRefused.delete(accountId);
+  }
+}
+
 function bindClientStatusHandlers(
   client: IJMAPClient,
   set: (state: Partial<AuthState>) => void,
   get: () => AuthState,
   accountId?: string,
 ): void {
+  client.onCredentialsRefused?.((refusedForMs) => {
+    // A pop-out is on another window's session. Lite keeps no data to wait.
+    if (!accountId || IS_LITE || isPopoutWindow()) return;
+    // Still connecting: the restore that started this decides, when it fails.
+    if (clients.get(accountId) !== client) {
+      refusedAtConnect.add(accountId);
+      return;
+    }
+    if (refusedForMs >= CREDENTIALS_REFUSED_CONFIRM_MS) void endRefusedLogin(accountId, get);
+  });
+
+  // Refused as a whole, e.g. deleted on the server (#1539): the client has stopped,
+  // and the account list shows it in trouble. Switching to it asks for a sign-in.
+  client.onAccessRefused?.(() => {
+    if (!accountId) return;
+    useAccountStore.getState().updateAccount(accountId, { isConnected: false, hasError: true, errorMessage: ACCOUNT_REFUSED });
+  });
+
   client.onConnectionChange((connected) => {
     if (!accountId || get().activeAccountId === accountId) {
       set({ connectionLost: !connected });
@@ -705,28 +946,6 @@ function bindClientStatusHandlers(
         errorMessage: rateLimited ? 'Temporarily rate limited by server' : undefined,
       });
     }
-  });
-}
-
-function emailMatchesUsername(email: string, username: string): boolean {
-  if (email === username) return true;
-  // Handle local-part login: username "user" should match "user@domain.tld"
-  if (!username.includes('@') && email.split('@')[0] === username) return true;
-  return false;
-}
-
-function sortIdentities(rawIdentities: Identity[], username: string): Identity[] {
-  return [...rawIdentities].sort((a, b) => {
-    const aMatch = emailMatchesUsername(a.email, username);
-    const bMatch = emailMatchesUsername(b.email, username);
-    if (aMatch && !bMatch) return -1;
-    if (!aMatch && bMatch) return 1;
-    // Among matching identities, prefer canonical (non-deletable) over aliases
-    if (aMatch && bMatch) {
-      if (!a.mayDelete && b.mayDelete) return -1;
-      if (a.mayDelete && !b.mayDelete) return 1;
-    }
-    return 0;
   });
 }
 
@@ -804,7 +1023,7 @@ export function applyPreferredIdentity(accountId?: string | null): void {
     if (legacy) {
       preferred = legacy;
       const current = useSettingsStore.getState().preferredIdentityIds;
-      useSettingsStore.getState().updateSetting('preferredIdentityIds', { ...current, [targetId]: legacy });
+      useSettingsStore.getState().updateSetting('preferredIdentityIds', { ...current, [targetId]: legacy }, { internal: true });
     }
   }
   if (!preferred) return;
@@ -847,12 +1066,34 @@ export function saveRedirectAfterLogin(): void {
     const loginPath = getLocaleLoginPath();
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
+    // The app's home is where a login lands anyway. Saving it only made the
+    // login page navigate a second time, through the locale-aware router,
+    // which prefixes the locale again (/en/en) and races the first.
+    const home = `${getPathPrefix()}/${getLocaleFromPath()}`;
+    if (currentPath === home || currentPath === `${home}/`) {
+      sessionStorage.removeItem('redirect_after_login');
+      return;
+    }
+
     if (currentPath !== loginPath) {
       sessionStorage.setItem('redirect_after_login', currentPath);
     }
   } catch {
     /* noop */
   }
+}
+
+/**
+ * Whether the login page can be reached without reloading the app. Before a
+ * session was usable on this page load there is no mail state to throw away,
+ * so a client-side navigation does and the app isn't downloaded and started
+ * a second time; after one, the reload is what clears it.
+ *
+ * Not in Lite: its static router lands on `/login/` with a trailing slash,
+ * which the login path checks here (`/login`) don't recognise.
+ */
+export function canEnterLoginInPlace(): boolean {
+  return !IS_LITE && !signedInSincePageLoad && !leavingForProviderLogout;
 }
 
 export function redirectToLogin(): void {
@@ -862,10 +1103,45 @@ export function redirectToLogin(): void {
 
 function navigateToLogin(): void {
   if (typeof window === 'undefined') return;
+  // Signing in happens in the main window; a pop-out just goes away.
+  if (isPopoutWindow()) {
+    closePopoutWindow();
+    return;
+  }
 
   const loginPath = getLocaleLoginPath();
   if (window.location.pathname === loginPath) return;
   replaceWindowLocation(loginPath);
+}
+
+/** How long an expired session waits for the open composers to save. */
+const EXPIRY_DRAFT_FLUSH_MS = 3000;
+/** Set when an expired session couldn't save every open message; the login page says so. */
+export const SESSION_EXPIRED_DRAFTS_UNSAVED_KEY = 'session_expired_drafts_unsaved';
+
+/**
+ * The server refused to renew the session. The access token in hand usually
+ * still works for a while (renewal runs before it expires), so the open
+ * composers save their drafts with it before the sign-out throws their
+ * state away, as the organisation's idle timeout does (WCAG 2.2.5). The
+ * slot counts as closing meanwhile: a save that needs a new token gets none
+ * at once instead of waiting on this refresh. Bounded, so a hung save never
+ * keeps an expired session open.
+ */
+async function saveDraftsBeforeExpiry(slot: number): Promise<void> {
+  closingSlots.add(slot);
+  try {
+    const result = await flushComposers(EXPIRY_DRAFT_FLUSH_MS);
+    if (result.failed > 0 || result.timedOut) {
+      try {
+        sessionStorage.setItem(SESSION_EXPIRED_DRAFTS_UNSAVED_KEY, 'true');
+      } catch {
+        /* noop */
+      }
+    }
+  } catch {
+    /* the sign-out goes on */
+  }
 }
 
 function markSessionExpired(): void {
@@ -908,6 +1184,14 @@ function finishSignOut(endSessionUrl: string | null, userInitiated: boolean): vo
     }
   }
   if (endSessionUrl) {
+    // The desktop build signs in through the system browser, so the provider's
+    // session lives there. The window itself goes straight to the login page.
+    const desktopShell = IS_DESKTOP_BUILD ? getDesktopBridge()?.shell : undefined;
+    if (desktopShell) {
+      desktopShell.openExternal(endSessionUrl);
+      navigateToLogin();
+      return;
+    }
     leavingForProviderLogout = true;
     replaceWindowLocation(endSessionUrl);
     return;
@@ -926,7 +1210,7 @@ function initializeFeatureStores(client: IJMAPClient): void {
     // user has already made an explicit choice (`null` = not yet decided).
     const settings = useSettingsStore.getState();
     if (settings.trustedSendersAddressBook === null) {
-      settings.updateSetting('trustedSendersAddressBook', true);
+      settings.updateSetting('trustedSendersAddressBook', true, { internal: true });
     }
   } else {
     useContactStore.getState().setSupportsSync(false);
@@ -966,6 +1250,9 @@ let refreshPromise: Promise<string | null> | null = null;
 // Multi-account state: per-account JMAP clients and refresh timers
 const clients = new Map<string, JMAPClient>();
 
+/** Server URL recorded on the demo accounts; nothing is ever sent to it. */
+const DEMO_SERVER_URL = 'https://demo.example.com';
+
 /**
  * Account switches can overlap (click B, then C before B lands). Each switch
  * takes a generation and gives up at its next await once a newer one has
@@ -995,6 +1282,50 @@ function snapshotAndClearForSwitch(activeAccountId: string | null): void {
 }
 const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const refreshPromises = new Map<string, Promise<string | null>>();
+
+/** Told when a pop-out's session can't be renewed any more and no main window is left to do it. */
+export const SHARED_SESSION_ENDED_EVENT = 'bulwark:shared-session-ended';
+
+function bearerToken(header: string): string | null {
+  return header.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+}
+
+/**
+ * A new token for a pop-out, whose credential the server just refused. It asks
+ * the main window first: that one owns the renewal, and usually already has
+ * the next token. Only with no main window left does the pop-out renew, under
+ * the same lock (fetchSlotAccessToken), and it never signs anyone out.
+ */
+async function renewSharedToken(accountId: string): Promise<string | null> {
+  const client = clients.get(accountId);
+  const account = useAccountStore.getState().getAccountById(accountId);
+  if (!client || !account) return null;
+  const rejected = client.getAuthHeader();
+  try {
+    const answer = await requestWindowSession({ accountId, rejectedAuthHeader: rejected });
+    const shared = answer?.sessions.find((session) => session.accountId === accountId);
+    if (shared) return shared.authHeader === rejected ? null : bearerToken(shared.authHeader);
+
+    let res = await fetchSlotAccessToken(account.cookieSlot, { remember: account.rememberMe });
+    if (res.ok) {
+      let { access_token } = await res.json();
+      // The cached token is the one the server refused.
+      if (`Bearer ${access_token}` === rejected) {
+        res = await fetchSlotAccessToken(account.cookieSlot, { force: true, remember: account.rememberMe });
+        if (res.ok) ({ access_token } = await res.json());
+      }
+      if (res.ok) {
+        await syncStalwartAuthContext(account.serverUrl, account.username, `Bearer ${access_token}`, account.cookieSlot);
+        return access_token;
+      }
+    }
+    if (res.status === 401 && typeof window !== 'undefined') window.dispatchEvent(new Event(SHARED_SESSION_ENDED_EVENT));
+    return null;
+  } catch (error) {
+    debug.error('Token renewal in a pop-out failed:', error);
+    return null;
+  }
+}
 
 // Retry backoff for transiently failed token refreshes (#588). The values
 // are pseudo-expiries for scheduleRefresh - its "expiry - 60s" math turns
@@ -1038,6 +1369,23 @@ function recordPermanentRefreshFailure(status: number, accountId?: string): bool
   if (failures < MAX_PERMANENT_REFRESH_FAILURES) return false;
   permanentRefreshFailureCounts.delete(key);
   return true;
+}
+
+/**
+ * What a refused renewal says about the login: the server refused it
+ * (invalid_grant), or the organisation's session limit was reached, which says
+ * nothing about the password. Both sign out and hide the data (noteRefusedLogin).
+ * Anything else keeps it the same way with no word to anyone, including a body
+ * we can't read.
+ */
+async function forcedSignOutOf(res: Response): Promise<ForcedSignOutKind | null> {
+  try {
+    const { error } = await res.clone().json() as { error?: unknown };
+    if (error === 'invalid_grant') return 'refused';
+    return error === SESSION_TOO_OLD ? 'session' : null;
+  } catch {
+    return null;
+  }
 }
 
 function notifySignInAgain(): void {
@@ -1194,7 +1542,49 @@ function forgetCalendarSubscriptions(client: IJMAPClient): void {
   }
 }
 
-function performFullLogout(set: (state: Partial<AuthState>) => void): void {
+/**
+ * A client for an account that couldn't be restored because the server
+ * can't be reached, from the session kept with its offline data (#523);
+ * null without offline mode for that account. Loaded on demand: offline
+ * mode imports this store.
+ */
+async function startOfflineClient(accountId: string, serverUrl: string, username: string): Promise<JMAPClient | null> {
+  if (IS_LITE) return null;
+  try {
+    const offline = await import('@/lib/offline/offline-mode');
+    // Only without a network or a server: a server that refused one request
+    // (an overload without CORS headers, a 5xx) gets the usual error.
+    if (!(await offline.serverUnreachable(serverUrl))) return null;
+    const session = await offline.offlineSessionFor(accountId);
+    if (!session) return null;
+    offline.markStartedOffline();
+    return JMAPClient.fromOfflineSession(serverUrl, username, session);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The account's local copy, to show right away while the real connect runs. A
+ * client that answers from the device only; null without the local store for
+ * that account, and the start goes the usual way.
+ */
+async function startLocalCopyClient(accountId: string, serverUrl: string, username: string): Promise<JMAPClient | null> {
+  if (IS_LITE || skipLocalCopy || !useOfflineStore.getState().enabled.includes(accountId)) return null;
+  try {
+    const offline = await import('@/lib/offline/offline-mode');
+    // A store that has no folders yet has nothing to show: the snapshot stays up.
+    const session = await offline.offlineSessionFor(accountId, { withFolders: true });
+    return session ? JMAPClient.fromOfflineSession(serverUrl, username, session) : null;
+  } catch {
+    return null;
+  }
+}
+
+// While device-only clients get replaced, restoring goes straight to the server.
+let skipLocalCopy = false;
+
+function performFullLogout(set: (state: Partial<AuthState>) => void, options: SignOutCleanupOptions = {}): void {
   useSettingsStore.getState().disableSync();
   // With settings sync on, the local settings and templates are a copy of the
   // signed-out account's server file. Left in place, the next account to sign
@@ -1233,9 +1623,163 @@ function performFullLogout(set: (state: Partial<AuthState>) => void): void {
   // doesn't re-write stale values.
   try { localStorage.removeItem('auth-storage'); } catch { /* noop */ }
   try { localStorage.removeItem('account-registry'); } catch { /* noop */ }
-  purgeSignedOutData();
+  // A dropped account's data outlives anyone else's sign-out. The account that
+  // signed out takes its own along when it leaves the registry.
+  purgeSignedOutData({ keepLocalStore: options.keepLocalStore || Object.keys(readEvicted()).length > 0 });
   // Other tabs still hold the accounts' mail in memory.
   broadcastSignOut();
+}
+
+/**
+ * How long sign-out waits for plugins to tidy up. Plugins observe sign-out;
+ * they cannot stop it or hold it up, or a plugin could keep the user signed
+ * in on a shared computer.
+ */
+export const LOGOUT_HOOK_BUDGET_MS = 2000;
+
+function notifySignedIn(state: { activeAccountId: string | null; username: string | null }): void {
+  if (!state.activeAccountId) return;
+  // The organisation's maximum session length counts from a sign-in, never
+  // from a restore, and from the server's time when it said.
+  const slot = useAccountStore.getState().getAccountById(state.activeAccountId)?.cookieSlot;
+  useAccountStore.getState().updateAccount(state.activeAccountId, { signedInAt: signedInAtForSlot(slot) });
+  void authHooks.onLogin.emit({ accountId: state.activeAccountId, username: state.username ?? '' });
+}
+
+/**
+ * A provider's tokens are in, with the refresh token already in the slot's cookie: the
+ * rest of a sign-in. Server-side SSO, and the desktop app's sign-in on an instance.
+ */
+async function adoptProviderSession(
+  set: (state: Partial<AuthState>) => void,
+  get: () => AuthState,
+  session: {
+    serverUrl: string;
+    accessToken: string;
+    expiresIn: number;
+    remember: boolean | undefined;
+    slot: number;
+    /**
+     * Tokens from a typed password, not a provider's page: the account the user knows, under
+     * the name they typed. It has the same id as any other password sign-in with that name, so
+     * what its last sign-out kept comes back, and its password settings stay (#1432).
+     */
+    typedUsername?: string;
+  },
+): Promise<void> {
+  const { serverUrl: ssoServerUrl, accessToken: access_token, expiresIn: expires_in, remember, slot } = session;
+  const typed = session.typedUsername ? toAsciiEmail(session.typedUsername) : '';
+  const accountStore = useAccountStore.getState();
+  let boundAccountId: string | undefined;
+  const client = JMAPClient.withBearer(ssoServerUrl, access_token, typed, () => get().refreshAccessToken({ accountId: boundAccountId }));
+  await client.connect();
+
+  const jmapUsername = client.getUsername();
+  const { identities, primaryIdentity } = loadIdentities(await client.getIdentities(), typed || jmapUsername);
+  // For SSO/OIDC, the JMAP session account name may be the
+  // preferred_username claim rather than the real email address.
+  // Prefer the email from the primary identity when available.
+  const username = typed || primaryIdentity?.email || jmapUsername;
+  initializeFeatureStores(client);
+
+  const accountId = generateAccountId(username, ssoServerUrl);
+  boundAccountId = accountId;
+
+  const prevAccountId = get().activeAccountId;
+  if (prevAccountId && prevAccountId !== accountId) {
+    snapshotAccount(prevAccountId);
+    clearAllStores();
+  }
+
+  await checkStoreOwner(accountId, client.getAccountId(), ssoServerUrl);
+  holdClient(accountId, client);
+  bindClientStatusHandlers(client, set, get, accountId);
+
+  accountStore.addAccount({
+    label: primaryIdentity?.name || username,
+    serverUrl: ssoServerUrl,
+    username,
+    authMode: 'oauth',
+    rememberMe: remember !== false,
+    displayName: primaryIdentity?.name || username,
+    email: primaryIdentity?.email || username,
+    lastLoginAt: Date.now(),
+    isConnected: true,
+    hasError: false,
+    isDefault: accountStore.accounts.length === 0,
+  });
+  // The refresh-token cookie was written to `slot` by /api/auth/sso/complete.
+  // Force the stored cookieSlot to match - see loginWithOAuth above for the
+  // re-add and concurrent-tab cases this guards against.
+  accountStore.updateAccount(accountId, { cookieSlot: slot, providerSession: !typed });
+  if (typed) {
+    const serverIdentifiers = buildServerIdentifiers(client.getSessionUsername(), primaryIdentity?.email, ssoServerUrl);
+    if (serverIdentifiers.length > 0) accountStore.updateAccount(accountId, { serverIdentifiers });
+  }
+  accountStore.setActiveAccount(accountId);
+
+  await syncStalwartAuthContext(ssoServerUrl, username, client.getAuthHeader(), slot);
+  void syncAccountDisplayName(accountId, client, primaryIdentity?.name);
+
+  set({
+    isAuthenticated: true,
+    isLoading: false,
+    serverUrl: ssoServerUrl,
+    username,
+    client,
+    ...getClientRateLimitState(client),
+    identities,
+    primaryIdentity,
+    authMode: 'oauth',
+    accessToken: access_token,
+    tokenExpiresAt: Date.now() + expires_in * 1000,
+    connectionLost: false,
+    error: null,
+    activeAccountId: accountId,
+  });
+
+  import('@/stores/email-store').then(({ useEmailStore }) => {
+    useEmailStore.getState().prefetchInitialData(client).catch((err) => {
+      debug.error('Initial data prefetch failed:', err);
+    });
+  }).catch(() => {});
+
+  scheduleRefresh(expires_in, () => get().refreshAccessToken({ accountId }), accountId);
+
+  notifyParent('sso:auth-success', { username });
+
+  fetchConfig().then(cfg => {
+    if (!cfg.settingsSyncEnabled) return;
+    useSettingsStore.getState().loadFromServer(username, ssoServerUrl).finally(() => {
+      useSettingsStore.getState().enableSync(username, ssoServerUrl);
+      applyPreferredIdentity(accountId);
+    });
+  }).catch(() => {});
+
+  notifySignedIn(get());
+}
+
+/** Within the sign-out's budget: an unreachable server doesn't hold it up. */
+function endPushForSignOut(signingOut: Iterable<IJMAPClient>): Promise<void> {
+  return Promise.race([
+    (async () => {
+      const { endWebPushForSignOut } = await import('@/lib/web-push');
+      for (const client of signingOut) await endWebPushForSignOut(client);
+    })().catch(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, LOGOUT_HOOK_BUDGET_MS)),
+  ]);
+}
+
+function beforeLogoutHooks(accountId: string, options: SignOutCleanupOptions = {}): Promise<void> {
+  return Promise.race([
+    Promise.all([authHooks.onBeforeLogout.emit({ accountId }), runBeforeSignOut(accountId, options)]).then(() => {}),
+    new Promise<void>((resolve) => setTimeout(resolve, LOGOUT_HOOK_BUDGET_MS)),
+  ]);
+}
+
+/** Test helper: the store's own clients come from signing in. */
+export function setClientForTests(accountId: string, client: JMAPClient): void {
+  clients.set(accountId, client);
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -1345,7 +1889,7 @@ export const useAuthStore = create<AuthState>()(
             }
 
             if (bearerToken) {
-              client = JMAPClient.withBearer(serverUrl, bearerToken, username, () => get().refreshAccessToken());
+              client = JMAPClient.withBearer(serverUrl, bearerToken, username, () => get().refreshAccessToken({ accountId }));
               await client.connect();
               oauthAccessToken = bearerToken;
               upgradedToOAuth = true;
@@ -1391,26 +1935,29 @@ export const useAuthStore = create<AuthState>()(
           // Run the remaining independent requests in parallel. The session
           // write and stalwart-context write are best-effort persistence; the
           // outer login still succeeds even if they log a warning. Errors are
-          // caught locally so Promise.all doesn't reject on either.
+          // caught locally so Promise.all doesn't reject on either. Only the
+          // context is waited for: the server-side helpers the mail view
+          // calls next need it, while the remembered session only matters
+          // for the next visit (and sign-out waits for its write).
           // In Lite a Basic session is kept for the tab (sessionStorage) on a
           // server without token login, so a reload does not sign the user
           // out; the regular build only writes the cookie when the user asked
           // to be remembered.
-          const sessionWrite: Promise<unknown> = ((IS_LITE ? tokenLoginUnavailable : rememberMe) && !upgradedToOAuth)
-            ? persistSession(cookieSlot, { serverUrl, username, password })
-            : Promise.resolve();
+          if ((IS_LITE ? tokenLoginUnavailable : rememberMe) && !upgradedToOAuth) {
+            void persistSession(cookieSlot, { serverUrl, username, password });
+          }
 
           const [rawIdentities] = await Promise.all([
             identitiesPromise,
-            sessionWrite,
             syncStalwartAuthContext(serverUrl, username, client.getAuthHeader(), cookieSlot),
           ]);
 
           const { identities, primaryIdentity } = loadIdentities(rawIdentities, username);
           initializeFeatureStores(client);
 
+          await checkStoreOwner(accountId, client.getAccountId(), serverUrl);
           // Store client in multi-account map
-          clients.set(accountId, client);
+          holdClient(accountId, client);
           bindClientStatusHandlers(client, set, get, accountId);
 
           accountStore.addAccount({
@@ -1477,7 +2024,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Schedule token refresh for TOTP-upgraded sessions
           if (upgradedToOAuth && oauthExpiresIn > 0) {
-            scheduleRefresh(oauthExpiresIn, get().refreshAccessToken, accountId);
+            scheduleRefresh(oauthExpiresIn, () => get().refreshAccessToken({ accountId }), accountId);
           }
 
           // Sync settings from server (only if enabled)
@@ -1489,6 +2036,7 @@ export const useAuthStore = create<AuthState>()(
             });
           }).catch(() => {});
 
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Login error:', error);
@@ -1550,7 +2098,8 @@ export const useAuthStore = create<AuthState>()(
           const { identities, primaryIdentity } = loadIdentities(rawIdentities, username);
           initializeFeatureStores(client);
 
-          clients.set(accountId, client);
+          await checkStoreOwner(accountId, client.getAccountId(), serverUrl);
+          holdClient(accountId, client);
           bindClientStatusHandlers(client, set, get, accountId);
 
           accountStore.addAccount({
@@ -1603,6 +2152,7 @@ export const useAuthStore = create<AuthState>()(
           }).catch(() => {});
 
           resumeSettingsSync({ id: accountId, username, serverUrl });
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Token login error:', error);
@@ -1625,30 +2175,46 @@ export const useAuthStore = create<AuthState>()(
           clearAllStores();
 
           const { DemoJMAPClient } = await import('@/lib/demo/demo-client');
-          const client = new DemoJMAPClient();
-          await client.connect();
+          const { seedDemoPreferences } = await import('@/lib/demo/demo-preferences');
+          // Two logins: the work account (primary, with the shared Support
+          // mailbox) and a personal account with mail and contacts, so the account
+          // switcher and the merged inbox have more than one source.
+          const client = new DemoJMAPClient('work');
+          const personal = new DemoJMAPClient('personal');
+          await Promise.all([client.connect(), personal.connect()]);
 
           const username = client.getUsername();
           const { identities, primaryIdentity } = loadIdentities(await client.getIdentities(), username);
           initializeFeatureStores(client);
 
-          // Register a demo account entry so the account-switcher shows
-          // proper avatar/name instead of a "?" placeholder.
+          // Register the account entries so the account switcher shows
+          // names and avatars, and the unified views find both clients.
           const accountStore = useAccountStore.getState();
-          const demoAccountId = accountStore.addAccount({
-            label: primaryIdentity?.name || 'Demo User',
-            serverUrl: 'https://demo.example.com',
-            username,
-            authMode: 'basic',
-            rememberMe: false,
-            displayName: primaryIdentity?.name || 'Demo User',
-            email: primaryIdentity?.email || username,
-            lastLoginAt: Date.now(),
-            isConnected: true,
-            hasError: false,
-            isDefault: true,
-          });
+          const displayName = primaryIdentity?.name || 'Nora Lindqvist';
+          const register = (demoClient: InstanceType<typeof DemoJMAPClient>, label: string, isDefault: boolean) => {
+            const email = demoClient.getUsername();
+            const id = accountStore.addAccount({
+              label,
+              serverUrl: DEMO_SERVER_URL,
+              username: email,
+              authMode: 'basic',
+              rememberMe: false,
+              displayName,
+              email,
+              lastLoginAt: Date.now(),
+              isConnected: true,
+              hasError: false,
+              isDefault,
+            });
+            // The registry is typed for the real client; the unified views only
+            // use the IJMAPClient surface, which the demo client implements.
+            holdClient(id, demoClient as unknown as JMAPClient);
+            return id;
+          };
+          const demoAccountId = register(client, 'Meridian Labs', true);
+          register(personal, 'Personal', false);
           accountStore.setActiveAccount(demoAccountId);
+          seedDemoPreferences();
 
           set({
             isAuthenticated: true,
@@ -1668,6 +2234,7 @@ export const useAuthStore = create<AuthState>()(
             activeAccountId: demoAccountId,
             isDemoMode: true,
           });
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('Demo login error:', error);
@@ -1706,8 +2273,10 @@ export const useAuthStore = create<AuthState>()(
           const slot = !isNaN(pendingSlot) && pendingSlot >= 0 && pendingSlot < MAX_ACCOUNT_SLOTS
             ? pendingSlot
             : accountStore.getNextCookieSlot();
+          // The login page parks "Remember me" here when the box is offered.
+          const remember = typeof window === 'undefined' || sessionStorage.getItem('oauth_remember') !== 'false';
 
-          const tokenRes = await exchangeOAuthCode({ serverUrl, code, codeVerifier, redirectUri, slot, serverId });
+          const tokenRes = await exchangeOAuthCode({ serverUrl, code, codeVerifier, redirectUri, slot, serverId, remember });
 
           if (!tokenRes.ok) {
             throw new Error('token_exchange_failed');
@@ -1716,8 +2285,10 @@ export const useAuthStore = create<AuthState>()(
 
           const { access_token, expires_in } = await tokenRes.json();
 
-          const refreshFn = get().refreshAccessToken;
-          const client = JMAPClient.withBearer(serverUrl, access_token, '', () => refreshFn());
+          // The account id comes from the session, so the refresh hook reads
+          // it once it is known below.
+          let boundAccountId: string | undefined;
+          const client = JMAPClient.withBearer(serverUrl, access_token, '', () => get().refreshAccessToken({ accountId: boundAccountId }));
           await client.connect();
 
           const jmapUsername = client.getUsername();
@@ -1734,6 +2305,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Register in account store
           const accountId = generateAccountId(username, serverUrl);
+          boundAccountId = accountId;
 
           // Snapshot current account if switching away and clear stores so
           // the new account starts with a clean email/contact/calendar state.
@@ -1743,7 +2315,8 @@ export const useAuthStore = create<AuthState>()(
             clearAllStores();
           }
 
-          clients.set(accountId, client);
+          await checkStoreOwner(accountId, client.getAccountId(), serverUrl);
+          holdClient(accountId, client);
           bindClientStatusHandlers(client, set, get, accountId);
 
           accountStore.addAccount({
@@ -1751,7 +2324,7 @@ export const useAuthStore = create<AuthState>()(
             serverUrl,
             username,
             authMode: 'oauth',
-            rememberMe: true,
+            rememberMe: remember,
             displayName: primaryIdentity?.name || username,
             email: primaryIdentity?.email || username,
             lastLoginAt: Date.now(),
@@ -1793,7 +2366,7 @@ export const useAuthStore = create<AuthState>()(
             });
           }).catch(() => {});
 
-          scheduleRefresh(expires_in, get().refreshAccessToken, accountId);
+          scheduleRefresh(expires_in, () => get().refreshAccessToken({ accountId }), accountId);
 
           notifyParent('sso:auth-success', { username });
 
@@ -1809,8 +2382,10 @@ export const useAuthStore = create<AuthState>()(
           // Clean up sessionStorage
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('oauth_cookie_slot');
+            sessionStorage.removeItem('oauth_remember');
           }
 
+          notifySignedIn(get());
           return true;
         } catch (error) {
           debug.error('OAuth login error:', error);
@@ -1851,7 +2426,7 @@ export const useAuthStore = create<AuthState>()(
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({ code, state, slot }),
-            }),
+            }).then((res) => noteSessionAnswer(res, slot)),
             fetchConfig(),
           ]);
 
@@ -1860,7 +2435,8 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(errorData.error || 'token_exchange_failed');
           }
 
-          const { access_token, expires_in } = await ssoRes.json();
+          // `remember` is what the login page chose when the flow started.
+          const { access_token, expires_in, remember } = await ssoRes.json();
 
           const ssoServerUrl = config.jmapServerUrl;
 
@@ -1868,86 +2444,7 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('Server URL not configured');
           }
 
-          const refreshFn = get().refreshAccessToken;
-          const client = JMAPClient.withBearer(ssoServerUrl, access_token, '', () => refreshFn());
-          await client.connect();
-
-          const jmapUsername = client.getUsername();
-          const { identities, primaryIdentity } = loadIdentities(await client.getIdentities(), jmapUsername);
-          // For SSO/OIDC, the JMAP session account name may be the
-          // preferred_username claim rather than the real email address.
-          // Prefer the email from the primary identity when available.
-          const username = primaryIdentity?.email || jmapUsername;
-          initializeFeatureStores(client);
-
-          const accountId = generateAccountId(username, ssoServerUrl);
-
-          const prevAccountId = get().activeAccountId;
-          if (prevAccountId && prevAccountId !== accountId) {
-            snapshotAccount(prevAccountId);
-            clearAllStores();
-          }
-
-          clients.set(accountId, client);
-          bindClientStatusHandlers(client, set, get, accountId);
-
-          accountStore.addAccount({
-            label: primaryIdentity?.name || username,
-            serverUrl: ssoServerUrl,
-            username,
-            authMode: 'oauth',
-            rememberMe: true,
-            displayName: primaryIdentity?.name || username,
-            email: primaryIdentity?.email || username,
-            lastLoginAt: Date.now(),
-            isConnected: true,
-            hasError: false,
-            isDefault: accountStore.accounts.length === 0,
-          });
-          // The refresh-token cookie was written to `slot` by /api/auth/sso/complete.
-          // Force the stored cookieSlot to match - see loginWithOAuth above for the
-          // re-add and concurrent-tab cases this guards against.
-          accountStore.updateAccount(accountId, { cookieSlot: slot, providerSession: true });
-          accountStore.setActiveAccount(accountId);
-
-          await syncStalwartAuthContext(ssoServerUrl, username, client.getAuthHeader(), slot);
-          void syncAccountDisplayName(accountId, client, primaryIdentity?.name);
-
-          set({
-            isAuthenticated: true,
-            isLoading: false,
-            serverUrl: ssoServerUrl,
-            username,
-            client,
-            ...getClientRateLimitState(client),
-            identities,
-            primaryIdentity,
-            authMode: 'oauth',
-            accessToken: access_token,
-            tokenExpiresAt: Date.now() + expires_in * 1000,
-            connectionLost: false,
-            error: null,
-            activeAccountId: accountId,
-          });
-
-          import('@/stores/email-store').then(({ useEmailStore }) => {
-            useEmailStore.getState().prefetchInitialData(client).catch((err) => {
-              debug.error('Initial data prefetch failed:', err);
-            });
-          }).catch(() => {});
-
-          scheduleRefresh(expires_in, get().refreshAccessToken, accountId);
-
-          notifyParent('sso:auth-success', { username });
-
-          fetchConfig().then(cfg => {
-            if (!cfg.settingsSyncEnabled) return;
-            useSettingsStore.getState().loadFromServer(username, ssoServerUrl).finally(() => {
-              useSettingsStore.getState().enableSync(username, ssoServerUrl);
-              applyPreferredIdentity(accountId);
-            });
-          }).catch(() => {});
-
+          await adoptProviderSession(set, get, { serverUrl: ssoServerUrl, accessToken: access_token, expiresIn: expires_in, remember, slot });
           return true;
         } catch (error) {
           debug.error('Server SSO login error:', error);
@@ -1965,12 +2462,67 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      refreshAccessToken: async (options) => {
-        if (refreshPromise) return refreshPromise;
+      loginWithDesktopHandoff: async (code, verifier, { remember, rememberPassword, allowedServers, customServersAllowed }) => {
+        if (IS_LITE) return 'failed';
+        set({ isLoading: true, error: null, isRateLimited: false, rateLimitUntil: null });
+        try {
+          const slot = useAccountStore.getState().getNextCookieSlot();
+          const res = await apiFetch('/api/auth/desktop-handoff/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, code_verifier: verifier, slot, remember, allowed_servers: allowedServers, custom_servers_allowed: customServersAllowed }),
+          }).then((answer) => noteSessionAnswer(answer, slot));
+          if (!res.ok) {
+            const refusal = (await res.json().catch(() => null)) as { error?: string } | null;
+            set({ isLoading: false, error: null });
+            return refusal?.error === 'blocked_by_policy' ? 'blocked' : 'failed';
+          }
+          const parked = await res.json();
+          if (parked.flow === 'password') {
+            // A password the browser checked a moment ago, down the same path as a typed one.
+            return (await get().login(parked.server_url, parked.username, parked.password, undefined, rememberPassword)) ? 'ok' : 'failed';
+          }
+          await adoptProviderSession(set, get, {
+            serverUrl: parked.server_url,
+            accessToken: parked.access_token,
+            expiresIn: parked.expires_in,
+            remember: parked.remember,
+            slot,
+            ...(parked.password_login ? { typedUsername: parked.username } : {}),
+          });
+          return 'ok';
+        } catch (error) {
+          debug.error('Desktop hand-off login error:', error);
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'generic',
+            isAuthenticated: false,
+            isRateLimited: false,
+            rateLimitUntil: null,
+            client: null,
+          });
+          return 'failed';
+        }
+      },
 
-        const accountId = get().activeAccountId;
-        if (accountId && refreshPromises.has(accountId)) {
-          return refreshPromises.get(accountId)!;
+      refreshAccessToken: async (options) => {
+        // Every multi-account client and timer passes its own account: renewing
+        // the active slot on a background account's behalf would hand that
+        // client another account's token (#989).
+        const accountId = options?.accountId ?? get().activeAccountId;
+        if (accountId) {
+          const inFlight = refreshPromises.get(accountId);
+          if (inFlight) return inFlight;
+        } else if (refreshPromise) {
+          return refreshPromise;
+        }
+
+        // A pop-out is on another window's session: it asks that window first.
+        if (isPopoutWindow()) {
+          if (!accountId) return null;
+          const renewal = renewSharedToken(accountId).finally(() => refreshPromises.delete(accountId));
+          refreshPromises.set(accountId, renewal);
+          return renewal;
         }
 
         const account = accountId ? useAccountStore.getState().getAccountById(accountId) : null;
@@ -1984,7 +2536,13 @@ export const useAuthStore = create<AuthState>()(
             // the current token is unusable (rejected by JMAP, or due for
             // scheduled renewal), so the server-side cache must be skipped.
             // Session restore passes allowCached to reuse a still-valid token.
-            const res = await fetchSlotAccessToken(slot, { force: !options?.allowCached });
+            const res = await fetchSlotAccessToken(slot, { force: !options?.allowCached, remember: account?.rememberMe });
+
+            // Possibly a long wait for another window's renewal. A slot closing
+            // or an account gone by now says nothing about any session, and a
+            // refusal mustn't sign out whichever account is active by now.
+            if (closingSlots.has(slot) || (account && !useAccountStore.getState().getAccountById(account.id))) return null;
+            const isActive = !accountId || accountId === get().activeAccountId;
 
             if (!res.ok) {
               // Only a definitive 401 ends the session. Anything else (5xx
@@ -1993,9 +2551,18 @@ export const useAuthStore = create<AuthState>()(
               // maintenance windows and offline spells.
               if (res.status === 401) {
                 resetRefreshBackoff(accountId ?? undefined);
+                const forced = await forcedSignOutOf(res);
+                // Only this login's refresh token was refused.
+                if (accountId && !isActive) {
+                  if (forced) noteRefusedLogin(accountId, true, forced);
+                  get().removeAccount(accountId, 'evicted');
+                  return null;
+                }
+                await saveDraftsBeforeExpiry(slot);
+                if (forced && accountId) noteRefusedLogin(accountId, true, forced);
                 notifyParent('sso:session-expired');
                 markSessionExpired();
-                get().logout({ endProviderSession: false });
+                get().logout({ endProviderSession: false, keepLocalData: true });
                 return null;
               }
               // A Bulwark-side failure (500/502) that keeps repeating will not
@@ -2007,14 +2574,18 @@ export const useAuthStore = create<AuthState>()(
                 notifyParent('sso:session-expired');
                 markSessionExpired();
                 // removeAccount() on the active account would sign out as if the user asked to.
-                if (accountId && accountId !== get().activeAccountId) get().removeAccount(accountId);
-                else get().logout({ endProviderSession: false });
+                if (accountId && accountId !== get().activeAccountId) get().removeAccount(accountId, 'evicted');
+                else {
+                  await saveDraftsBeforeExpiry(slot);
+                  // An outage on our side says nothing against the mail on this device.
+                  get().logout({ endProviderSession: false, keepLocalData: true });
+                }
                 return null;
               }
               if (shouldRetryRefresh(slot, accountId ?? undefined)) {
                 const retryIn = nextRefreshRetrySeconds(accountId ?? undefined);
                 debug.error(`Token refresh unavailable (${res.status}), retrying with backoff`);
-                scheduleRefresh(retryIn, get().refreshAccessToken, accountId ?? undefined);
+                scheduleRefresh(retryIn, () => get().refreshAccessToken({ accountId: accountId ?? undefined }), accountId ?? undefined);
               }
               return null;
             }
@@ -2024,7 +2595,8 @@ export const useAuthStore = create<AuthState>()(
             // Signed out while the renewal was in flight: nothing to keep alive.
             if (closingSlots.has(slot)) return null;
 
-            get().client?.updateAccessToken(access_token);
+            const owner = (accountId ? clients.get(accountId) : undefined) ?? (isActive ? get().client : null);
+            owner?.updateAccessToken(access_token);
 
             if (account) {
               await syncStalwartAuthContext(
@@ -2035,30 +2607,33 @@ export const useAuthStore = create<AuthState>()(
               );
             }
 
-            set({
-              accessToken: access_token,
-              tokenExpiresAt: Date.now() + expires_in * 1000,
-            });
+            if (isActive) {
+              set({
+                accessToken: access_token,
+                tokenExpiresAt: Date.now() + expires_in * 1000,
+              });
+            }
 
             resetRefreshBackoff(accountId ?? undefined);
-            scheduleRefresh(expires_in, get().refreshAccessToken, accountId ?? undefined);
+            scheduleRefresh(expires_in, () => get().refreshAccessToken({ accountId: accountId ?? undefined }), accountId ?? undefined);
+            if (accountId) void authHooks.onTokenRefresh.emit({ accountId });
             return access_token;
           } catch (error) {
             // Network failure (offline, Wi-Fi switch, server unreachable) -
             // not a rejection. Keep the session and retry with backoff.
             debug.error('Token refresh failed, retrying with backoff:', error);
             if (shouldRetryRefresh(slot, accountId ?? undefined)) {
-              scheduleRefresh(nextRefreshRetrySeconds(accountId ?? undefined), get().refreshAccessToken, accountId ?? undefined);
+              scheduleRefresh(nextRefreshRetrySeconds(accountId ?? undefined), () => get().refreshAccessToken({ accountId: accountId ?? undefined }), accountId ?? undefined);
             }
             return null;
           } finally {
-            refreshPromise = null;
             if (accountId) refreshPromises.delete(accountId);
+            else refreshPromise = null;
           }
         })();
 
-        refreshPromise = promise;
         if (accountId) refreshPromises.set(accountId, promise);
+        else refreshPromise = promise;
 
         return promise;
       },
@@ -2073,15 +2648,16 @@ export const useAuthStore = create<AuthState>()(
         const slot = account?.cookieSlot ?? 0;
         // `options` can be a click event when the action is wired straight to onClick.
         const userInitiated = options?.endProviderSession !== false;
+        const keepLocalData = options?.keepLocalData === true;
         const endProviderSession = userInitiated && !wasDemoMode && shouldEndProviderSession(account);
 
-        const ok = await authHooks.onBeforeLogout.intercept({
-          accountId: accountId ?? 'all',
-        });
+        // Signing out on purpose may be stopped by the user (unsent mail in
+        // the offline outbox would be lost); an automatic one may not.
+        if (userInitiated && !(await passSignOutGates(accountId ?? 'all'))) return;
 
-        if(!ok){
-          return;
-        }
+        await beforeLogoutHooks(accountId ?? 'all', { keepLocalStore: keepLocalData, userInitiated });
+        // A session that only ran out comes back with the next sign-in, push included.
+        if (state.client && !wasDemoMode && !keepLocalData) await endPushForSignOut([state.client]);
 
         // From here on nothing may renew this slot's session; the cleanup
         // below reopens it once the credentials are gone.
@@ -2099,20 +2675,30 @@ export const useAuthStore = create<AuthState>()(
         if (accountId) {
           clients.delete(accountId);
           evictAccount(accountId);
-          accountStore.removeAccount(accountId);
+          accountStore.removeAccount(accountId, keepLocalData ? 'evicted' : 'explicit');
+          forgetPrincipals(accountId);
           if (!wasDemoMode) clearPluginStorageForAccount(accountId);
         }
 
         await useSettingsStore.getState().flushSync();
         useSettingsStore.getState().disableSync();
 
-        await authHooks.onAfterLogout.emit({
+        clearKeystoreGrants();
+        clearDesktopCertificateChoices({ account: accountId ?? undefined, last: useAccountStore.getState().accounts.length === 0 });
+        clearDesktopCrashFiles();
+        void authHooks.onAfterLogout.emit({
           accountId: accountId ?? 'all',
         });
 
         // Check if there are remaining accounts to switch to. Read the store
         // afresh: `accountStore` is the state from before removeAccount().
-        const nextAccount = wasDemoMode ? undefined : useAccountStore.getState().accounts[0];
+        // Prefer an account that is signed in here: one restored from the
+        // account list backup (or otherwise not connected) has no client, and
+        // picking it signs out every account left.
+        const remainingAccounts = useAccountStore.getState().accounts.filter((account) => !accountRefusedByDesktopPolicy(account));
+        const nextAccount = wasDemoMode
+          ? undefined
+          : remainingAccounts.find((a) => clients.has(a.id)) ?? remainingAccounts[0];
         const droppedAccounts: AccountEntry[] = [];
 
         if (nextAccount) {
@@ -2162,8 +2748,20 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
 
-          // Client not in memory - sign out fully instead.
-          // Trying to async-restore during logout caused the original bug.
+          // Client not in memory. Trying to async-restore during logout caused
+          // the original bug. An account signed in before this page load (the
+          // one being signed out was added after an OAuth redirect or a reload
+          // of the add-account page) was simply never restored here: reload,
+          // and the usual restore picks it up.
+          if (!nextAccount.hasError && !nextAccount.awaitingSignIn) {
+            accountStore.setActiveAccount(nextAccount.id);
+            set({ activeAccountId: nextAccount.id, serverUrl: nextAccount.serverUrl, username: nextAccount.username });
+            await clearSlotCredentials(slot, wasOAuth);
+            replaceWindowLocation(`${getPathPrefix()}/${getLocaleFromPath()}`);
+            return;
+          }
+
+          // Its restore failed - sign out fully instead.
           // A full logout leaves no account behind: drop every remaining one
           // and clear its slot too. Left in place, its remembered session
           // would sign the next visitor of this browser straight back in.
@@ -2174,8 +2772,11 @@ export const useAuthStore = create<AuthState>()(
             clients.get(remaining.id)?.disconnect();
             clients.delete(remaining.id);
             evictAccount(remaining.id);
-            accountStore.removeAccount(remaining.id);
+            // Dropped by this sign-out, not signed out by anyone: their unsent
+            // mail never passed a question, so it waits for their next sign-in.
+            accountStore.removeAccount(remaining.id, 'evicted');
           }
+          clearDesktopCertificateChoices({ last: true });
         }
 
         // Full logout. The credentials are cleared before the page state:
@@ -2188,7 +2789,7 @@ export const useAuthStore = create<AuthState>()(
           ...droppedAccounts.map((dropped) => clearSlotCredentials(dropped.cookieSlot ?? 0, dropped.authMode === 'oauth')),
         ]);
 
-        performFullLogout(set);
+        performFullLogout(set, { keepLocalStore: keepLocalData });
 
         notifyParent('sso:logout');
 
@@ -2199,41 +2800,59 @@ export const useAuthStore = create<AuthState>()(
       // drop it from the registry, and clear its per-slot cookies. If asked to
       // remove the active account, defer to logout() which handles switching
       // away or redirecting.
-      removeAccount: (accountId: string) => {
+      removeAccount: (accountId: string, reason = 'explicit') => {
         if (accountId === get().activeAccountId) { void get().logout(); return; }
         const accountStore = useAccountStore.getState();
         const account = accountStore.getAccountById(accountId);
         if (!account) return;
         const slot = account.cookieSlot ?? 0;
         const wasOAuth = account.authMode === 'oauth';
-
-        // Started first: the cleanup marks the slot closing right away, so a
-        // renewal in flight cannot bring the session back.
-        void clearSlotCredentials(slot, wasOAuth);
-        clearRefreshTimer(accountId);
         const client = clients.get(accountId);
-        if (client) {
-          forgetCalendarSubscriptions(client);
-          try { client.disconnect(); } catch { /* noop */ }
-        }
+        // The slot is closing from here on: a renewal in flight cannot bring the
+        // session back.
+        closingSlots.add(slot);
+        clearRefreshTimer(accountId);
+        if (client) forgetCalendarSubscriptions(client);
+        // The login's push goes first: a client that disconnected has no account
+        // id and no API left to reach the server with.
+        const pushEnded = client && reason === 'explicit' ? endPushForSignOut([client]) : Promise.resolve();
+        void pushEnded.finally(() => {
+          try { client?.disconnect(); } catch { /* noop */ }
+          return clearSlotCredentials(slot, wasOAuth);
+        });
         clients.delete(accountId);
         evictAccount(accountId);
-        accountStore.removeAccount(accountId);
+        forgetAccountRows(accountId, get().client);
+        accountStore.removeAccount(accountId, reason);
+        clearDesktopCertificateChoices({ account: accountId });
+        forgetPrincipals(accountId);
         clearPluginStorageForAccount(accountId);
       },
 
-      logoutAll: async () => {
-        const ok = await authHooks.onBeforeLogout.intercept({
-          accountId: 'all'
-        });
-
-        if(!ok){
-          return;
+      logoutAll: async (options) => {
+        const userInitiated = options?.endProviderSession !== false;
+        if (userInitiated && !(await passSignOutGates('all'))) return;
+        const keepLocalData = options?.keepLocalData === true;
+        // Before anything goes, while the accounts are still there to be named.
+        if (options?.sessionLimit) {
+          for (const account of useAccountStore.getState().accounts) noteRefusedLogin(account.id, true, 'session');
+        }
+        await beforeLogoutHooks('all', { keepLocalStore: keepLocalData, userInitiated });
+        if (!get().isDemoMode && !keepLocalData) {
+          // Each connected login first, on a budget that one unreachable server can
+          // use up. What's left, and whoever had no connection, only needs the relay.
+          await endPushForSignOut(clients.values());
+          await Promise.race([
+            import('@/lib/web-push').then((push) => push.dropAllWebPushRegistrations()).catch(() => undefined),
+            new Promise<void>((resolve) => setTimeout(resolve, LOGOUT_HOOK_BUDGET_MS)),
+          ]);
         }
 
         const accountStore = useAccountStore.getState();
         const allAccounts = [...accountStore.accounts];
-        const endSessionSlot = get().isDemoMode ? null : pickEndSessionSlot(allAccounts, get().activeAccountId);
+        // `options` can be a click event when the action is wired straight to onClick.
+        const endProviderSession = options?.endProviderSession !== false;
+        const endSessionSlot = get().isDemoMode || !endProviderSession ? null : pickEndSessionSlot(allAccounts, get().activeAccountId);
 
         // Starts by marking every slot closing, so nothing renews a session
         // while the clients are torn down.
@@ -2254,14 +2873,17 @@ export const useAuthStore = create<AuthState>()(
         // Credentials are cleared before the page state - see logout().
         const endSessionUrl = await cleanup;
 
-        performFullLogout(set);
+        performFullLogout(set, { keepLocalStore: keepLocalData });
 
         // Clear all accounts from registry
         for (const account of allAccounts) {
-          accountStore.removeAccount(account.id);
+          accountStore.removeAccount(account.id, keepLocalData ? 'evicted' : 'explicit');
         }
 
-        await authHooks.onAfterLogout.emit({
+        clearKeystoreGrants();
+        clearDesktopCertificateChoices({ last: true });
+        clearDesktopCrashFiles();
+        void authHooks.onAfterLogout.emit({
           accountId: 'all'
         });
 
@@ -2278,7 +2900,13 @@ export const useAuthStore = create<AuthState>()(
 
         const accountStore = useAccountStore.getState();
         const targetAccount = accountStore.getAccountById(accountId);
-        if (!targetAccount) return;
+        if (!targetAccount || accountRefusedByDesktopPolicy(targetAccount)) return;
+        // Restored from the account list backup and never signed in here:
+        // there is no session to resume, so ask for the password instead.
+        if (targetAccount.awaitingSignIn && !clients.has(accountId)) {
+          replaceWindowLocation(`${getLocaleLoginPath()}?mode=add-account&username=${encodeURIComponent(targetAccount.username)}`);
+          return;
+        }
 
         // A switch between two already-connected accounts is done seamlessly:
         // the current account's client and mail stay on screen while we verify
@@ -2290,6 +2918,7 @@ export const useAuthStore = create<AuthState>()(
         let targetClient = clients.get(accountId);
         const wasConnected = !!targetClient;
         let targetRestoreRateLimited = false;
+        let targetForced: ForcedSignOutKind | null = null;
 
         if (!targetClient) {
           // Null out the client immediately so the page doesn't fire data-loading
@@ -2305,15 +2934,15 @@ export const useAuthStore = create<AuthState>()(
           // Client not connected - try to restore
           try {
             if (targetAccount.authMode === 'oauth') {
-              const res = await fetchSlotAccessToken(targetAccount.cookieSlot);
+              const res = await fetchSlotAccessToken(targetAccount.cookieSlot, { remember: targetAccount.rememberMe });
+              if (!res.ok && res.status === 401) targetForced = await forcedSignOutOf(res);
               if (res.ok) {
                 const { access_token, expires_in } = await res.json();
-                const refreshFn = get().refreshAccessToken;
-                targetClient = JMAPClient.withBearer(targetAccount.serverUrl, access_token, targetAccount.username, () => refreshFn());
+                targetClient = JMAPClient.withBearer(targetAccount.serverUrl, access_token, targetAccount.username, () => get().refreshAccessToken({ accountId }));
                 bindClientStatusHandlers(targetClient, set, get, accountId);
                 await targetClient.connect();
-                clients.set(accountId, targetClient);
-                scheduleRefresh(expires_in, get().refreshAccessToken, accountId);
+                holdClient(accountId, targetClient);
+                scheduleRefresh(expires_in, () => get().refreshAccessToken({ accountId }), accountId);
                 await syncStalwartAuthContext(
                   targetAccount.serverUrl,
                   targetAccount.username,
@@ -2323,12 +2952,13 @@ export const useAuthStore = create<AuthState>()(
               }
             } else if (targetAccount.rememberMe) {
               const res = await fetchSlotSession(targetAccount.cookieSlot);
+              if (!res.ok && res.status === 401) targetForced = await forcedSignOutOf(res);
               if (res.ok) {
                 const session: RememberedSession = await res.json();
                 targetClient = clientForSession(session);
                 bindClientStatusHandlers(targetClient, set, get, accountId);
                 await targetClient.connect();
-                clients.set(accountId, targetClient);
+                holdClient(accountId, targetClient);
                 await syncStalwartAuthContext(session.serverUrl, session.username, targetClient.getAuthHeader(), targetAccount.cookieSlot);
               }
             }
@@ -2374,9 +3004,12 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // Cannot restore - remove the stale account and redirect to login
+          if (targetForced) noteRefusedLogin(accountId, true, targetForced);
+          else if (refusedAtConnect.has(accountId)) noteRefusedLogin(accountId, false);
+          refusedAtConnect.delete(accountId);
           evictAccount(accountId);
-          accountStore.removeAccount(accountId);
-          void clearSlotCredentials(targetAccount.cookieSlot, false);
+          accountStore.removeAccount(accountId, 'evicted');
+          void clearSlotCredentials(targetAccount.cookieSlot, targetAccount.authMode === 'oauth');
 
           // Restore the previous account if still available
           if (state.activeAccountId && state.activeAccountId !== accountId) {
@@ -2420,6 +3053,14 @@ export const useAuthStore = create<AuthState>()(
         // else's mail.
         const connectedCandidates = await connectedAccountCandidates(targetClient, targetAccount.serverUrl);
         if (superseded()) return;
+        // The server refused the login as a whole, now or before (#1539): it would
+        // refuse every load the switch starts. Ask for a sign-in instead, the way
+        // an account restored from the backup does.
+        if (targetClient.isAccessRefused?.()) {
+          accountStore.updateAccount(accountId, { isConnected: false, hasError: true, errorMessage: ACCOUNT_REFUSED });
+          replaceWindowLocation(`${getLocaleLoginPath()}?mode=add-account&username=${encodeURIComponent(targetAccount.username)}`);
+          return;
+        }
         const verdict = classifySessionMatch(connectedCandidates, accountId, targetAccount.serverIdentifiers);
         if (verdict === 'reject') {
           debug.error(`switchAccount: slot ${targetAccount.cookieSlot} for ${accountId} resolved to [${connectedCandidates.join(", ")}] — forcing re-auth`);
@@ -2441,11 +3082,13 @@ export const useAuthStore = create<AuthState>()(
         // clearing it), so snapshot + clear it now - synchronously, right before
         // the restore and client swap below - so the UI never blanks between the
         // two accounts. The network path already snapshotted and cleared above.
+        // The settings flush is a request, so it goes first: awaited after the
+        // clear, the list showed "No emails" until it came back.
         if (wasConnected) {
-          snapshotAndClearForSwitch(get().activeAccountId);
           await useSettingsStore.getState().flushSync();
           useSettingsStore.getState().disableSync();
           if (superseded()) return;
+          snapshotAndClearForSwitch(get().activeAccountId);
         }
 
         // Restore cached state or fetch fresh
@@ -2495,11 +3138,19 @@ export const useAuthStore = create<AuthState>()(
 
       checkAuth: async () => {
         const accountStore = useAccountStore.getState();
-        let accounts = accountStore.accounts;
+        // An account on a server the device's OS policy refuses stays stored, with its
+        // cookies and local data, and stays out of everything until it's allowed again.
+        const everyAccount = accountStore.accounts;
+        let accounts = everyAccount.filter((account) => !accountRefusedByDesktopPolicy(account));
+        if (everyAccount.length > 0 && accounts.length === 0) {
+          set({ isLoading: false, isAuthenticated: false, client: null, activeAccountId: null });
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) leaveForRefusedServer();
+          return;
+        }
 
-        // If the only account is the demo account, re-initialize demo mode
+        // If every account is a demo account, re-initialize demo mode
         // instead of trying to restore a server session (which doesn't exist).
-        if (accounts.length === 1 && accounts[0].serverUrl === 'https://demo.example.com') {
+        if (accounts.length > 0 && accounts.every((a) => a.serverUrl === DEMO_SERVER_URL)) {
           await get().loginDemo();
           return;
         }
@@ -2510,7 +3161,9 @@ export const useAuthStore = create<AuthState>()(
         // registry so the normal restoration path picks it up. Without this
         // the cookies sit unused and the SPA bounces to the login screen.
         // (Not in Lite: nothing hands sessions over server-side.)
-        if (accounts.length === 0 && !IS_LITE) {
+        // Not while a forgotten PIN's cookies wait to be cleared: this would sign that
+        // login back in with no PIN. The DELETE goes first, and adoption waits for it.
+        if (accounts.length === 0 && !IS_LITE && await clearPendingCookies()) {
           try {
             const restore = await apiFetch('/api/auth/session', { method: 'PUT' });
             if (restore.ok) {
@@ -2551,27 +3204,57 @@ export const useAuthStore = create<AuthState>()(
           // with a stale client reference while we're restoring accounts.
           set({ isLoading: true, client: null });
 
+          // The offline hooks have to be there before the first request, or a
+          // start without the server has nothing to paint from.
+          if (!IS_LITE && useOfflineStore.getState().enabled.length > 0) {
+            await import('@/lib/offline/offline-mode').then((offline) => offline.registerOfflineHooks()).catch(() => {});
+          }
+
+          // A wipe comes before anything from this device is shown: one a closed
+          // window cut short, and what the instance has to say, briefly.
+          if (!IS_LITE && (useOfflineStore.getState().enabled.length > 0 || getDesktopBridge()?.mode === 'instance' || wipeWorkWaiting())) {
+            await import('@/lib/offline/device-wipe').then((wipe) => wipe.runDeviceGate()).catch(() => {});
+            accounts = useAccountStore.getState().accounts;
+            if (accounts.length === 0) {
+              set({ isLoading: false, isAuthenticated: false, client: null, activeAccountId: null });
+              return;
+            }
+          }
+
           // Determine which account to activate first
           const defaultAccount = accountStore.getDefaultAccount();
-          const activeId = get().activeAccountId;
-          const targetId = activeId || defaultAccount?.id || accounts[0].id;
+          const usable = (id: string | null | undefined) => (id && accounts.some((account) => account.id === id) ? id : null);
+          const activeId = usable(get().activeAccountId);
+          const targetId = activeId || usable(defaultAccount?.id) || accounts[0].id;
 
           // Restore one account: decrypt the stored credential/token, connect,
           // and sync the passthrough auth context. The context write never
           // throws and doesn't depend on the connect result, so its round trip
           // overlaps the connect instead of running after it.
+          // Accounts signed in without "Remember me": a reload ends them on
+          // purpose, so it is not reported as an expired session.
+          let forgottenAccounts = 0;
           const restoreAccount = async (account: (typeof accounts)[number]) => {
             if (clients.has(account.id)) return; // Already connected
+            // Restored from the account list backup: listed until signed in.
+            if (account.awaitingSignIn) return;
 
             // A password or access token login without rememberMe leaves
             // nothing to restore - the user logged in without persisting
             // credentials. Evict silently so the login screen is shown without
             // flagging a fake error. (Lite keeps a tab-scoped session either
             // way; a missing one surfaces as a 401 from fetchSlotSession below
-            // and evicts too.)
-            if (account.authMode !== 'oauth' && !account.rememberMe && !IS_LITE) {
+            // and evicts too.) A password + TOTP login runs on tokens, but
+            // without rememberMe it ends the same way: its refresh token goes.
+            // So does a provider sign-in made with the box left unticked.
+            if (!account.rememberMe && !IS_LITE) {
+              forgottenAccounts += 1;
               evictAccount(account.id);
-              accountStore.removeAccount(account.id);
+              // The user's choice on what may be a shared computer: its local data goes too.
+              // Not when the app lock is on: its reload ended this page, not the session, so
+              // the mail and the outbox wait for the next sign-in.
+              accountStore.removeAccount(account.id, isAppLockOn() ? 'evicted' : 'explicit');
+              if (account.authMode === 'oauth') void clearSlotCredentials(account.cookieSlot, true);
               return;
             }
 
@@ -2580,13 +3263,12 @@ export const useAuthStore = create<AuthState>()(
                 const res = await fetchSlotAccessToken(account.cookieSlot);
                 if (res.ok) {
                   const { access_token, expires_in } = await res.json();
-                  const refreshFn = get().refreshAccessToken;
-                  const client = JMAPClient.withBearer(account.serverUrl, access_token, account.username, () => refreshFn());
+                  const client = JMAPClient.withBearer(account.serverUrl, access_token, account.username, () => get().refreshAccessToken({ accountId: account.id }));
                   bindClientStatusHandlers(client, set, get, account.id);
                   const contextSync = syncStalwartAuthContext(account.serverUrl, account.username, client.getAuthHeader(), account.cookieSlot);
                   await client.connect();
-                  clients.set(account.id, client);
-                  scheduleRefresh(expires_in, get().refreshAccessToken, account.id);
+                  holdClient(account.id, client);
+                  scheduleRefresh(expires_in, () => get().refreshAccessToken({ accountId: account.id }), account.id);
                   await contextSync;
                   accountStore.updateAccount(account.id, { isConnected: true, hasError: false });
                   void syncAccountDisplayName(account.id, client);
@@ -2596,7 +3278,7 @@ export const useAuthStore = create<AuthState>()(
                   // Repeated 500/502 (see recordPermanentRefreshFailure) falls
                   // through here and evicts the account like a rejection. (#972)
                   if (res.status >= 500) notifySignInAgain();
-                  throw new Error(`Token refresh failed: ${res.status}`);
+                  throw Object.assign(new Error(`Token refresh failed: ${res.status}`), { forced: await forcedSignOutOf(res) });
                 }
               } else {
                 const res = await fetchSlotSession(account.cookieSlot);
@@ -2606,14 +3288,18 @@ export const useAuthStore = create<AuthState>()(
                   bindClientStatusHandlers(client, set, get, account.id);
                   const contextSync = syncStalwartAuthContext(session.serverUrl, session.username, client.getAuthHeader(), account.cookieSlot);
                   await client.connect();
-                  clients.set(account.id, client);
+                  holdClient(account.id, client);
                   await contextSync;
-                  accountStore.updateAccount(account.id, { isConnected: true, hasError: false });
+                  accountStore.updateAccount(account.id, {
+                    isConnected: true,
+                    hasError: false,
+                    impersonated: session.impersonated === true,
+                  });
                   void syncAccountDisplayName(account.id, client);
-                } else if (res.status >= 500) {
+                } else if (res.status >= 500 || res.status === 429) {
                   throw new TransientAuthError('Session restore failed', res.status);
                 } else {
-                  throw new Error(`Session cookie missing: ${res.status}`);
+                  throw Object.assign(new Error(`Session cookie missing: ${res.status}`), { forced: await forcedSignOutOf(res) });
                 }
               }
             } catch (err) {
@@ -2631,6 +3317,15 @@ export const useAuthStore = create<AuthState>()(
               // treatment as the rate-limit case above; only a definitive
               // rejection below evicts.
               if (isTransientAuthError(err)) {
+                // Offline mode (#523): with this account's mail kept on the
+                // device, start from it. The client answers from the device
+                // only; a reload once the server is back signs in as usual.
+                const offlineClient = await startOfflineClient(account.id, account.serverUrl, account.username);
+                if (offlineClient) {
+                  holdClient(account.id, offlineClient);
+                  accountStore.updateAccount(account.id, { isConnected: true, hasError: false });
+                  return;
+                }
                 accountStore.updateAccount(account.id, {
                   isConnected: false,
                   hasError: true,
@@ -2639,10 +3334,16 @@ export const useAuthStore = create<AuthState>()(
                 return;
               }
               // Remove unrestorable accounts so the user is prompted to log in
-              // again rather than seeing a stale error entry forever.
+              // again rather than seeing a stale error entry forever. Its
+              // refresh token goes with it: nothing would use or revoke it. Its
+              // local data waits.
+              const { forced } = err as { forced?: ForcedSignOutKind | null };
+              if (forced) noteRefusedLogin(account.id, true, forced);
+              else if (refusedAtConnect.has(account.id)) noteRefusedLogin(account.id, false);
+              refusedAtConnect.delete(account.id);
               evictAccount(account.id);
-              accountStore.removeAccount(account.id);
-              void clearSlotCredentials(account.cookieSlot, false);
+              accountStore.removeAccount(account.id, 'evicted');
+              void clearSlotCredentials(account.cookieSlot, account.authMode === 'oauth');
             }
           };
 
@@ -2652,7 +3353,56 @@ export const useAuthStore = create<AuthState>()(
           // bump re-runs per-client effects (push binding) over the full set.
           const targetEntry = accounts.find((account) => account.id === targetId);
           const otherAccounts = accounts.filter((account) => account.id !== targetId);
-          if (targetEntry) await restoreAccount(targetEntry);
+          // With the local store on, the local copy shows at once and the real
+          // connect takes over when it's done (swapInRealClient below).
+          const localCopy = targetEntry && !targetEntry.awaitingSignIn && targetEntry.rememberMe
+            ? await startLocalCopyClient(targetEntry.id, targetEntry.serverUrl, targetEntry.username)
+            : null;
+          if (localCopy && targetEntry) {
+            holdClient(targetEntry.id, localCopy);
+            accountStore.updateAccount(targetEntry.id, { isConnected: true, hasError: false });
+          } else if (targetEntry) {
+            await restoreAccount(targetEntry);
+          }
+
+          /**
+           * The real connect behind a local copy on screen. No reload and no
+           * loading state: the client in the store changes and the pages
+           * refetch from the server. A refused account goes through the usual
+           * restore path, an unreachable server keeps the local copy.
+           */
+          const swapInRealClient = async (entry: (typeof accounts)[number], local: JMAPClient) => {
+            clients.delete(entry.id);
+            await restoreAccount(entry);
+            const real = clients.get(entry.id);
+            if (!real) {
+              if (useAccountStore.getState().getAccountById(entry.id)) {
+                holdClient(entry.id, local);
+                // A 5xx or a rate limit, with the server up otherwise. The app stays
+                // on the local copy, and says so, and leaves it when the server answers.
+                void import('@/lib/offline/offline-mode').then((offline) => offline.markStartedOffline()).catch(() => {});
+                return;
+              }
+              if (get().activeAccountId !== entry.id) return;
+              // Refused, and evicted by the restore. Whoever is left, or the login page.
+              set({ client: null, isAuthenticated: false, activeAccountId: null });
+              if (useAccountStore.getState().accounts.length > 0) await get().checkAuth();
+              else markSessionExpired();
+              return;
+            }
+            if (get().activeAccountId !== entry.id) return;
+            initializeFeatureStores(real);
+            set({ client: real, ...getClientRateLimitState(real), connectionLost: false, error: null });
+            // The local copy may have had none yet, and the server's are newer.
+            void real.getIdentities()
+              .then((raw) => {
+                if (get().client !== real) return;
+                const { identities, primaryIdentity } = loadIdentities(raw, entry.username);
+                set({ identities, primaryIdentity });
+                applyPreferredIdentity(entry.id);
+              })
+              .catch((err) => debug.error('Failed to load identities after the local copy:', err));
+          };
 
           // A few at a time rather than one after the other: with many logins
           // the serial walk left the last of them - and with it a complete
@@ -2696,6 +3446,8 @@ export const useAuthStore = create<AuthState>()(
             // spending a serial round trip before the UI unblocks.
             const identitiesLoaded = targetClient.getIdentities()
               .then((raw) => {
+                // The real client took over meanwhile, and asks for itself.
+                if (localCopy && get().client !== null && get().client !== targetClient) return;
                 const { identities, primaryIdentity } = loadIdentities(raw, targetAccount.username);
                 set({ identities, primaryIdentity });
               })
@@ -2714,6 +3466,7 @@ export const useAuthStore = create<AuthState>()(
               error: null,
               activeAccountId: targetId,
             });
+            if (localCopy && targetEntry) void swapInRealClient(targetEntry, localCopy);
 
             fetchConfig().then(config => {
               if (!config.settingsSyncEnabled) return;
@@ -2754,8 +3507,13 @@ export const useAuthStore = create<AuthState>()(
             }
           }
 
-          // No accounts could be restored
-          if (accounts.some((account) => accountStore.getAccountById(account.id))) {
+          // No accounts could be restored. Accounts restored from the account
+          // list backup were never signed in here, so they say nothing about
+          // the connection.
+          if (accounts.some((account) => {
+            const entry = accountStore.getAccountById(account.id);
+            return entry && !entry.awaitingSignIn;
+          })) {
             set({
               isAuthenticated: false,
               isLoading: false,
@@ -2767,7 +3525,8 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
 
-          markSessionExpired();
+          if (forgottenAccounts === accounts.length) saveRedirectAfterLogin();
+          else markSessionExpired();
           set({
             isAuthenticated: false,
             isLoading: false,
@@ -2800,7 +3559,7 @@ export const useAuthStore = create<AuthState>()(
                 await client.connect();
 
                 const accountId = generateAccountId(state.username || '', state.serverUrl);
-                clients.set(accountId, client);
+                holdClient(accountId, client);
                 bindClientStatusHandlers(client, set, get, accountId);
 
                 // Migrate to account registry
@@ -2868,7 +3627,7 @@ export const useAuthStore = create<AuthState>()(
                 await client.connect();
 
                 const accountId = generateAccountId(username, serverUrl);
-                clients.set(accountId, client);
+                holdClient(accountId, client);
                 bindClientStatusHandlers(client, set, get, accountId);
 
                 // Migrate to account registry
@@ -2959,6 +3718,37 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      signInRestoredAccount: async (accountId, password, rememberMe) => {
+        const accountStore = useAccountStore.getState();
+        const account = accountStore.getAccountById(accountId);
+        if (!account || account.authMode !== 'basic' || clients.has(accountId)) return false;
+        const { serverUrl, username, cookieSlot } = account;
+        if (await precheckCredentials(serverUrl, { username, password })) return false;
+        const client = new JMAPClient(serverUrl, username, password);
+        try {
+          await client.connect();
+        } catch (err) {
+          debug.error(`Failed to sign in to restored account ${accountId}:`, err);
+          client.disconnect();
+          return false;
+        }
+        // Without a remembered session the next reload would drop the account
+        // again, like any sign-in made without "Remember me".
+        await Promise.all([
+          rememberMe || IS_LITE ? persistSession(cookieSlot, { serverUrl, username, password }) : null,
+          syncStalwartAuthContext(serverUrl, username, client.getAuthHeader(), cookieSlot),
+        ]);
+        holdClient(accountId, client);
+        bindClientStatusHandlers(client, set, get, accountId);
+        accountStore.updateAccount(accountId, {
+          awaitingSignIn: false, isConnected: true, hasError: false, errorMessage: undefined,
+          rememberMe, lastLoginAt: Date.now(), signedInAt: signedInAtForSlot(cookieSlot),
+        });
+        void syncAccountDisplayName(accountId, client);
+        set((state) => ({ connectedAccountsRevision: state.connectedAccountsRevision + 1 }));
+        return true;
+      },
+
       syncIdentities: () => {
         const identityState = useIdentityStore.getState();
         const identities = identityState.identities;
@@ -2983,6 +3773,107 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      startSharedSession: async (options) => {
+        // Locked: not from another window, and not from the cookies either.
+        if (isAppLockedNow()) return 'no-session';
+        set({ isLoading: true, client: null });
+        const accountStore = useAccountStore.getState();
+        const answer = await requestWindowSession(options?.accountId ? { accountId: options.accountId } : {});
+        const sessions = answer?.sessions ?? [];
+
+        // No main window open: what the cookies still hold. A login made
+        // without "Remember me" has nothing there, and that is no reason to
+        // evict it: the list is the main window's business.
+        const restoreFromCookies = async (account: AccountEntry): Promise<JMAPClient | null> => {
+          if (account.awaitingSignIn) return null;
+          if (account.authMode === 'oauth') {
+            const res = await fetchSlotAccessToken(account.cookieSlot, { remember: account.rememberMe });
+            if (res.status >= 500) throw new TransientAuthError('Token refresh failed', res.status);
+            if (!res.ok) return null;
+            const { access_token } = await res.json();
+            await syncStalwartAuthContext(account.serverUrl, account.username, `Bearer ${access_token}`, account.cookieSlot);
+            return JMAPClient.withBearer(account.serverUrl, access_token, account.username, () => get().refreshAccessToken({ accountId: account.id }));
+          }
+          if (!account.rememberMe && !IS_LITE) return null;
+          const res = await fetchSlotSession(account.cookieSlot);
+          if (res.status >= 500) throw new TransientAuthError('Session restore failed', res.status);
+          if (!res.ok) return null;
+          const session: RememberedSession = await res.json();
+          return clientForSession(session);
+        };
+
+        const adopt = async (accountId: string, session?: SharedAccountSession): Promise<JMAPClient | null> => {
+          const account = accountStore.getAccountById(accountId);
+          if (!account) return null;
+          try {
+            if (session?.offlineOnly) throw new TransientAuthError('The main window is offline', 503);
+            const client = session
+              ? JMAPClient.withSharedAuth(account.serverUrl, account.username, session.authHeader, session.authMode === 'oauth'
+                ? () => get().refreshAccessToken({ accountId })
+                : undefined)
+              : await restoreFromCookies(account);
+            if (!client) return null;
+            bindClientStatusHandlers(client, set, get, accountId);
+            await client.connect();
+            holdClient(accountId, client);
+            accountStore.updateAccount(accountId, { isConnected: true, hasError: false });
+            return client;
+          } catch (error) {
+            debug.error(`A pop-out could not use account ${accountId}:`, error);
+            if (!isTransientAuthError(error)) return null;
+            const offlineClient = await startOfflineClient(accountId, account.serverUrl, account.username);
+            if (offlineClient) holdClient(accountId, offlineClient);
+            return offlineClient;
+          }
+        };
+
+        const targetId = options?.accountId
+          ?? answer?.activeAccountId
+          ?? accountStore.activeAccountId
+          ?? accountStore.getDefaultAccount()?.id
+          ?? null;
+        const account = targetId ? accountStore.getAccountById(targetId) : undefined;
+        const client = account ? await adopt(account.id, sessions.find((session) => session.accountId === account.id)) : null;
+        if (!account || !client) {
+          set({ isLoading: false, isAuthenticated: false, client: null });
+          return 'no-session';
+        }
+
+        // The window's other logins: a draft may live in one (see
+        // ComposerDraftData), and the Pro From picker lists them.
+        const others = sessions.filter((session) => session.accountId !== account.id);
+        if (others.length > 0) {
+          void Promise.allSettled(others.map((session) => adopt(session.accountId, session))).then(() => {
+            set((state) => ({ connectedAccountsRevision: state.connectedAccountsRevision + 1 }));
+          });
+        }
+
+        accountStore.setActiveAccount(account.id);
+        initializeFeatureStores(client);
+        let loaded: ReturnType<typeof loadIdentities> = { identities: [], primaryIdentity: null };
+        try {
+          loaded = loadIdentities(await client.getIdentities(), account.username);
+        } catch (error) {
+          debug.error('Failed to load identities in a pop-out:', error);
+        }
+        set({
+          isAuthenticated: true,
+          isLoading: false,
+          serverUrl: account.serverUrl,
+          username: account.username,
+          client,
+          ...getClientRateLimitState(client),
+          identities: loaded.identities,
+          primaryIdentity: loaded.primaryIdentity,
+          authMode: account.authMode,
+          rememberMe: account.rememberMe,
+          connectionLost: false,
+          error: null,
+          activeAccountId: account.id,
+        });
+        return 'ready';
+      },
+
       getClientForAccount: (accountId: string) => {
         return clients.get(accountId);
       },
@@ -2990,9 +3881,26 @@ export const useAuthStore = create<AuthState>()(
       getAllConnectedClients: () => {
         return new Map(clients);
       },
+
+      reconnectOfflineClients: async () => {
+        const offline = [...clients.entries()].filter(([, c]) => c.isOfflineOnly());
+        if (offline.length === 0) return true;
+        for (const [id] of offline) clients.delete(id);
+        skipLocalCopy = true;
+        try {
+          await get().checkAuth();
+        } finally {
+          skipLocalCopy = false;
+        }
+        return offline.every(([id]) => {
+          const client = clients.get(id);
+          return !!client && !client.isOfflineOnly();
+        });
+      },
     }),
     {
       name: 'auth-storage',
+      storage: createJSONStorage(mainWindowStorage),
       partialize: (state) => {
         // Don't persist unauthenticated state - prevents resurrecting stale sessions
         if (!state.isAuthenticated) return {};
@@ -3021,10 +3929,120 @@ useAuthStore.subscribe((state, prev) => {
   if (state.isAuthenticated && !prev.isAuthenticated) void usePolicyStore.getState().refreshIfPartial();
 });
 
+// Domain and group scopes follow the active account. setPolicySubject skips
+// the work when the account's address and groups stayed the same.
+let policySubjectRequest = 0;
+useAuthStore.subscribe((state, prev) => {
+  if (
+    state.client === prev.client
+    && state.activeAccountId === prev.activeAccountId
+    && state.isAuthenticated === prev.isAuthenticated
+    && state.connectedAccountsRevision === prev.connectedAccountsRevision
+  ) return;
+  const request = ++policySubjectRequest;
+  if (!state.isAuthenticated || !state.client) {
+    usePolicyStore.getState().setPolicySubject(null);
+    return;
+  }
+  usePolicyStore.getState().setSubjectPending(true);
+  void policySubjectForClient(state.client).then(async (subject) => {
+    if (request !== policySubjectRequest) return;
+    // The server sends only the scopes of the domains signed in when the
+    // policy was fetched; an account of another domain may have its own.
+    if (subject && !usePolicyStore.getState().coversAddress(subject.email)) {
+      await usePolicyStore.getState().fetchPolicy();
+      if (request !== policySubjectRequest) return;
+    }
+    usePolicyStore.getState().setPolicySubject(subject);
+  });
+});
+
+/** Off to the login page, which says why. The account stays, for when the policy allows it again. */
+function leaveForRefusedServer(): void {
+  if (isPopoutWindow()) {
+    closePopoutWindow();
+    return;
+  }
+  replaceWindowLocation(getLocaleLoginPath());
+}
+
+// What's refused now, as of this page's start too: a reload to the login page mustn't
+// forget that an account is waiting, or it wouldn't come back when it's allowed again.
+let refusedAccounts = new Set<string>();
+
+/**
+ * The device's OS policy took a server off its list, or put one back. A refused account
+ * stops: no client, no push, no renewals, and with no client its store has nothing to
+ * sync through. It isn't signed out: cookies, outbox and mail stay. The active one moves
+ * to the next allowed account, or to the login page.
+ */
+export function applyDesktopServerPolicy(): void {
+  const auth = useAuthStore.getState();
+  const accounts = useAccountStore.getState().accounts;
+  const plan = planForRefusedAccounts(accounts, auth.activeAccountId, getDesktopPolicy());
+  for (const id of plan.stop) {
+    clearRefreshTimer(id);
+    const client = clients.get(id);
+    if (client) {
+      forgetCalendarSubscriptions(client);
+      try { client.disconnect(); } catch { /* noop */ }
+      clients.delete(id);
+    }
+    useAccountStore.getState().updateAccount(id, { isConnected: false });
+  }
+  const returned = [...refusedAccounts].filter((id) => !plan.refused.includes(id));
+  refusedAccounts = new Set(plan.refused);
+
+  if (plan.activeRefused) {
+    if (plan.next) void auth.switchAccount(plan.next);
+    else {
+      useAuthStore.setState({ client: null, isAuthenticated: false });
+      leaveForRefusedServer();
+    }
+    return;
+  }
+  // Allowed again. With nobody signed in the start-up path restores it from its cookies;
+  // otherwise it shows in the switcher again and connects when switched to.
+  if (returned.length > 0 && !auth.client) window.location.replace('/');
+}
+
+if (typeof window !== 'undefined') {
+  refusedAccounts = new Set(planForRefusedAccounts(useAccountStore.getState().accounts, null, getDesktopPolicy()).refused);
+  onDesktopPolicyChange(applyDesktopServerPolicy);
+}
+
+// See canEnterLoginInPlace. A page that starts behind the app lock has shown nothing yet,
+// whatever the stored state says, and a page load here would ask for the PIN again.
+let signedInSincePageLoad = !isAppLockOn() && useAuthStore.getState().isAuthenticated;
+useAuthStore.subscribe((state) => {
+  if (state.isAuthenticated) {
+    signedInSincePageLoad = true;
+    freshLoginDone();
+  }
+});
+
 // Another tab signed everyone out: this one's cookies and account list are
 // gone too, so leave for the login page instead of showing stale mail.
 if (typeof window !== 'undefined') {
   onSignedOutElsewhere(() => {
+    // A pop-out saves its typing first (components/popout/popout-shell.tsx).
+    if (isPopoutWindow()) return;
     if (useAuthStore.getState().isAuthenticated) navigateToLogin();
   });
 }
+
+// Plugins hear when a session becomes usable (after start-up or a sign-in)
+// and when another account becomes active, whichever path got there.
+useAuthStore.subscribe((state, prev) => {
+  const ready = state.isAuthenticated && !!state.client && !!state.activeAccountId;
+  const wasReady = prev.isAuthenticated && !!prev.client && !!prev.activeAccountId;
+  if (ready && !wasReady) void authHooks.onAuthReady.emit({ accountId: state.activeAccountId });
+  if (state.activeAccountId !== prev.activeAccountId) noteDesktopCertificateAccount(state.activeAccountId);
+  // Whenever the account in use goes, not only at a sign-out: an expired or refused session
+  // ends with no account, and the next person at this computer has to be asked.
+  if (prev.activeAccountId && state.activeAccountId !== prev.activeAccountId) clearKeystoreGrants();
+  if (state.activeAccountId && prev.activeAccountId && state.activeAccountId !== prev.activeAccountId) {
+    clearDesktopCrashFiles();
+    void authHooks.onAccountSwitch.emit({ accountId: state.activeAccountId, previousAccountId: prev.activeAccountId });
+  }
+});

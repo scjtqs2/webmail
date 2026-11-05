@@ -17,6 +17,7 @@ vi.mock('@/lib/logger', () => ({
 
 vi.mock('@/lib/oauth/cookie-config', () => ({
   getCookieOptions: () => ({ httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 2592000 }),
+  getSignInCookieOptions: (remember: boolean) => ({ httpOnly: true, secure: true, sameSite: 'lax', path: '/', ...(remember ? { maxAge: 2592000 } : {}) }),
 }));
 
 const getTokenEndpoint = vi.fn();
@@ -24,12 +25,14 @@ const buildOAuthParams = vi.fn();
 const getMetadata = vi.fn();
 const getRequiredConfig = vi.fn();
 const exchangeCodeForTokens = vi.fn();
+const defaultClientOptions = vi.fn(async (_serverId?: unknown) => ({ fallbackClientId: 'bulwark-webmail' }));
 vi.mock('@/lib/oauth/token-exchange', () => ({
   exchangeCodeForTokens: (...args: unknown[]) => exchangeCodeForTokens(...args),
   buildOAuthParams: (...args: unknown[]) => buildOAuthParams(...args),
   getMetadata: (...args: unknown[]) => getMetadata(...args),
   getRequiredConfig: (...args: unknown[]) => getRequiredConfig(...args),
   getTokenEndpoint: (...args: unknown[]) => getTokenEndpoint(...args),
+  defaultClientOptions: (serverId: unknown) => defaultClientOptions(serverId),
   DEFAULT_CLIENT_ID: 'bulwark-webmail',
 }));
 
@@ -66,6 +69,12 @@ let cookieStore: FakeCookies;
 vi.mock('next/headers', () => ({
   cookies: async () => cookieStore,
 }));
+
+// A renewal is kept a minute for requests still carrying the spent token
+// (lib/oauth/slot-renewal.ts); these tests reuse one token on purpose.
+beforeEach(async () => {
+  (await import('@/lib/oauth/slot-renewal')).resetRedemptionsForTests();
+});
 
 function mockRequest(params: Record<string, string> = {}, method = 'PUT', body?: unknown): unknown {
   return {
@@ -163,7 +172,39 @@ describe('oauth token route - access token cache (#552)', () => {
 
     const { status } = await callPut();
 
-    expect(status).toBe(500);
+    expect(status).toBe(503);
+    expect(cookieStore.get('jmap_rt')).toBeTruthy();
+  });
+
+  it('names a real invalid_grant, and only that, for the client to wipe on', async () => {
+    const refuse = (status: number, body: string) => fetchMock.mockResolvedValueOnce(new Response(body, { status }));
+    cookieStore.set('jmap_rt', 'refresh-token');
+    refuse(400, JSON.stringify({ error: 'invalid_grant' }));
+    expect(await callPut({ force: 'true' })).toMatchObject({ status: 401, body: { error: 'invalid_grant' } });
+
+    for (const body of [JSON.stringify({ error: 'invalid_client' }), JSON.stringify({ error: 'invalid_request', error_description: 'Token is not valid yet' }), '<html>Forbidden</html>']) {
+      cookieStore.set('jmap_rt', 'refresh-token');
+      refuse(403, body);
+      const { status, body: answer } = await callPut({ force: 'true' });
+      expect(status).toBe(401);
+      expect(answer.error).not.toBe('invalid_grant');
+    }
+  });
+
+  it('answers 503 when the token endpoint is out of reach, which the client waits out', async () => {
+    cookieStore.set('jmap_rt', 'refresh-token');
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+    const { status } = await callPut({ force: 'true' });
+    expect(status).toBe(503);
+    expect(cookieStore.get('jmap_rt')).toBeTruthy();
+  });
+
+  it('answers 503 when discovery fails, also for a server it has no config for', async () => {
+    cookieStore.set('jmap_rt', 'refresh-token');
+    getTokenEndpoint.mockRejectedValue(new Error('OAuth misconfigured'));
+    const { status } = await callPut({ force: 'true' });
+    expect(status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(cookieStore.get('jmap_rt')).toBeTruthy();
   });
 
@@ -281,6 +322,29 @@ describe('oauth token route - access token cache (#552)', () => {
     );
   });
 
+  it('refreshes with the client the TOTP login registered on Stalwart 1.0', async () => {
+    // 1.0 knows no client named bulwark-webmail; the login signed in with a
+    // client it registered, and a refresh naming another client is refused.
+    defaultClientOptions.mockResolvedValueOnce({ fallbackClientId: 'swc1.registered' });
+    cookieStore.set('jmap_rt', 'totp-minted-refresh-token');
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'fresh-token', expires_in: 1800, refresh_token: 'rotated' }),
+    });
+
+    const { status } = await callPut({ force: 'true' });
+
+    expect(status).toBe(200);
+    expect(defaultClientOptions).toHaveBeenCalledWith(null);
+    expect(buildOAuthParams).toHaveBeenCalledWith(
+      { grant_type: 'refresh_token', refresh_token: 'totp-minted-refresh-token' },
+      null,
+      { fallbackClientId: 'swc1.registered' },
+    );
+    // 1.0 rotates refresh tokens; the old one is dead once the new one is used.
+    expect(cookieStore.get('jmap_rt')?.value).toBe('rotated');
+  });
+
   it('does not serve a cached token once the refresh token is gone', async () => {
     seedCachedToken('orphan-token', 1500);
 
@@ -376,6 +440,37 @@ describe('oauth token route - sign-in keeps the id token (#905)', () => {
     expect(cookieStore.get('jmap_rt')?.value).toBe('r'.repeat(650));
     expect(cookieStore.get('jmap_at')?.value).toMatch(/^\d+\.a+$/);
   });
+
+  it('leaves the access-token cache out when it would outgrow a proxy header buffer (#1237)', async () => {
+    // Keycloak access token with groups and roles, plus the user's address in
+    // several claims: the refresh and access-token cookies alone overflowed
+    // nginx's 4 KB buffer and the sign-in failed with 502.
+    exchangeCodeForTokens.mockResolvedValue({
+      access_token: 'a'.repeat(2600), expires_in: 300, refresh_token: 'r'.repeat(900), id_token: 'i'.repeat(1300),
+    });
+    cookieStore.set('jmap_at', `${Math.floor(Date.now() / 1000) + 300}.stale`);
+
+    const { status, body } = await callRoute('POST', {}, { code: 'c', code_verifier: 'v', redirect_uri: 'https://mail.example.com/en/auth/callback' });
+
+    expect(status).toBe(200);
+    expect(body.access_token).toBe('a'.repeat(2600));
+    expect(cookieStore.get('jmap_rt')?.value).toBe('r'.repeat(900));
+    expect(cookieStore.get('jmap_at')).toBeUndefined();
+    // Without the cache there is room for the id token again.
+    expect(cookieStore.get('jmap_idt')?.value).toBe('i'.repeat(1300));
+  });
+
+  it('sends no deletions for cookies a fresh sign-in never had', async () => {
+    // Each deletion is a Set-Cookie header of its own, eating into the same
+    // header buffer.
+    exchangeCodeForTokens.mockResolvedValue({
+      access_token: 'a'.repeat(2600), expires_in: 300, refresh_token: 'r'.repeat(900), id_token: 'i'.repeat(1300),
+    });
+
+    await callRoute('POST', {}, { code: 'c', code_verifier: 'v', redirect_uri: 'https://mail.example.com/en/auth/callback' });
+
+    expect(cookieStore.deleted).toEqual([]);
+  });
 });
 
 describe('oauth token route - refresh keeps the id token current (#905)', () => {
@@ -417,6 +512,21 @@ describe('oauth token route - refresh keeps the id token current (#905)', () => 
     expect(status).toBe(200);
     expect(cookieStore.get('jmap_idt')).toBeUndefined();
     expect(cookieStore.get('jmap_rt')?.value).toBe('r'.repeat(650));
+  });
+
+  it('leaves the access-token cache out when a rotated refresh token leaves no room for it (#1237)', async () => {
+    cookieStore.set('jmap_rt', 'rt');
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'a'.repeat(2600), expires_in: 300, refresh_token: 'r'.repeat(900) }),
+    });
+
+    const { status, body } = await callPut({ force: 'true' });
+
+    expect(status).toBe(200);
+    expect(body.access_token).toBe('a'.repeat(2600));
+    expect(cookieStore.get('jmap_rt')?.value).toBe('r'.repeat(900));
+    expect(cookieStore.get('jmap_at')).toBeUndefined();
   });
 
   it('does not start keeping an id token for a password sign-in', async () => {
@@ -484,6 +594,17 @@ describe('oauth token route - sign-out (#905)', () => {
     expect(fetchMock).toHaveBeenCalledWith(KEYCLOAK.revocation_endpoint, expect.objectContaining({ method: 'POST' }));
     for (const name of ['jmap_rt', 'jmap_at', 'jmap_idt']) expect(cookieStore.get(name)).toBeUndefined();
     expect(cookieStore.deletedPaths.get('jmap_idt')).toBe('/api/auth/token');
+  });
+
+  it('keeps the grant at the provider when revocation is turned off (#1388)', async () => {
+    configValues.oauthRevokeOnSignOut = false;
+    seedSlot(0);
+
+    await callRoute('DELETE', { slot: '0' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Signed out all the same: the browser holds no token afterwards.
+    for (const name of ['jmap_rt', 'jmap_at', 'jmap_idt']) expect(cookieStore.get(name)).toBeUndefined();
   });
 
   it('identifies the client alone when no id token was kept', async () => {
@@ -559,6 +680,52 @@ describe('oauth token route - sign-out (#905)', () => {
   it('does not offer a provider logout the provider does not advertise', async () => {
     seedSlot(0);
     getMetadata.mockResolvedValue({ ...KEYCLOAK, end_session_endpoint: undefined });
+
+    const { body } = await callRoute('DELETE', { slot: '0', end_session: 'true' });
+
+    expect(body.end_session_url).toBeUndefined();
+  });
+
+  // Stalwart's built-in provider advertises no end_session_endpoint (#1279).
+  it('builds the provider logout from the configured URL when discovery has none', async () => {
+    seedSlot(0);
+    getMetadata.mockResolvedValue({ ...KEYCLOAK, end_session_endpoint: undefined });
+    getRequiredConfig.mockReturnValue({ clientId: 'webmail', endSessionUrl: 'https://mail.example.org/logout/' });
+    configValues.oauthPostLogoutRedirectUri = 'https://mail.example.com/en/login';
+
+    const { body } = await callRoute('DELETE', { slot: '0', end_session: 'true' });
+
+    const url = new URL(body.end_session_url as string);
+    expect(`${url.origin}${url.pathname}`).toBe('https://mail.example.org/logout/');
+    expect(url.searchParams.get('client_id')).toBe('webmail');
+    expect(url.searchParams.get('id_token_hint')).toBe(ID_TOKEN);
+    expect(url.searchParams.get('post_logout_redirect_uri')).toBe('https://mail.example.com/en/login');
+  });
+
+  it('prefers the configured logout URL over the discovered one', async () => {
+    seedSlot(0);
+    getRequiredConfig.mockReturnValue({ clientId: 'webmail', endSessionUrl: 'https://sso.example.com/logout' });
+
+    const { body } = await callRoute('DELETE', { slot: '0', end_session: 'true' });
+
+    const url = new URL(body.end_session_url as string);
+    expect(`${url.origin}${url.pathname}`).toBe('https://sso.example.com/logout');
+  });
+
+  it('does not use the configured logout URL when the admin turned provider logout off', async () => {
+    seedSlot(0);
+    getRequiredConfig.mockReturnValue({ clientId: 'webmail', endSessionUrl: 'https://sso.example.com/logout' });
+    configValues.oauthEndSession = false;
+
+    const { body } = await callRoute('DELETE', { slot: '0', end_session: 'true' });
+
+    expect(body.end_session_url).toBeUndefined();
+  });
+
+  it('does not offer a configured logout URL over plain http', async () => {
+    seedSlot(0);
+    getMetadata.mockResolvedValue({ ...KEYCLOAK, end_session_endpoint: undefined });
+    getRequiredConfig.mockReturnValue({ clientId: 'webmail', endSessionUrl: 'http://mail.example.org/logout' });
 
     const { body } = await callRoute('DELETE', { slot: '0', end_session: 'true' });
 

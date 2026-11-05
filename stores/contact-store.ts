@@ -1,14 +1,80 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ContactCard, AddressBook, AddressBookRights, ContactName } from '@/lib/jmap/types';
+import type { ContactCard, AddressBook, AddressBookRights, ContactName, ContactMedia } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
+import { loadPrincipalDirectory } from '@/lib/jmap/principal-directory';
 import { generateUUID } from '@/lib/utils';
 import { debug } from '@/lib/debug';
+import { calendarHooks, contactHooks, settingsHooks } from '@/lib/plugin-hooks';
+import { BIRTHDAY_CALENDAR_ID } from '@/lib/birthday-calendar';
+import { useSettingsStore } from './settings-store';
 import { getClientByLocalAccountId } from './client-registry';
 import { sanitizeDisplayName, splitMailbox } from '@/lib/rfc5322-mailbox';
+import { inlineContactMedia, writeContactWithNewPhoto, type ContactSaveOptions } from '@/lib/contact-media';
+import { contactToView } from '@/lib/plugin-projection';
+import { PrincipalsRequestError } from '@/lib/jmap/principals-error';
+import { PartialAccountsError, partialAccounts, withFailedAccountsKept } from '@/lib/jmap/partial-accounts';
+import type { Principal } from '@/lib/jmap/types';
+import { currentStoreEpoch } from '@/lib/store-epoch';
+import { planGroupMoves, type MergePlan } from '@/lib/contacts/merge';
+
+/** What a merge changed, to put it back with Undo. */
+export interface MergeUndo {
+  keepId: string;
+  /** The kept card's values before, for each property the merge changed (undefined: it had none). */
+  before: Partial<ContactCard>;
+  /** The merged cards as they were; their photos as data: URIs, since their blobs go with them. */
+  others: ContactCard[];
+  /** The groups' members before the merge. */
+  groups: Array<{ groupId: string; members: Record<string, boolean> }>;
+  /** Some step after the kept card's update failed or was stopped: not all cards are gone. */
+  incomplete?: boolean;
+}
+
+/** A contact that is about to be created, projected for plugins (no id yet). */
+function draftContactView(contact: Partial<ContactCard>) {
+  return contactToView({ addressBookIds: {}, ...contact, id: contact.id ?? '' } as ContactCard);
+}
+
+function notifyBirthdayCalendarIfEnabled() {
+  try {
+    if (useSettingsStore.getState().showBirthdayCalendar) {
+      void calendarHooks.onCalendarChange.emit({ calendarId: BIRTHDAY_CALENDAR_ID, change: 'updated' });
+    }
+  } catch {
+    // Ignore when stores not initialized in unit tests
+  }
+}
+
+function sameIdSet(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of a) if (!b.has(id)) return false;
+  return true;
+}
 
 /** One compose-autocomplete suggestion: a person, or a contact group. */
 type RecipientSuggestion = { name: string; email: string; group?: { id: string; memberCount: number } };
+
+/** How many suggestions the compose autocomplete offers. */
+const MAX_SUGGESTIONS = 10;
+
+/**
+ * How well `query` (lowercase) matches any of `texts`: 0 at the start of a
+ * word ("an" in "Anna" or "an@x"), 1 inside a word ("an" in "Daniel"),
+ * -1 not at all. Word starts come first in the suggestions.
+ */
+function matchRank(query: string, ...texts: (string | undefined)[]): number {
+  let rank = -1;
+  for (const text of texts) {
+    if (!text) continue;
+    const lower = text.toLowerCase();
+    for (let at = lower.indexOf(query); at !== -1; at = lower.indexOf(query, at + 1)) {
+      if (at === 0 || !/[\p{L}\p{N}]/u.test(lower[at - 1])) return 0;
+      rank = 1;
+    }
+  }
+  return rank;
+}
 
 /**
  * Reduces every suggestion to a clean display name plus a bare address and
@@ -159,15 +225,16 @@ function resolveRawAddressBookIds(
 
 export function getContactDisplayName(contact: ContactCard): string {
   if (contact.name) {
-    // Try given + surname from components first
+    // The card's own display name (RFC 9553 name.full, vCard FN) first: an
+    // imported "Dr. Jürgen Müller" stays that, and this app's form keeps it
+    // in step with the parts it writes.
+    if (contact.name.full?.trim()) return contact.name.full.trim();
     if (contact.name.components && contact.name.components.length > 0) {
       const given = contact.name.components.find(c => c.kind === 'given')?.value || '';
       const surname = contact.name.components.find(c => c.kind === 'surname')?.value || '';
       const full = [given, surname].filter(Boolean).join(' ');
       if (full) return full;
     }
-    // Fall back to name.full (RFC 9553 - used by Stalwart and other JMAP servers)
-    if (contact.name.full) return contact.name.full;
   }
   if (contact.nicknames) {
     const nick = Object.values(contact.nicknames)[0];
@@ -232,14 +299,70 @@ export function normalizeContactPhotoUri(uri: string, mediaType?: string): strin
   return uri;
 }
 
-export function getContactPhotoUri(contact: ContactCard): string | undefined {
-  if (!contact.media) return undefined;
-  for (const media of Object.values(contact.media)) {
-    if (media.kind === 'photo' && media.uri) {
-      return normalizeContactPhotoUri(media.uri, media.mediaType);
-    }
+/**
+ * A contact photo as something to show: a URI (https, or a data: URI with
+ * its media type fixed), or a blob that still has to be downloaded. Stalwart
+ * 1.0 returns every embedded photo as a blob; 0.16 as a data: URI.
+ */
+export type ContactPhotoRef =
+  | { uri: string }
+  | { blobId: string; mediaType?: string; accountId?: string; localAccountId?: string };
+
+/**
+ * The card's photo entry and its key: the `media` entry of kind photo with
+ * the lowest `pref` (RFC 9553: unset counts as least preferred), the first
+ * one on a tie.
+ */
+export function findContactPhotoEntry(contact: Pick<ContactCard, 'media'>): [string, ContactMedia] | undefined {
+  let found: [string, ContactMedia] | undefined;
+  for (const [key, media] of Object.entries(contact.media ?? {})) {
+    if (media?.kind !== 'photo' || !(media.uri || media.blobId)) continue;
+    if (!found || (media.pref ?? Infinity) < (found[1].pref ?? Infinity)) found = [key, media];
+  }
+  return found;
+}
+
+export function getContactPhotoRef(contact: ContactCard): ContactPhotoRef | undefined {
+  const media = findContactPhotoEntry(contact)?.[1];
+  if (media?.uri) return { uri: normalizeContactPhotoUri(media.uri, media.mediaType) };
+  if (media?.blobId) {
+    return { blobId: media.blobId, mediaType: media.mediaType, accountId: contact.accountId, localAccountId: contact.localAccountId };
   }
   return undefined;
+}
+
+export function hasContactPhoto(contact: ContactCard): boolean {
+  return !!findContactPhotoEntry(contact);
+}
+
+/** The photo URI, for callers that cannot download a blob photo. */
+export function getContactPhotoUri(contact: ContactCard): string | undefined {
+  const ref = getContactPhotoRef(contact);
+  return ref && 'uri' in ref ? ref.uri : undefined;
+}
+
+const photoIndexes = new WeakMap<ContactCard[], Map<string, ContactPhotoRef>>();
+
+/**
+ * Lowercased address to the photo of the first contact that has both, built
+ * once per contacts array. Every avatar looks its sender up here; scanning
+ * all contacts per avatar was quadratic on the mail list.
+ */
+export function getContactPhotoIndex(contacts: ContactCard[]): Map<string, ContactPhotoRef> {
+  let index = photoIndexes.get(contacts);
+  if (!index) {
+    index = new Map();
+    for (const contact of contacts) {
+      const photo = getContactPhotoRef(contact);
+      if (!photo) continue;
+      for (const entry of Object.values(contact.emails ?? {})) {
+        const address = entry?.address?.toLowerCase();
+        if (address && !index.has(address)) index.set(address, photo);
+      }
+    }
+    photoIndexes.set(contacts, index);
+  }
+  return index;
 }
 
 export const TRUSTED_SENDERS_BOOK_NAME = 'Trusted Senders';
@@ -315,6 +438,8 @@ interface ContactStore {
   isLoading: boolean;
   error: string | null;
   supportsSync: boolean;
+  /** False until the first fetch from the server has finished (runtime only). */
+  contactsLoaded: boolean;
 
   // Trusted senders address book cache (runtime only, not persisted)
   trustedSenderEmails: string[];
@@ -332,22 +457,28 @@ interface ContactStore {
   activeTab: 'all' | 'groups';
 
   // Directory (RFC 9670 principals) — other users/groups on the server, used to
-  // augment recipient autocomplete. Runtime only, not persisted.
-  directoryPrincipals: Array<{ name: string; email: string; description?: string }>;
+  // augment recipient autocomplete and for the browsable company directory.
+  // Runtime only, not persisted.
+  directoryPrincipals: DirectoryEntry[];
   directoryLoaded: boolean;
+  directoryStatus: DirectoryStatus;
 
   fetchContacts: (client: IJMAPClient) => Promise<void>;
   fetchDirectory: (client: IJMAPClient) => Promise<void>;
   fetchAddressBooks: (client: IJMAPClient) => Promise<void>;
   fetchAllAccountsContacts: (accounts: ContactAccountClient[]) => Promise<void>;
   fetchAllAccountsAddressBooks: (accounts: ContactAccountClient[]) => Promise<void>;
-  createContact: (client: IJMAPClient, contact: Partial<ContactCard>) => Promise<void>;
-  updateContact: (client: IJMAPClient, id: string, updates: Partial<ContactCard>) => Promise<void>;
-  deleteContact: (client: IJMAPClient, id: string) => Promise<void>;
+  // The contact actions resolve to false when a plugin stopped them
+  // (onBeforeContactCreate / Update / Delete); nothing changed then.
+  createContact: (client: IJMAPClient, contact: Partial<ContactCard>, options?: ContactSaveOptions) => Promise<boolean>;
+  updateContact: (client: IJMAPClient, id: string, updates: Partial<ContactCard>, options?: ContactSaveOptions) => Promise<boolean>;
+  /** The card as its server has it now, or null when it can't be read. */
+  fetchContactFromServer: (client: IJMAPClient, id: string) => Promise<ContactCard | null>;
+  deleteContact: (client: IJMAPClient, id: string) => Promise<boolean>;
 
-  addLocalContact: (contact: ContactCard) => void;
-  updateLocalContact: (id: string, updates: Partial<ContactCard>) => void;
-  deleteLocalContact: (id: string) => void;
+  addLocalContact: (contact: ContactCard) => Promise<boolean>;
+  updateLocalContact: (id: string, updates: Partial<ContactCard>) => Promise<boolean>;
+  deleteLocalContact: (id: string) => Promise<boolean>;
 
   setSelectedContact: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
@@ -370,7 +501,8 @@ interface ContactStore {
   selectRangeContacts: (targetId: string, sortedIds: string[]) => void;
   selectAllContacts: (ids: string[]) => void;
   clearSelection: () => void;
-  bulkDeleteContacts: (client: IJMAPClient | null, ids: string[]) => Promise<void>;
+  /** false when a plugin stopped it (the plugin tells the user why). */
+  bulkDeleteContacts: (client: IJMAPClient | null, ids: string[]) => Promise<boolean>;
   bulkAddToGroup: (client: IJMAPClient | null, groupId: string, contactIds: string[]) => Promise<void>;
   moveContactToAddressBook: (client: IJMAPClient, contactIds: string[], addressBook: AddressBook) => Promise<void>;
   createAddressBook: (client: IJMAPClient, name: string) => Promise<AddressBook>;
@@ -379,8 +511,17 @@ interface ContactStore {
   removeAddressBook: (client: IJMAPClient, addressBook: AddressBook) => Promise<void>;
   shareAddressBook: (client: IJMAPClient, addressBook: AddressBook, principalId: string, rights: AddressBookRights | null) => Promise<void>;
   renameKeyword: (client: IJMAPClient | null, oldKeyword: string, newKeyword: string) => Promise<void>;
+  /** Take a category off every contact; returns the ids of the contacts that had it, for undo. */
+  removeKeyword: (client: IJMAPClient | null, keyword: string) => Promise<string[]>;
+  /** Put a category on contacts, e.g. to undo removing it. */
+  addKeyword: (client: IJMAPClient | null, keyword: string, contactIds: string[]) => Promise<void>;
 
-  importContacts: (client: IJMAPClient | null, contacts: ContactCard[]) => Promise<number>;
+  /** Into `addressBookId` when given, else where the server files new cards. */
+  importContacts: (client: IJMAPClient | null, contacts: ContactCard[], addressBookId?: string) => Promise<number>;
+  /** Merges the plan's cards into its kept card (lib/contacts/merge.ts); null when a plugin stopped it. */
+  mergeContacts: (client: IJMAPClient | null, plan: MergePlan) => Promise<MergeUndo | null>;
+  /** Puts a merge back: the merged cards (with new ids), their groups, the kept card's old values. */
+  undoMergeContacts: (client: IJMAPClient | null, undo: MergeUndo) => Promise<boolean>;
 
   // Trusted senders address book
   loadTrustedSendersBook: (client: IJMAPClient) => Promise<void>;
@@ -394,9 +535,58 @@ interface ContactStore {
   searchRecipients: (client: IJMAPClient, query: string) => Promise<Array<{ name: string; email: string }>>;
 }
 
+/** One entry of the company directory: a principal that has an address. */
+export interface DirectoryEntry {
+  id?: string;
+  /** Display name: the principal's description, else its name, else the address. */
+  name: string;
+  email: string;
+  description?: string;
+  type?: Principal['type'];
+}
+
+/**
+ * Where the directory fetch stands. `unavailable`: the server has no
+ * principals capability. `forbidden`: the server refused this account's
+ * directory query. `error`: the request failed.
+ */
+export type DirectoryStatus = 'idle' | 'loading' | 'ready' | 'unavailable' | 'forbidden' | 'error';
+
+export function principalsToDirectory(principals: Principal[]): DirectoryEntry[] {
+  const entries: DirectoryEntry[] = [];
+  const seen = new Set<string>();
+  for (const p of principals) {
+    // Stalwart reports a principal's account name in `email`; only those
+    // with an address are usable as recipients.
+    const email = p.email?.trim();
+    if (!email || seen.has(email.toLowerCase())) continue;
+    seen.add(email.toLowerCase());
+    entries.push({
+      id: p.id,
+      name: p.description || p.name || email,
+      email,
+      description: p.description ?? undefined,
+      type: p.type,
+    });
+  }
+  return entries;
+}
+
+/** The Sent-folder read loadRecentRecipients has in flight, if any. */
+let recentRecipientsLoading: Promise<void> | null = null;
+
 export const useContactStore = create<ContactStore>()(
   persist(
     (set, get) => {
+
+      // A contact's categories, saved on the server when there is one;
+      // false when a plugin stopped the change.
+      function saveContactKeywords(client: IJMAPClient | null, id: string, keywords: Record<string, boolean>): Promise<boolean> {
+        const { supportsSync, updateContact, updateLocalContact } = get();
+        return supportsSync && client
+          ? updateContact(client, id, { keywords })
+          : updateLocalContact(id, { keywords });
+      }
 
       // Clean group member references when contacts are removed
       function cleanGroupMembers(contacts: ContactCard[], removedIds: Set<string>): ContactCard[] {
@@ -436,6 +626,7 @@ export const useContactStore = create<ContactStore>()(
       isLoading: false,
       error: null,
       supportsSync: false,
+      contactsLoaded: false,
       trustedSenderEmails: [],
       trustedSendersBookId: null,
       trustedSendersLoaded: false,
@@ -448,51 +639,81 @@ export const useContactStore = create<ContactStore>()(
       activeTab: 'all' as const,
       directoryPrincipals: [],
       directoryLoaded: false,
+      directoryStatus: 'idle' as DirectoryStatus,
 
+      // Every fetch below captures the store epoch before awaiting the server
+      // and drops its result once the stores were cleared for another account
+      // (lib/store-epoch.ts): a slow answer for account A must not become
+      // account B's address book, autocomplete and contact list.
       fetchContacts: async (client) => {
+        const epoch = currentStoreEpoch();
         set({ isLoading: true, error: null });
         try {
           const contacts = await client.getAllContacts();
-          set({ contacts, isLoading: false });
+          if (currentStoreEpoch() !== epoch) return;
+          set({ contacts, isLoading: false, contactsLoaded: true });
         } catch (error) {
+          if (currentStoreEpoch() !== epoch) return;
           console.error('Failed to fetch contacts:', error);
-          set({ error: 'Failed to fetch contacts', isLoading: false });
+          // An account that couldn't answer keeps its cards; the others are fresh.
+          const partial = partialAccounts<ContactCard>(error);
+          set((state) => ({
+            error: 'Failed to fetch contacts',
+            isLoading: false,
+            contactsLoaded: true,
+            contacts: partial ? withFailedAccountsKept(partial, state.contacts) : state.contacts,
+          }));
         }
       },
 
       fetchDirectory: async (client) => {
-        if (!client.supportsPrincipals()) return;
+        if (!client.supportsPrincipals()) {
+          set({ directoryStatus: 'unavailable' });
+          return;
+        }
+        const epoch = currentStoreEpoch();
+        set({ directoryStatus: 'loading' });
         try {
-          const principals = await client.getPrincipals();
-          const entries: Array<{ name: string; email: string; description?: string }> = [];
-          for (const p of principals) {
-            // Stalwart reports a principal's account name in `email`; only those
-            // with an address are usable as recipients.
-            const email = p.email?.trim();
-            if (!email) continue;
-            entries.push({
-              name: p.description || p.name || email,
-              email,
-              description: p.description ?? undefined,
-            });
-          }
-          set({ directoryPrincipals: entries, directoryLoaded: true });
+          // Shared with the share dialog and free/busy (loadPrincipalDirectory).
+          const { principals, status } = await loadPrincipalDirectory(client);
+          if (currentStoreEpoch() !== epoch) return;
+          if (status === 'error') throw new PrincipalsRequestError(null);
+          if (status !== 'ok') debug.log('contacts', `Directory listing is ${status}; autocomplete offers ${principals.length} principals`);
+          // A restricted listing (Stalwart 1.0 without directory queries) still
+          // holds the principals the user knows, for autocomplete and browsing.
+          set({
+            directoryPrincipals: principalsToDirectory(principals),
+            directoryLoaded: true,
+            directoryStatus: status === 'restricted' ? 'forbidden' : 'ready',
+          });
         } catch (error) {
+          if (currentStoreEpoch() !== epoch) return;
           debug.error('Failed to fetch directory principals:', error);
+          // Keep what an earlier fetch returned: autocomplete still works off it.
+          const forbidden = error instanceof PrincipalsRequestError && error.type === 'forbidden';
+          set({ directoryStatus: forbidden ? 'forbidden' : 'error' });
         }
       },
 
       fetchAddressBooks: async (client) => {
+        const epoch = currentStoreEpoch();
         try {
           const addressBooks = await client.getAllAddressBooks();
+          if (currentStoreEpoch() !== epoch) return;
           set({ addressBooks });
         } catch (error) {
+          if (currentStoreEpoch() !== epoch) return;
           console.error('Failed to fetch address books:', error);
-          set({ error: 'Failed to fetch address books' });
+          const partial = partialAccounts<AddressBook>(error);
+          set((state) => ({
+            error: 'Failed to fetch address books',
+            addressBooks: partial ? withFailedAccountsKept(partial, state.addressBooks) : state.addressBooks,
+          }));
         }
       },
 
       fetchAllAccountsContacts: async (accounts) => {
+        const epoch = currentStoreEpoch();
         set({ isLoading: true, error: null });
         try {
           const results = await Promise.all(
@@ -502,18 +723,26 @@ export const useContactStore = create<ContactStore>()(
                 return prefixContactsWithLocalAccount(list, localAccountId);
               } catch (error) {
                 debug.error(`Failed to fetch contacts for account ${localAccountId}:`, error);
-                return [] as ContactCard[];
+                // Keep what this login's cards were: it just couldn't answer.
+                const held = get().contacts.filter((contact) => contact.localAccountId === localAccountId);
+                const partial = partialAccounts<ContactCard>(error);
+                if (!partial) return held;
+                const fresh = prefixContactsWithLocalAccount(partial.items, localAccountId);
+                return withFailedAccountsKept(new PartialAccountsError(fresh, partial.failedAccountIds, partial.primaryAccountId, error), held);
               }
             }),
           );
-          set({ contacts: results.flat(), isLoading: false });
+          if (currentStoreEpoch() !== epoch) return;
+          set({ contacts: results.flat(), isLoading: false, contactsLoaded: true });
         } catch (error) {
+          if (currentStoreEpoch() !== epoch) return;
           console.error('Failed to fetch all-account contacts:', error);
-          set({ error: 'Failed to fetch contacts', isLoading: false });
+          set({ error: 'Failed to fetch contacts', isLoading: false, contactsLoaded: true });
         }
       },
 
       fetchAllAccountsAddressBooks: async (accounts) => {
+        const epoch = currentStoreEpoch();
         try {
           const results = await Promise.all(
             accounts.map(async ({ client, localAccountId }) => {
@@ -522,18 +751,25 @@ export const useContactStore = create<ContactStore>()(
                 return prefixAddressBooksWithLocalAccount(list, localAccountId);
               } catch (error) {
                 debug.error(`Failed to fetch address books for account ${localAccountId}:`, error);
-                return [] as AddressBook[];
+                const held = get().addressBooks.filter((book) => book.localAccountId === localAccountId);
+                const partial = partialAccounts<AddressBook>(error);
+                if (!partial) return held;
+                const fresh = prefixAddressBooksWithLocalAccount(partial.items, localAccountId);
+                return withFailedAccountsKept(new PartialAccountsError(fresh, partial.failedAccountIds, partial.primaryAccountId, error), held);
               }
             }),
           );
+          if (currentStoreEpoch() !== epoch) return;
           set({ addressBooks: results.flat() });
         } catch (error) {
+          if (currentStoreEpoch() !== epoch) return;
           console.error('Failed to fetch all-account address books:', error);
           set({ error: 'Failed to fetch address books' });
         }
       },
 
-      createContact: async (client, contact) => {
+      createContact: async (client, contact, options) => {
+        if (!(await contactHooks.onBeforeContactCreate.intercept(draftContactView(contact)))) return false;
         set({ isLoading: true, error: null });
         try {
           // Determine target account from the selected address book. Also
@@ -555,20 +791,38 @@ export const useContactStore = create<ContactStore>()(
             }
           }
 
-          client = resolveAccountClient(client, localAccountId);
-          const created = await client.createContact(cleanedContact, accountId);
-          // Preserve shared account metadata
-          if (contact.isShared && contact.accountId) {
-            created.accountId = contact.accountId;
-            created.accountName = contact.accountName;
-            created.isShared = true;
-            created.id = `${contact.accountId}:${created.id}`;
-            created.originalId = created.id.includes(':') ? created.id.split(':').slice(1).join(':') : created.id;
+          const owner = resolveAccountClient(client, localAccountId);
+          const created = options?.photoKey
+            ? await writeContactWithNewPhoto(owner, accountId, cleanedContact, options.photoKey,
+              (card) => owner.createContact(card, accountId))
+            : await owner.createContact(cleanedContact, accountId);
+          // The card under the id the listings give it (getAllContacts, then
+          // prefixContactsWithLocalAccount): card ids repeat across accounts,
+          // and one from a shared book kept under its bare id was taken for
+          // the own card of that id by the next change or delete.
+          let stored = created;
+          if (accountId) {
+            stored = {
+              ...created,
+              id: `${accountId}:${created.id}`,
+              originalId: created.id,
+              accountId,
+              accountName: contact.accountName
+                ?? get().addressBooks.find(b => b.isShared && b.accountId === accountId)?.accountName,
+              isShared: true,
+              addressBookIds: Object.fromEntries(
+                Object.entries(created.addressBookIds ?? {}).map(([bookId, v]) => [`${accountId}:${bookId}`, v]),
+              ),
+            };
           }
+          if (localAccountId) stored = prefixContactsWithLocalAccount([stored], localAccountId)[0];
           set((state) => ({
-            contacts: [...state.contacts, created],
+            contacts: [...state.contacts, stored],
             isLoading: false,
           }));
+          void contactHooks.onAfterContactCreate.emit(contactToView(stored));
+          notifyBirthdayCalendarIfEnabled();
+          return true;
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Failed to create contact';
           set({ error: msg, isLoading: false });
@@ -576,13 +830,14 @@ export const useContactStore = create<ContactStore>()(
         }
       },
 
-      updateContact: async (client, id, updates) => {
+      updateContact: async (client, id, updates, options) => {
+        if (!(await contactHooks.onBeforeContactUpdate.intercept({ contactId: id, patch: updates }))) return false;
         set({ error: null });
         try {
           const contact = get().contacts.find(c => c.id === id);
           const originalId = contact?.originalId || stripLocalAccountPrefix(id, contact?.localAccountId);
           const accountId = contact?.isShared ? contact.accountId : undefined;
-          client = resolveAccountClient(client, contact?.localAccountId);
+          const owner = resolveAccountClient(client, contact?.localAccountId);
 
           // De-namespace addressBookIds before sending to the JMAP server. This
           // applies to personal books too: in multi-account Pro mode every id
@@ -593,12 +848,21 @@ export const useContactStore = create<ContactStore>()(
             cleanedUpdates = { ...updates, addressBookIds: resolved.addressBookIds };
           }
 
-          await client.updateContact(originalId, cleanedUpdates, accountId);
+          if (options?.photoKey) {
+            await writeContactWithNewPhoto(owner, accountId, cleanedUpdates, options.photoKey,
+              (card) => owner.updateContact(originalId, card, accountId));
+          } else {
+            await owner.updateContact(originalId, cleanedUpdates, accountId);
+          }
           set((state) => ({
             contacts: state.contacts.map(c =>
               c.id === id ? { ...c, ...updates } : c
             ),
           }));
+          const updated = get().contacts.find(c => c.id === id);
+          if (updated) void contactHooks.onAfterContactUpdate.emit(contactToView(updated));
+          notifyBirthdayCalendarIfEnabled();
+          return true;
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Failed to update contact';
           set({ error: msg });
@@ -606,7 +870,15 @@ export const useContactStore = create<ContactStore>()(
         }
       },
 
+      fetchContactFromServer: async (client, id) => {
+        const contact = get().contacts.find(c => c.id === id);
+        const originalId = contact?.originalId || stripLocalAccountPrefix(id, contact?.localAccountId);
+        const accountId = contact?.isShared ? contact.accountId : undefined;
+        return resolveAccountClient(client, contact?.localAccountId).getContact(originalId, accountId);
+      },
+
       deleteContact: async (client, id) => {
+        if (!(await contactHooks.onBeforeContactDelete.intercept({ contactIds: [id] }))) return false;
         set({ error: null });
         try {
           const contact = get().contacts.find(c => c.id === id);
@@ -622,6 +894,9 @@ export const useContactStore = create<ContactStore>()(
               selectedContactId: state.selectedContactId === id ? null : state.selectedContactId,
             };
           });
+          void contactHooks.onAfterContactDelete.emit({ contactIds: [id] });
+          notifyBirthdayCalendarIfEnabled();
+          return true;
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Failed to delete contact';
           set({ error: msg });
@@ -629,24 +904,41 @@ export const useContactStore = create<ContactStore>()(
         }
       },
 
-      addLocalContact: (contact) => set((state) => ({
-        contacts: [...state.contacts, contact],
-      })),
+      addLocalContact: async (contact) => {
+        if (!(await contactHooks.onBeforeContactCreate.intercept(draftContactView(contact)))) return false;
+        set((state) => ({ contacts: [...state.contacts, contact] }));
+        void contactHooks.onAfterContactCreate.emit(contactToView(contact));
+        notifyBirthdayCalendarIfEnabled();
+        return true;
+      },
 
-      updateLocalContact: (id, updates) => set((state) => ({
-        contacts: state.contacts.map(c =>
-          c.id === id ? { ...c, ...updates } : c
-        ),
-      })),
+      updateLocalContact: async (id, updates) => {
+        if (!(await contactHooks.onBeforeContactUpdate.intercept({ contactId: id, patch: updates }))) return false;
+        set((state) => ({
+          contacts: state.contacts.map(c =>
+            c.id === id ? { ...c, ...updates } : c
+          ),
+        }));
+        const updated = get().contacts.find(c => c.id === id);
+        if (updated) void contactHooks.onAfterContactUpdate.emit(contactToView(updated));
+        notifyBirthdayCalendarIfEnabled();
+        return true;
+      },
 
-      deleteLocalContact: (id) => set((state) => {
-        const removedIds = new Set([id]);
-        const cleaned = cleanGroupMembers(state.contacts, removedIds);
-        return {
-          contacts: cleaned.filter(c => c.id !== id),
-          selectedContactId: state.selectedContactId === id ? null : state.selectedContactId,
-        };
-      }),
+      deleteLocalContact: async (id) => {
+        if (!(await contactHooks.onBeforeContactDelete.intercept({ contactIds: [id] }))) return false;
+        set((state) => {
+          const removedIds = new Set([id]);
+          const cleaned = cleanGroupMembers(state.contacts, removedIds);
+          return {
+            contacts: cleaned.filter(c => c.id !== id),
+            selectedContactId: state.selectedContactId === id ? null : state.selectedContactId,
+          };
+        });
+        void contactHooks.onAfterContactDelete.emit({ contactIds: [id] });
+        notifyBirthdayCalendarIfEnabled();
+        return true;
+      },
 
       setSelectedContact: (id) => set({ selectedContactId: id }),
       setSearchQuery: (query) => set({ searchQuery: query }),
@@ -655,6 +947,7 @@ export const useContactStore = create<ContactStore>()(
 
       clearContacts: () => set({
         contacts: [],
+        contactsLoaded: false,
         addressBooks: [],
         selectedContactId: null,
         searchQuery: '',
@@ -663,6 +956,7 @@ export const useContactStore = create<ContactStore>()(
         activeTab: 'all',
         directoryPrincipals: [],
         directoryLoaded: false,
+        directoryStatus: 'idle',
       }),
 
       getAutocomplete: (query) => {
@@ -671,17 +965,26 @@ export const useContactStore = create<ContactStore>()(
 
         const lower = query.toLowerCase();
         const results: RecipientSuggestion[] = [];
+        // Every match is collected and ranked: a word that starts with the
+        // query ("an": Anna, an@x) before one that only contains it
+        // (Daniel), each kind in the order contacts, directory, recent.
+        const ranks = new Map<RecipientSuggestion, number>();
+        const add = (suggestion: RecipientSuggestion, rank: number) => {
+          results.push(suggestion);
+          ranks.set(suggestion, rank);
+        };
 
         for (const contact of contacts) {
           if (contact.kind === 'group') {
             // Suggest the group itself as a single entry (Outlook-style);
             // the composer turns it into one chip carrying the members.
             const groupName = getContactDisplayName(contact);
-            if (groupName && groupName.toLowerCase().includes(lower)) {
+            const rank = matchRank(lower, groupName);
+            if (rank >= 0) {
               const memberCount = get().getGroupMembers(contact.id)
                 .filter(m => getContactPrimaryEmail(m).trim()).length;
               if (memberCount > 0) {
-                results.push({ name: groupName, email: '', group: { id: contact.id, memberCount } });
+                add({ name: groupName, email: '', group: { id: contact.id, memberCount } }, rank);
               }
             }
             continue;
@@ -692,15 +995,9 @@ export const useContactStore = create<ContactStore>()(
 
           for (const emailEntry of emails) {
             if (!emailEntry.address) continue;
-            if (
-              name.toLowerCase().includes(lower) ||
-              emailEntry.address.toLowerCase().includes(lower)
-            ) {
-              results.push({ name, email: emailEntry.address });
-            }
+            const rank = matchRank(lower, name, emailEntry.address);
+            if (rank >= 0) add({ name, email: emailEntry.address }, rank);
           }
-
-          if (results.length >= 10) break;
         }
 
         // Augment with directory principals (other users on the server, RFC 9670).
@@ -709,7 +1006,6 @@ export const useContactStore = create<ContactStore>()(
         if (directoryPrincipals.length > 0) {
           const seen = new Set(results.map(r => r.email.toLowerCase()));
           for (const p of directoryPrincipals) {
-            if (results.length >= 10) break;
             const addr = p.email.toLowerCase();
             if (seen.has(addr)) {
               const betterName = p.description || p.name;
@@ -721,10 +1017,11 @@ export const useContactStore = create<ContactStore>()(
               }
               continue;
             }
-            if (p.name.toLowerCase().includes(lower) || addr.includes(lower) || (p.description && p.description.toLowerCase().includes(lower))) {
+            const rank = matchRank(lower, p.name, addr, p.description);
+            if (rank >= 0) {
               const displayName = p.description || p.name;
               const name = displayName !== p.email ? displayName : '';
-              results.push({ name, email: p.email });
+              add({ name, email: p.email }, rank);
               seen.add(addr);
             }
           }
@@ -736,20 +1033,22 @@ export const useContactStore = create<ContactStore>()(
         // duplicates). These carry the display name from the message, so match
         // on name or address.
         const { recentRecipients } = get();
-        if (recentRecipients.length > 0 && results.length < 10) {
+        if (recentRecipients.length > 0) {
           const seenRecent = new Set(results.map(r => r.email.toLowerCase()));
           for (const rec of recentRecipients) {
-            if (results.length >= 10) break;
             const addr = rec.email.toLowerCase();
             if (seenRecent.has(addr)) continue;
-            if (addr.includes(lower) || (rec.name && rec.name.toLowerCase().includes(lower))) {
-              results.push({ name: rec.name, email: rec.email });
+            const rank = matchRank(lower, addr, rec.name);
+            if (rank >= 0) {
+              add({ name: rec.name, email: rec.email }, rank);
               seenRecent.add(addr);
             }
           }
         }
 
-        return normalizeSuggestions(results);
+        // Array.prototype.sort is stable, so each rank keeps the order above.
+        const ranked = [...results].sort((a, b) => (ranks.get(a) ?? 1) - (ranks.get(b) ?? 1));
+        return normalizeSuggestions(ranked).slice(0, MAX_SUGGESTIONS);
       },
 
       getGroups: () => {
@@ -794,9 +1093,11 @@ export const useContactStore = create<ContactStore>()(
           members,
         };
 
+        let groupId: string;
         if (client && get().supportsSync) {
           const created = await client.createContact(groupData);
           set((state) => ({ contacts: [...state.contacts, created] }));
+          groupId = created.id;
         } else {
           const localGroup: ContactCard = {
             id: `local-${generateUUID()}`,
@@ -804,7 +1105,9 @@ export const useContactStore = create<ContactStore>()(
             ...groupData,
           } as ContactCard;
           set((state) => ({ contacts: [...state.contacts, localGroup] }));
+          groupId = localGroup.id;
         }
+        void contactHooks.onContactGroupChange.emit({ groupId, change: 'created' });
       },
 
       updateGroup: async (client, groupId, name) => {
@@ -815,13 +1118,14 @@ export const useContactStore = create<ContactStore>()(
           const group = get().contacts.find(c => c.id === groupId);
           const originalId = group?.originalId || groupId;
           const accountId = group?.isShared ? group.accountId : undefined;
-          await client.updateContact(originalId, updates, accountId);
+          await resolveAccountClient(client, group?.localAccountId).updateContact(originalId, updates, accountId);
         }
         set((state) => ({
           contacts: state.contacts.map(c =>
             c.id === groupId ? { ...c, ...updates } : c
           ),
         }));
+        void contactHooks.onContactGroupChange.emit({ groupId, change: 'updated' });
       },
 
       addMembersToGroup: async (client, groupId, memberIds) => {
@@ -830,9 +1134,11 @@ export const useContactStore = create<ContactStore>()(
         if (!group) return;
 
         const newMembers = { ...group.members };
+        const added: string[] = [];
         memberIds.forEach(id => {
           const contact = contacts.find(c => c.id === id);
           const key = contact?.uid || contact?.originalId || id;
+          if (!newMembers[key]) added.push(id);
           newMembers[key] = true;
         });
 
@@ -840,13 +1146,16 @@ export const useContactStore = create<ContactStore>()(
         if (client && get().supportsSync) {
           const originalId = group.originalId || groupId;
           const accountId = group.isShared ? group.accountId : undefined;
-          await client.updateContact(originalId, updates, accountId);
+          await resolveAccountClient(client, group.localAccountId).updateContact(originalId, updates, accountId);
         }
         set((state) => ({
           contacts: state.contacts.map(c =>
             c.id === groupId ? { ...c, members: newMembers } : c
           ),
         }));
+        if (added.length > 0) {
+          void contactHooks.onContactGroupMemberChange.emit({ groupId, added, removed: [] });
+        }
       },
 
       removeMembersFromGroup: async (client, groupId, memberIds) => {
@@ -855,16 +1164,19 @@ export const useContactStore = create<ContactStore>()(
         if (!group?.members) return;
 
         const newMembers = { ...group.members };
+        const removed: string[] = [];
         memberIds.forEach(id => {
           // Try direct id match first
           if (newMembers[id] !== undefined) {
             delete newMembers[id];
+            removed.push(id);
             return;
           }
           // Try uid-based match
           const contact = contacts.find(c => c.id === id);
           if (contact?.uid && newMembers[contact.uid] !== undefined) {
             delete newMembers[contact.uid];
+            removed.push(id);
           } else {
             // Try stripping urn:uuid: prefix matching
             for (const key of Object.keys(newMembers)) {
@@ -872,6 +1184,7 @@ export const useContactStore = create<ContactStore>()(
               const bareUid = contact?.uid?.startsWith('urn:uuid:') ? contact.uid.slice(9) : contact?.uid;
               if (bareKey === id || bareKey === bareUid) {
                 delete newMembers[key];
+                removed.push(id);
                 break;
               }
             }
@@ -882,13 +1195,16 @@ export const useContactStore = create<ContactStore>()(
         if (client && get().supportsSync) {
           const originalId = group.originalId || groupId;
           const accountId = group.isShared ? group.accountId : undefined;
-          await client.updateContact(originalId, updates, accountId);
+          await resolveAccountClient(client, group.localAccountId).updateContact(originalId, updates, accountId);
         }
         set((state) => ({
           contacts: state.contacts.map(c =>
             c.id === groupId ? { ...c, members: newMembers } : c
           ),
         }));
+        if (removed.length > 0) {
+          void contactHooks.onContactGroupMemberChange.emit({ groupId, added: [], removed });
+        }
       },
 
       deleteGroup: async (client, groupId) => {
@@ -896,12 +1212,13 @@ export const useContactStore = create<ContactStore>()(
           const group = get().contacts.find(c => c.id === groupId);
           const originalId = group?.originalId || groupId;
           const accountId = group?.isShared ? group.accountId : undefined;
-          await client.deleteContact(originalId, accountId);
+          await resolveAccountClient(client, group?.localAccountId).deleteContact(originalId, accountId);
         }
         set((state) => ({
           contacts: state.contacts.filter(c => c.id !== groupId),
           selectedContactId: state.selectedContactId === groupId ? null : state.selectedContactId,
         }));
+        void contactHooks.onContactGroupChange.emit({ groupId, change: 'deleted' });
       },
 
       toggleContactSelection: (id) => set((state) => {
@@ -935,6 +1252,8 @@ export const useContactStore = create<ContactStore>()(
       clearSelection: () => set({ selectedContactIds: new Set<string>(), lastSelectedContactId: null }),
 
       bulkDeleteContacts: async (client, ids) => {
+        if (ids.length === 0) return true;
+        if (!(await contactHooks.onBeforeContactDelete.intercept({ contactIds: [...ids] }))) return false;
         set({ error: null });
         const { supportsSync, contacts } = get();
         const deletedIds = new Set(ids);
@@ -945,7 +1264,7 @@ export const useContactStore = create<ContactStore>()(
               const contact = contacts.find(c => c.id === id);
               const originalId = contact?.originalId || id;
               const accountId = contact?.isShared ? contact.accountId : undefined;
-              await client.deleteContact(originalId, accountId);
+              await resolveAccountClient(client, contact?.localAccountId).deleteContact(originalId, accountId);
             } catch (error) {
               console.error(`Failed to delete contact ${id}:`, error);
               deletedIds.delete(id);
@@ -964,6 +1283,11 @@ export const useContactStore = create<ContactStore>()(
             selectedContactIds: new Set<string>(),
           };
         });
+        if (deletedIds.size > 0) {
+          void contactHooks.onAfterContactDelete.emit({ contactIds: ids.filter(id => deletedIds.has(id)) });
+          notifyBirthdayCalendarIfEnabled();
+        }
+        return true;
       },
 
       bulkAddToGroup: async (client, groupId, contactIds) => {
@@ -976,7 +1300,10 @@ export const useContactStore = create<ContactStore>()(
         const { contacts } = get();
         const targetBookOriginalId = addressBook.originalId || addressBook.id;
         const targetAccountId = addressBook.accountId;
-        const primaryAccountId = client.getContactsAccountId();
+        // Each card and the book are written through the login they belong
+        // to: card ids repeat across logins.
+        const targetClient = resolveAccountClient(client, addressBook.localAccountId);
+        const primaryAccountId = targetClient.getContactsAccountId();
 
         for (const id of contactIds) {
           const contact = contacts.find(c => c.id === id);
@@ -984,10 +1311,11 @@ export const useContactStore = create<ContactStore>()(
 
           const originalId = contact.originalId || id;
           const sourceAccountId = contact.isShared ? contact.accountId : undefined;
+          const ownerClient = resolveAccountClient(client, contact.localAccountId);
 
           // Same account: just update the addressBookIds
-          if ((sourceAccountId || primaryAccountId) === (targetAccountId || primaryAccountId)) {
-            const ownerClient = resolveAccountClient(client, contact.localAccountId);
+          if (ownerClient === targetClient
+            && (sourceAccountId || primaryAccountId) === (targetAccountId || primaryAccountId)) {
             await ownerClient.updateContact(originalId, { addressBookIds: { [targetBookOriginalId]: true } }, sourceAccountId);
             // Keep the id in the same (possibly namespaced) form the sidebar
             // filters by; `addressBook.id` already is that form.
@@ -996,32 +1324,42 @@ export const useContactStore = create<ContactStore>()(
                 c.id === id ? { ...c, addressBookIds: { [addressBook.id]: true } } : c
               ),
             }));
+            void contactHooks.onContactMove.emit({ contactId: id, toAddressBookId: addressBook.id });
           } else {
             // Cross-account: create in target, delete from source
             const { originalId: _oid, accountId: _aid, accountName: _an, isShared: _is, id: _id, ...contactData } = contact;
-            const newContact = await client.createContact(
-              { ...contactData, addressBookIds: { [targetBookOriginalId]: true } },
+            // A blobId names a photo in the source account and need not resolve
+            // for the target one; send the bytes. If a download fails the entry
+            // goes as it is: the create then either resolves it or fails, and
+            // the source card is only deleted after a successful create.
+            const media = await inlineContactMedia(contact.media, {
+              client: ownerClient,
+              accountId: contact.accountId,
+              localAccountId: contact.localAccountId,
+            }, 'keep');
+            const newContact = await targetClient.createContact(
+              { ...contactData, media, addressBookIds: { [targetBookOriginalId]: true } },
               targetAccountId
             );
-            await client.deleteContact(originalId, sourceAccountId);
+            await ownerClient.deleteContact(originalId, sourceAccountId);
 
             // Update local state
             const isPrimary = !targetAccountId || targetAccountId === primaryAccountId;
             const localBookId = isPrimary ? targetBookOriginalId : `${targetAccountId}:${targetBookOriginalId}`;
+            let moved: ContactCard = {
+              ...newContact,
+              id: isPrimary ? newContact.id : `${targetAccountId}:${newContact.id}`,
+              originalId: newContact.id,
+              accountId: targetAccountId,
+              accountName: addressBook.accountName || targetAccountId,
+              isShared: !isPrimary,
+              addressBookIds: { [localBookId]: true },
+            };
+            if (addressBook.localAccountId) moved = prefixContactsWithLocalAccount([moved], addressBook.localAccountId)[0];
             set((state) => ({
-              contacts: state.contacts.map(c => {
-                if (c.id !== id) return c;
-                return {
-                  ...newContact,
-                  id: isPrimary ? newContact.id : `${targetAccountId}:${newContact.id}`,
-                  originalId: newContact.id,
-                  accountId: targetAccountId,
-                  accountName: addressBook.accountName || targetAccountId,
-                  isShared: !isPrimary,
-                  addressBookIds: { [localBookId]: true },
-                };
-              }),
+              contacts: state.contacts.map(c => (c.id === id ? moved : c)),
             }));
+            void contactHooks.onContactMove.emit({ contactId: id, toAddressBookId: addressBook.id });
           }
         }
       },
@@ -1165,30 +1503,61 @@ export const useContactStore = create<ContactStore>()(
         }
       },
 
+      removeKeyword: async (client, keyword) => {
+        set({ error: null });
+        const kw = keyword.trim();
+        const affected = get().contacts.filter(c => c.keywords?.[kw]);
+        const done: string[] = [];
+        for (const contact of affected) {
+          const { [kw]: _gone, ...keywords } = contact.keywords || {};
+          void _gone;
+          // Through the normal update, so plugins see it and each contact
+          // goes to its own account; one a plugin stops keeps the category.
+          if (await saveContactKeywords(client, contact.id, keywords)) done.push(contact.id);
+        }
+        return done;
+      },
+
+      addKeyword: async (client, keyword, contactIds) => {
+        set({ error: null });
+        const kw = keyword.trim();
+        for (const id of contactIds) {
+          const contact = get().contacts.find(c => c.id === id);
+          if (!contact || contact.keywords?.[kw]) continue;
+          await saveContactKeywords(client, id, { ...(contact.keywords || {}), [kw]: true });
+        }
+      },
+
       loadRecentRecipients: async (client, sentMailboxId) => {
         if (sentMailboxId) set({ sentMailboxId });
         if (get().recentRecipientsLoaded || !sentMailboxId) return;
-        try {
-          // Read the Sent folder and collect the people we've written to, so
-          // compose autocomplete can suggest them (OWA-style). getEmails sorts
-          // receivedAt desc, so keeping the first occurrence per address yields
-          // the most recent one plus its display name.
-          const { emails } = await client.getEmails(sentMailboxId, undefined, 300, 0);
-          const byEmail = new Map<string, { name: string; email: string }>();
-          for (const email of emails) {
-            for (const r of [...(email.to || []), ...(email.cc || [])]) {
-              if (!r.email) continue;
-              const key = r.email.toLowerCase().trim();
-              if (!key || byEmail.has(key)) continue;
-              byEmail.set(key, { name: (r.name || '').trim(), email: r.email });
+        // One read of the Sent folder at a time: callers retry whenever the
+        // folder list changes, which it does several times while signing in.
+        if (recentRecipientsLoading) return recentRecipientsLoading;
+        recentRecipientsLoading = (async () => {
+          try {
+            // Read the Sent folder and collect the people we've written to, so
+            // compose autocomplete can suggest them (OWA-style). getEmails sorts
+            // receivedAt desc, so keeping the first occurrence per address yields
+            // the most recent one plus its display name.
+            const { emails } = await client.getEmails(sentMailboxId, undefined, 300, 0);
+            const byEmail = new Map<string, { name: string; email: string }>();
+            for (const email of emails) {
+              for (const r of [...(email.to || []), ...(email.cc || [])]) {
+                if (!r.email) continue;
+                const key = r.email.toLowerCase().trim();
+                if (!key || byEmail.has(key)) continue;
+                byEmail.set(key, { name: (r.name || '').trim(), email: r.email });
+              }
             }
+            set({ recentRecipients: Array.from(byEmail.values()), recentRecipientsLoaded: true });
+            debug.log('contacts', 'Loaded', byEmail.size, 'recent recipients from Sent');
+          } catch (error) {
+            debug.error('Failed to load recent recipients:', error);
+            set({ recentRecipientsLoaded: true });
           }
-          set({ recentRecipients: Array.from(byEmail.values()), recentRecipientsLoaded: true });
-          debug.log('contacts', 'Loaded', byEmail.size, 'recent recipients from Sent');
-        } catch (error) {
-          debug.error('Failed to load recent recipients:', error);
-          set({ recentRecipientsLoaded: true });
-        }
+        })().finally(() => { recentRecipientsLoading = null; });
+        return recentRecipientsLoading;
       },
 
       searchRecipients: async (client, query) => {
@@ -1272,6 +1641,7 @@ export const useContactStore = create<ContactStore>()(
         });
         set((state) => ({ trustedSenderEmails: [...state.trustedSenderEmails, emailAddress] }));
         debug.log('contacts', 'Trusted sender added successfully');
+        void settingsHooks.onTrustedSenderChange.emit({ email: emailAddress, trusted: true });
       },
 
       removeFromTrustedSendersBook: async (client, email) => {
@@ -1291,7 +1661,9 @@ export const useContactStore = create<ContactStore>()(
           await client.deleteContact(match.id);
           debug.log('contacts', 'Trusted sender removed');
         }
+        const wasTrusted = get().trustedSenderEmails.includes(normalizedEmail);
         set((state) => ({ trustedSenderEmails: state.trustedSenderEmails.filter(e => e !== normalizedEmail) }));
+        if (wasTrusted) void settingsHooks.onTrustedSenderChange.emit({ email: normalizedEmail, trusted: false });
       },
 
       isTrustedAddressBookSender: (email) => {
@@ -1302,30 +1674,159 @@ export const useContactStore = create<ContactStore>()(
         return get().trustedSenderEmails.includes(normalizedEmail);
       },
 
-      importContacts: async (client, contacts) => {
+      importContacts: async (client, contacts, targetBookId) => {
         const { supportsSync } = get();
         let imported = 0;
+        // The book the cards landed in, as the server filed the first one.
+        let addressBookId = '';
+        const book = targetBookId ? get().addressBooks.find(b => b.id === targetBookId) : undefined;
+        // The chosen book as the server knows it, and the login and account it belongs to.
+        const target = book ? resolveRawAddressBookIds({ [book.id]: true }, get().addressBooks) : undefined;
 
         for (const contact of contacts) {
           try {
-            if (client && supportsSync) {
+            let added: ContactCard;
+            if (client && supportsSync && book && target) {
               const { id: _id, ...data } = contact;
-              const created = await client.createContact(data);
-              set((state) => ({ contacts: [...state.contacts, created] }));
+              const sharedAccountId = target.sharedAccountId;
+              const created = await resolveAccountClient(client, target.localAccountId)
+                .createContact({ ...data, addressBookIds: target.addressBookIds }, sharedAccountId);
+              // Under the ids the listings give it, as createContact keeps it.
+              added = sharedAccountId
+                ? {
+                  ...created,
+                  id: `${sharedAccountId}:${created.id}`,
+                  originalId: created.id,
+                  accountId: sharedAccountId,
+                  accountName: book.accountName,
+                  isShared: true,
+                  addressBookIds: Object.fromEntries(
+                    Object.entries(created.addressBookIds ?? {}).map(([bookId, v]) => [`${sharedAccountId}:${bookId}`, v]),
+                  ),
+                }
+                : created;
+              if (target.localAccountId) added = prefixContactsWithLocalAccount([added], target.localAccountId)[0];
+            } else if (client && supportsSync) {
+              const { id: _id, ...data } = contact;
+              added = await client.createContact(data);
             } else {
-              const localContact: ContactCard = {
+              added = {
                 ...contact,
                 id: `local-${generateUUID()}`,
+                ...(book ? { addressBookIds: { [book.id]: true } } : {}),
               };
-              set((state) => ({ contacts: [...state.contacts, localContact] }));
             }
+            set((state) => ({ contacts: [...state.contacts, added] }));
+            if (!addressBookId) addressBookId = Object.keys(added.addressBookIds || {}).find(k => added.addressBookIds[k]) || '';
             imported++;
           } catch (error) {
             console.error('Failed to import contact:', error);
           }
         }
 
+        if (imported > 0) {
+          void contactHooks.onContactsImport.emit({ addressBookId, imported });
+          notifyBirthdayCalendarIfEnabled();
+        }
         return imported;
+      },
+
+      mergeContacts: async (client, plan) => {
+        const sync = !!client && get().supportsSync;
+        const { keep, others, patch } = plan;
+        const before: Partial<ContactCard> = {};
+        for (const key of Object.keys(patch) as Array<keyof ContactCard>) {
+          (before as Record<string, unknown>)[key] = keep[key];
+        }
+        // The kept card first: if that fails, nothing is deleted.
+        if (Object.keys(patch).length > 0) {
+          const updated = sync
+            ? await get().updateContact(client!, keep.id, patch)
+            : await get().updateLocalContact(keep.id, patch);
+          if (!updated) return null;
+        }
+        const groups: MergeUndo['groups'] = [];
+        const moves = planGroupMoves(get().contacts.filter(c => c.kind === 'group'), keep, others);
+        try {
+          for (const { group, members } of moves) {
+            if (sync) {
+              const accountId = group.isShared ? group.accountId : undefined;
+              await resolveAccountClient(client!, group.localAccountId)
+                .updateContact(group.originalId || group.id, { members }, accountId);
+            }
+            groups.push({ groupId: group.id, members: { ...(group.members ?? {}) } });
+            set((state) => ({
+              contacts: state.contacts.map(c => c.id === group.id ? { ...c, members } : c),
+            }));
+            void contactHooks.onContactGroupMemberChange.emit({ groupId: group.id, added: [keep.id], removed: others.map(o => o.id) });
+          }
+        } catch (error) {
+          // The kept card is changed already: hand back what Undo needs, delete nothing.
+          console.error('Failed to move group members while merging:', error);
+          return { keepId: keep.id, before, others: [], groups, incomplete: true };
+        }
+        await get().bulkDeleteContacts(sync ? client : null, others.map(o => o.id));
+        // A failed delete, or a plugin that stopped it, leaves cards in place:
+        // Undo must not create those again.
+        const left = new Set(get().contacts.map(c => c.id));
+        const deleted = others.filter(o => !left.has(o.id));
+        return { keepId: keep.id, before, others: deleted, groups, ...(deleted.length < others.length ? { incomplete: true } : {}) };
+      },
+
+      undoMergeContacts: async (client, undo) => {
+        const sync = !!client && get().supportsSync;
+        let ok = true;
+        for (const card of undo.others) {
+          try {
+            let created: boolean;
+            if (sync) {
+              const { id: _id, originalId: _originalId, created: _created, updated: _updated, ...data } = card;
+              // A photo still only in a blob went with the card.
+              const media = card.media
+                ? Object.fromEntries(Object.entries(card.media).filter(([, m]) => !!m?.uri))
+                : undefined;
+              created = await get().createContact(client!, {
+                ...data,
+                media: media && Object.keys(media).length > 0 ? media : undefined,
+              });
+            } else {
+              created = await get().addLocalContact(card);
+            }
+            if (!created) ok = false;
+          } catch (error) {
+            console.error('Failed to restore a merged contact:', error);
+            ok = false;
+          }
+        }
+        for (const { groupId, members } of undo.groups) {
+          const group = get().contacts.find(c => c.id === groupId);
+          if (!group) continue;
+          try {
+            if (sync) {
+              const accountId = group.isShared ? group.accountId : undefined;
+              await resolveAccountClient(client!, group.localAccountId)
+                .updateContact(group.originalId || group.id, { members }, accountId);
+            }
+            set((state) => ({
+              contacts: state.contacts.map(c => c.id === groupId ? { ...c, members } : c),
+            }));
+          } catch (error) {
+            console.error('Failed to restore group members:', error);
+            ok = false;
+          }
+        }
+        if (Object.keys(undo.before).length > 0) {
+          try {
+            const restored = sync
+              ? await get().updateContact(client!, undo.keepId, undo.before)
+              : await get().updateLocalContact(undo.keepId, undo.before);
+            if (!restored) ok = false;
+          } catch (error) {
+            console.error('Failed to restore the kept contact:', error);
+            ok = false;
+          }
+        }
+        return ok;
       },
     });
     },
@@ -1338,5 +1839,16 @@ export const useContactStore = create<ContactStore>()(
     }
   )
 );
+
+// Tell plugins when the set of checked contacts changes, whichever action
+// changed it (toggle, range, select all, clear, bulk actions). Re-setting the
+// same ids is not a change.
+useContactStore.subscribe((state, prev) => {
+  if (state.selectedContactIds === prev.selectedContactIds) return;
+  if (contactHooks.onContactSelectionChange.size === 0) return;
+  const next = state.selectedContactIds ?? new Set<string>();
+  if (sameIdSet(next, prev.selectedContactIds ?? new Set<string>())) return;
+  void contactHooks.onContactSelectionChange.emit({ contactIds: [...next] });
+});
 
 export type { ContactName };

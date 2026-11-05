@@ -6,20 +6,22 @@ import { generateCodeVerifierServer, generateCodeChallengeServer, generateStateS
 import { getRequiredConfig, getDiscoveryValidator } from '@/lib/oauth/token-exchange';
 import { discoverOAuth } from '@/lib/oauth/discovery';
 import { getOauthScopes, refreshTokenServerCookieName } from '@/lib/oauth/tokens';
+import { withProviderDataScopes } from '@/lib/oauth/scopes';
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 import { getCookieOptions } from '@/lib/oauth/cookie-config';
 import { hasSessionSecret } from '@/lib/auth/session-secret';
 import { configManager } from '@/lib/admin/config-manager';
 import { rejectCrossOriginRequest } from '@/lib/security/same-origin';
+import { desktopHandoffTarget, isMobileCodeChallenge, mobileHandoffTarget } from '@/lib/auth/mobile-handoff';
+import { desktopHandoffEnabled } from '@/lib/auth/desktop-handoff-server';
 
 const SSO_PENDING_COOKIE = 'sso_pending';
 const SSO_PENDING_MAX_AGE = 300; // 5 minutes
 
-// The mobile app's deep-link scheme. Only redirect targets starting with
-// this prefix may flow through the mobile handoff path; without the guard
-// the SSO complete route would be coerced into returning tokens to whatever
+// Only the mobile app's own callback link may flow through the mobile
+// handoff path (lib/auth/mobile-handoff.ts); without the guard the SSO
+// complete route would be coerced into returning tokens to whatever
 // caller-controlled URL the attacker chose.
-const MOBILE_REDIRECT_SCHEME = 'bulwarkmobile://';
 
 /**
  * A re-auth mints the grant a paired phone keeps using. Providers such as
@@ -50,8 +52,11 @@ export async function POST(request: NextRequest) {
       server_id: bodyServerId,
       mobile_redirect_uri: rawMobileRedirectUri,
       mobile_state: rawMobileState,
+      mobile_code_challenge: rawMobileCodeChallenge,
       purpose: rawPurpose,
       slot: rawSlot,
+      remember,
+      fresh_login: freshLogin,
     } = await request.json();
 
     // `reauth` drives the step-up flow for device pairing: it forces a fresh
@@ -69,8 +74,26 @@ export async function POST(request: NextRequest) {
         : null;
     const mobileState =
       typeof rawMobileState === 'string' && rawMobileState ? rawMobileState : null;
-    if (mobileRedirectUri && !mobileRedirectUri.startsWith(MOBILE_REDIRECT_SCHEME)) {
+    if (mobileRedirectUri && !mobileHandoffTarget(mobileRedirectUri) && !desktopHandoffTarget(mobileRedirectUri)) {
       return NextResponse.json({ error: 'Invalid mobile_redirect_uri' }, { status: 400 });
+    }
+    // The desktop app's listener only ever gets a code. Without a challenge there'd be
+    // tokens in the answer, on the way to a link.
+    if (mobileRedirectUri && desktopHandoffTarget(mobileRedirectUri) && !isMobileCodeChallenge(rawMobileCodeChallenge)) {
+      return NextResponse.json({ error: 'Invalid mobile_code_challenge' }, { status: 400 });
+    }
+    // The admin turned the desktop app's sign-in off here (a terminal server, say).
+    if (mobileRedirectUri && desktopHandoffTarget(mobileRedirectUri) && !desktopHandoffEnabled()) {
+      return NextResponse.json({ error: 'disabled' }, { status: 403 });
+    }
+    // An app build that sends a PKCE challenge gets a one-time code instead
+    // of the tokens (lib/auth/handoff-store.ts). A malformed one is refused
+    // rather than ignored, which would hand the tokens over in the link.
+    const mobileCodeChallenge = mobileRedirectUri && rawMobileCodeChallenge != null && rawMobileCodeChallenge !== ''
+      ? rawMobileCodeChallenge
+      : null;
+    if (mobileCodeChallenge !== null && !isMobileCodeChallenge(mobileCodeChallenge)) {
+      return NextResponse.json({ error: 'Invalid mobile_code_challenge' }, { status: 400 });
     }
 
     const cookieStore = await cookies();
@@ -98,7 +121,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid redirect_uri' }, { status: 400 });
     }
 
-    const { clientId, discoveryUrl } = getRequiredConfig(serverId);
+    const { clientId, discoveryUrl, resource } = getRequiredConfig(serverId);
     const metadata = await discoverOAuth(discoveryUrl, { validateEndpoint: getDiscoveryValidator(discoveryUrl) });
 
     if (!metadata?.authorization_endpoint) {
@@ -123,8 +146,12 @@ export async function POST(request: NextRequest) {
       ...(serverId ? { server_id: serverId } : {}),
       ...(mobileRedirectUri ? { mobile_redirect_uri: mobileRedirectUri } : {}),
       ...(mobileState ? { mobile_state: mobileState } : {}),
+      ...(mobileCodeChallenge ? { mobile_code_challenge: mobileCodeChallenge } : {}),
       // The re-auth completes into a grant for the phone paired to this slot.
       ...(isReauth ? { purpose: 'reauth', slot: reauthSlot } : {}),
+      // "Remember me" left unticked: /complete writes cookies that end with
+      // the browser session. Callers from before the choice remembered.
+      ...(remember === false ? { remember: false } : {}),
     };
 
     const encrypted = encryptPayload(pendingData, 'sso-pending');
@@ -143,10 +170,15 @@ export async function POST(request: NextRequest) {
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirect_uri);
-    authUrl.searchParams.set('scope', reauthScopes(getOauthScopes(), isReauth, metadata.scopes_supported));
+    const scopes = withProviderDataScopes(getOauthScopes(), metadata.scopes_supported);
+    authUrl.searchParams.set('scope', reauthScopes(scopes, isReauth, metadata.scopes_supported));
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
+    // RFC 8707: ask for a token for the configured API (#1461).
+    if (resource) {
+      authUrl.searchParams.set('resource', resource);
+    }
 
     if (locale) {
       authUrl.searchParams.set('ui_locales', locale);
@@ -157,7 +189,9 @@ export async function POST(request: NextRequest) {
     // depends on the IdP supporting this OIDC param. Deliberately no max_age=0:
     // some IdPs (Authelia) re-evaluate max_age at the consent step and loop
     // back to login forever, and nothing on our side reads auth_time.
-    if (isReauth) {
+    // The same after a forgotten app lock PIN: the provider's session outlived it, and
+    // someone at the device shouldn't walk back in through it (lib/app-lock/sign-out.ts).
+    if (isReauth || freshLogin === true) {
       authUrl.searchParams.set('prompt', 'login');
     }
 
