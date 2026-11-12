@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { encryptSession, decryptSession, sessionAuthHeader, type SessionCredentials } from '@/lib/auth/crypto';
 import { SESSION_COOKIE_MAX_AGE, sessionCookieName } from '@/lib/auth/session-cookie';
-import { getCookieOptions } from '@/lib/oauth/cookie-config';
+import { getCookieOptions, getSignInCookieOptions } from '@/lib/oauth/cookie-config';
 import { JmapAuthVerificationError, resolveJmapIdentity } from '@/lib/auth/verify-jmap-auth';
 import {
   clearStalwartAuthContextInStore,
@@ -17,7 +17,8 @@ import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 import { rejectCrossOriginRequest } from '@/lib/security/same-origin';
 import { insecureCookieHint, verificationFailureBody } from '@/lib/auth/verification-failure';
 import { readImpersonationConfig } from '@/lib/impersonation/master-config';
-import { revokeImpersonationCredential } from '@/lib/impersonation/app-password';
+import { revokeImpersonationGrant } from '@/lib/impersonation/revoke-grant';
+import { discardRestore } from '@/lib/impersonation/restore';
 import { IMPERSONATION_GRANT_COOKIE, openImpersonationGrant } from '@/lib/impersonation/grant-cookie';
 import { revokeWopiTokens } from '@/lib/wopi/revocation';
 import { clearPairReauthInStore } from '@/lib/auth/pair-reauth';
@@ -27,7 +28,13 @@ import { isStoreUnavailable, storeUnavailableResponse } from '@/lib/auth/store-u
 import { isPastMaxAge, limitsEnforcedSince, maxSessionHoursFor, SESSION_TOO_OLD } from '@/lib/auth/session-age';
 import { devicePolicyServerRefusal } from '@/lib/desktop/server-policy';
 
-function sessionCookieOptions() {
+/**
+ * A remembered session keeps its cookie for 30 days. One signed in with
+ * "Remember me" unticked (BROWSER_SESSION_SIGN_IN) gets no expiry, so the
+ * browser drops it when its session ends.
+ */
+function sessionCookieOptions(remember = true) {
+  if (!remember) return getSignInCookieOptions(false);
   return {
     ...getCookieOptions(),
     maxAge: SESSION_COOKIE_MAX_AGE,
@@ -43,29 +50,6 @@ function sessionCookieOptions() {
 function holdsMasterPassword(credentials: SessionCredentials): boolean {
   const config = readImpersonationConfig();
   return !!config && credentials.password === config.masterPassword;
-}
-
-async function revokeImpersonationGrant(
-  cookieStore: Awaited<ReturnType<typeof cookies>>,
-): Promise<void> {
-  const grant = openImpersonationGrant(cookieStore.get(IMPERSONATION_GRANT_COOKIE)?.value);
-  cookieStore.delete(IMPERSONATION_GRANT_COOKIE);
-  const config = readImpersonationConfig();
-  if (!grant || !config) return;
-  try {
-    await revokeImpersonationCredential({
-      serverUrl: grant.serverUrl,
-      mailbox: grant.mailbox,
-      masterUser: config.masterUser,
-      masterPassword: config.masterPassword,
-      id: grant.credentialId,
-    });
-  } catch (error) {
-    // The app password still expires on its own; sign-out must not fail.
-    logger.warn('Impersonation credential revocation failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
 }
 
 /**
@@ -138,7 +122,9 @@ export async function POST(request: NextRequest) {
 
     // A password signs in with Basic auth, an access token (token login) with
     // Bearer: exactly one of them.
-    const { serverUrl, username, password, token: accessToken, slot: bodySlot } = await request.json();
+    // `remember: false` asks for a cookie that ends with the browser session;
+    // clients that send no flag get the 30-day cookie.
+    const { serverUrl, username, password, token: accessToken, slot: bodySlot, remember } = await request.json();
     if (!serverUrl || !username || typeof (password || accessToken) !== 'string' || !!password === !!accessToken) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -214,11 +200,11 @@ export async function POST(request: NextRequest) {
       throw error;
     }
     await refund();
-    // A remembered sign-in starts the maximum session length.
+    // A sign-in kept here starts the maximum session length.
     const signedInAt = Date.now();
     const token = encryptSession(normalizedServerUrl, username, accessToken ? { token: accessToken } : password, signedInAt);
     const cookieStore = await cookies();
-    cookieStore.set(cookieName, token, sessionCookieOptions());
+    cookieStore.set(cookieName, token, sessionCookieOptions(remember !== false));
     setStalwartAuthContextInStore(cookieStore, slot, {
       serverUrl: normalizedServerUrl,
       username,
@@ -362,6 +348,7 @@ export async function DELETE(request: NextRequest) {
         clearStalwartAuthContextInStore(cookieStore, i);
       }
       await revokeImpersonationGrant(cookieStore);
+      await discardRestore(cookieStore);
       // A phone that already paired keeps its own sign-in; a QR still on
       // screen stops working.
       await clearPairReauthInStore(cookieStore);
@@ -369,7 +356,11 @@ export async function DELETE(request: NextRequest) {
       const slot = getSlot(request);
       cookieStore.delete(sessionCookieName(slot));
       clearStalwartAuthContextInStore(cookieStore, slot);
-      if (slot === 0) await revokeImpersonationGrant(cookieStore);
+      if (slot === 0) {
+        await revokeImpersonationGrant(cookieStore);
+        // Signing out of the impersonation gives up the way back too.
+        await discardRestore(cookieStore);
+      }
       await clearPairReauthInStore(cookieStore, slot);
     }
 

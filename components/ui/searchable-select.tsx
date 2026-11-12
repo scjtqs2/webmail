@@ -32,6 +32,8 @@ interface SearchableSelectProps {
   /** What the button shows; the selected option's icon and label by default. */
   renderValue?: (option: SearchableOption | undefined) => ReactNode;
   className?: string;
+  /** Replaces the button's look (its layout classes stay), for a picker that sits among icon buttons. */
+  buttonClassName?: string;
   menuClassName?: string;
   /**
    * Orders the results, lower first, and can add or drop options:
@@ -58,6 +60,7 @@ export function SearchableSelect({
   noMatchLabel,
   renderValue,
   className,
+  buttonClassName,
   menuClassName,
   rank,
   defaultOpen = false,
@@ -147,8 +150,10 @@ export function SearchableSelect({
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    // Its own document: in the desktop app a dialog has a window of its own.
+    const doc = containerRef.current?.ownerDocument ?? document;
+    doc.addEventListener("mousedown", handleClick);
+    return () => doc.removeEventListener("mousedown", handleClick);
   }, [open]);
 
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -192,7 +197,7 @@ export function SearchableSelect({
         type="button"
         ref={buttonRef}
         onClick={toggle}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-muted border border-border text-foreground hover:border-muted-foreground focus:outline-hidden transition-colors duration-150 cursor-pointer w-full"
+        className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-muted border border-border text-foreground hover:border-muted-foreground focus:outline-hidden transition-colors duration-150 cursor-pointer w-full", buttonClassName)}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}

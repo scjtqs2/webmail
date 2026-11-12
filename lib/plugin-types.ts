@@ -63,6 +63,23 @@ export interface ThemeTypography {
   baseFontSize?: string;
 }
 
+/**
+ * How printouts look under the theme, emitted as the `--print-*` variables
+ * (lib/print/print-theme.ts). Unset keys keep the standard printout.
+ */
+export interface ThemePrintTokens {
+  /** Font stack of the printout's text. */
+  fontFamily?: string;
+  /** Font stack of the subject line. */
+  headingFontFamily?: string;
+  textColor?: string;
+  headingColor?: string;
+  /** The rule under the header. */
+  ruleColor?: string;
+  /** Page margins of a printed message: 1 to 4 lengths in mm, cm, in, pt or px. */
+  pageMargin?: string;
+}
+
 export interface ThemeManifest {
   id: string;
   name: string;
@@ -105,6 +122,8 @@ export interface ThemeManifest {
   radii?: ThemeRadii;
   /** Font stacks + base size, emitted as `--font-*` vars. */
   typography?: ThemeTypography;
+  /** Fonts, colours and margins of printouts, emitted as `--print-*` vars. */
+  print?: ThemePrintTokens;
 }
 
 export interface PluginManifest {
@@ -627,6 +646,13 @@ export interface TaskInput {
    * update as `alerts` is.
    */
   relatedTo?: Record<string, TaskRelationInput | null> | null;
+  /**
+   * Keywords (1-64 of `A-Z a-z 0-9 . _ -`): `true` sets one, null removes
+   * it. A task holds at most 10, counting every keyword on it, those
+   * another app wrote too. Merged by key on update as `alerts` is; keywords
+   * another app wrote stay unless named with null.
+   */
+  keywords?: Record<string, true | null> | null;
 }
 
 /**
@@ -1188,6 +1214,20 @@ export interface SieveScriptGenerateContext {
 }
 
 /**
+ * Passed to onComposeFromLink (Bulwark 1.21 and later): the composer opened
+ * from a link with parameters for this plugin, such as
+ * `mailto:a@b.de?subject=Mahnung&x-akte-case=01%2F2026` for the plugin
+ * `akte`. Only the plugin named in the parameters hears it. The link can
+ * come from anyone: treat the values as untrusted input.
+ */
+export interface ComposeLinkContext {
+  /** The composer, for api.composer.* (compose:read / compose:write). */
+  composerId: string;
+  /** This plugin's parameters, the `x-<plugin id>-` prefix gone; names in lower case. */
+  params: Record<string, string>;
+}
+
+/**
  * Passed to onMailtoIntercept handlers.
  * Return false to prevent the browser from opening the system mail client.
  */
@@ -1272,6 +1312,25 @@ export interface OutgoingEmail {
    * recipient warning is off. Empty when every recipient is internal.
    */
   externalRecipients?: string[];
+  /**
+   * Bulwark 1.21 and later: the id of the composer the message is sent from,
+   * the same id its actions and slots hand out (api.composer.*), so a plugin
+   * knows which of its drafts goes out. Set in the composer (docked, full,
+   * pop-out window, Pro tab, quick compose; also for a scheduled send or one
+   * with Undo) and in a quick reply (onBeforeEmailSend only); absent for a
+   * plugin's forward. A plugin can't change it.
+   */
+  composerId?: string;
+  /**
+   * Bulwark 1.21 and later, onTransformOutgoingEmail: keywords to set on the
+   * message, so its copy in Sent carries them from the start. Only from a
+   * plugin with `email:write`; others' changes to the list are dropped.
+   * Custom keywords in RFC 8621 syntax (printable ASCII without spaces and
+   * the characters ( ) { ] % * " and backslash), plus `$flagged` and
+   * Bulwark's tags (`$label:<id>`); other `$` keywords are the system's and
+   * are dropped, as are invalid ones. At most 10. Starts as an empty list.
+   */
+  keywords?: string[];
 }
 /**
  * Passed to onBeforeDraftAutoSave handlers as a transform value.
@@ -1485,6 +1544,16 @@ export interface ExternalSearchResult {
   source?: string;
   /** The message the entry stands for, opened in the reader on a click. */
   email?: SearchResultEmail;
+  /**
+   * The next three are shown only when the user chose one line per entry,
+   * in place of the snippet; the snippet may say the same for the two-line
+   * entry. Who the entry is from, e.g. a message's sender; plain text.
+   */
+  from?: string;
+  /** When, as an ISO 8601 date-time; shown as the message list shows its dates. */
+  date?: string;
+  /** How well the entry matches, from 0 to 1; shown as five bars. */
+  score?: number;
 }
 
 /** A message named by a search result. */
@@ -1593,7 +1662,7 @@ export const ALL_PERMISSIONS = [
   // Read the message being written (api.composer.getBody/getSelection/getSnapshot), in
   // a composer that handed the plugin its id.
   'compose:read',
-  // Change the message being written (api.composer.replaceSelection/replaceBody).
+  // Change the message being written (api.composer.replaceSelection/replaceBody/setSubject).
   'compose:write',
   // Check the text of every open composer while the user types
   // (api.composer.registerChecker): the host sends the plugin what the user
@@ -1617,6 +1686,12 @@ export const ALL_PERMISSIONS = [
   'security:read',
   'auth:observe',
   'auth:emit',
+  // End an impersonation handoff and sign back in to the account that
+  // started it (api.user.returnToOwnAccount, the app-top-banner slot's
+  // `canReturn`). A plugin with it and an app-top-banner banner draws the
+  // button, and the core strip steps back. Declare it in
+  // optionalPermissions: older webmails don't know it.
+  'auth:impersonation-return',
   'account:read',
   // Look people up in the server's directory (api.user.findPeople).
   'directory:read',

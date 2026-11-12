@@ -355,6 +355,9 @@
     "no_search_results": "Nie znaleziono wyników",
     "no_search_results_description": "Spróbuj zmienić wyszukiwanie lub filtry",
     "more_results_searching": "Wyszukiwanie kolejnych wyników…",
+    "resize_plugin_results": "Zmień rozmiar wyników z wtyczek",
+    "compact_plugin_results": "Jeden wiersz na wynik",
+    "plugin_result_score": "{count} z 5",
     "loading": "Ładowanie wiadomości...",
     "unread": "nieprzeczytane",
     "to_me": "Do mnie",
@@ -1078,6 +1081,7 @@
     "templates_menu": "Szablony",
     "insert_template": "Wstaw szablon…",
     "options": "Opcje",
+    "tags": "Etykiety",
     "option_plain_text": "Zwykły tekst",
     "option_plain_text_hint": "Wyślij bez formatowania",
     "option_read_receipt": "Poproś o potwierdzenie przeczytania",
@@ -1280,6 +1284,14 @@
       "plain_text": "[Obraz: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "Zmień nazwę",
+    "rename_named": "Zmień nazwę {name}",
+    "rename_menu": "Zmień nazwę…",
+    "rename_title": "Zmień nazwę załącznika",
+    "rename_invalid_chars": "Nazwy plików nie mogą zawierać / ani \\ ani znaków sterujących",
+    "rename_too_long": "Ta nazwa jest za długa"
+  },
   "compose_ux": {
     "draft_discarded": "Wersja robocza odrzucona",
     "undo": "Cofnij",
@@ -1294,6 +1306,12 @@
     "shortcut_save_draft": "Zapisz wersję roboczą",
     "shortcut_show_cc": "Pokaż DW",
     "shortcut_show_bcc": "Pokaż UDW"
+  },
+  "compose_dock": {
+    "open_draft": "Otwórz",
+    "reply_type": "Rodzaj odpowiedzi: {kind}",
+    "resize_reply": "Zmień rozmiar odpowiedzi",
+    "fields_menu": "Więcej pól"
   },
   "confirm_dialog": {
     "confirm": "Potwierdź",
@@ -1473,6 +1491,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "Twoja organizacja blokuje treści zdalne we wszystkich wiadomościach, więc nie wczytują się one także od zaufanych nadawców."
+  },
+  "trusted_senders_book": {
+    "unavailable": "Niedostępne: to konto nie może przechowywać książek adresowych na serwerze. Lista zostaje na tym urządzeniu."
   },
   "date": {
     "today": "Dzisiaj",
@@ -1672,7 +1693,7 @@
         "label": "Układ interfejsu",
         "description": "Gdzie znajdują się wyszukiwarka, nawigacja i paski narzędzi",
         "default": "Domyślny",
-        "mountain_view": "Wyszukiwanie u góry, aplikacje po lewej"
+        "mountain_view": "Wyszukiwanie u góry"
       },
       "animations": {
         "label": "Włącz animacje",
@@ -1785,12 +1806,17 @@
       "title": "Etykiety e-mail",
       "description": "Twórz etykiety, aby porządkować wiadomości. Etykiety są zapisywane razem z wiadomościami na serwerze.",
       "add_keyword": "Dodaj etykietę",
+      "empty": "Nie ma jeszcze etykiet.",
       "label_field": "Nazwa wyświetlana",
       "label_placeholder": "np. Praca, Osobiste, Pilne",
       "id_field": "ID etykiety",
       "id_placeholder": "np. praca, osobiste",
       "color_field": "Kolor",
-      "id_exists": "Ten ID etykiety już istnieje",
+      "custom_color": "Własny kolor",
+      "color_code": "Kod koloru",
+      "pick_custom_color": "Wybierz własny kolor",
+      "invalid_color": "Użyj kodu koloru, np. #1a73e8.",
+      "name_exists": "Tag o tej nazwie już istnieje",
       "edit": "Edytuj etykietę",
       "delete": "Usuń etykietę",
       "edit_tag": "Edytuj {name}",
@@ -2067,9 +2093,17 @@
         "label": "Pokazuj kody weryfikacyjne",
         "description": "Oferuj kod z e-maili logowania i potwierdzenia do skopiowania jednym kliknięciem, na liście przez jeden dzień i w wiadomości"
       },
+      "show_attachment_chips": {
+        "label": "Pokazuj załączniki na liście",
+        "description": "Pokazuj załączone pliki pod każdą wiadomością, aby można je było otworzyć prosto z listy. Spinacz jest widoczny w każdym przypadku."
+      },
       "plain_text_mode": {
         "label": "Tylko zwykły tekst",
         "description": "Wyłącz edytor tekstu sformatowanego i wysyłaj wszystkie wiadomości e-mail tylko jako zwykły tekst, w tym odpowiedzi i przekazywanie dalej"
+      },
+      "reply_under_message": {
+        "label": "Odpowiedzi pod wiadomością",
+        "description": "Odpowiedź lub przekazanie otwiera się pod swoją wiadomością, która pozostaje czytelna powyżej. Po wyłączeniu zajmuje cały panel czytania, jak nowa wiadomość."
       },
       "quick_reply": {
         "label": "Szybka odpowiedź",
@@ -2115,12 +2149,6 @@
         "description": "Wybierz, czy kliknięcie załącznika pliku ma pokazać podgląd, czy od razu go pobrać",
         "preview": "Podgląd, gdy to możliwe",
         "download": "Pobierz natychmiast"
-      },
-      "attachment_position": {
-        "label": "Pozycja załączników",
-        "description": "Gdzie wyświetlać załączniki w nagłówku wiadomości e-mail",
-        "below-header": "Pod nagłówkiem",
-        "below-message": "Karty pod wiadomością"
       },
       "emails_per_page": {
         "10": "10 wiadomości",
@@ -2279,6 +2307,7 @@
       "auth_method_oauth": "Single Sign-On (OAuth/OIDC)",
       "auth_method_basic": "Hasło",
       "auth_method_token": "Token dostępu",
+      "account_management_link": "Zarządzaj bezpieczeństwem konta (2FA, hasła aplikacji)",
       "demo_account": "Konto demo",
       "email": {
         "label": "Adres e-mail",
@@ -2358,6 +2387,57 @@
       }
     },
     "security": {
+      "masked_addresses": {
+        "address": "Adres",
+        "description_column": "Opis",
+        "website_column": "Witryna",
+        "state": "Stan",
+        "actions": "Działania",
+        "no_description": "Brak opisu",
+        "edit": "Edytuj",
+        "close": "Zamknij",
+        "pagination": "Strony maskowanych adresów",
+        "page": "Strona {page} z {pages}",
+        "previous": "Poprzednia",
+        "next": "Następna",
+        "delete": "Usuń",
+        "delete_title": "Trwale usunąć maskowany adres?",
+        "delete_warning": "Usunąć {address}? Tej operacji nie można cofnąć. Poczta wysłana na ten adres nie będzie już dostarczana.",
+        "delete_confirm": "Usuń trwale",
+        "cancel": "Anuluj",
+        "deleted": "Adres został trwale usunięty.",
+        "deleted_refresh_failed": "Usunięcie potwierdzone, ale nie udało się odświeżyć listy. Odśwież, aby wczytać aktualną listę.",
+        "delete_forbidden": "Twoja bieżąca sesja nie ma uprawnień do usuwania maskowanych adresów. Pozostałe dozwolone działania są nadal dostępne.",
+        "delete_failed": "Adres nie został usunięty. Odśwież listę, zanim spróbujesz ponownie.",
+        "delete_unconfirmed": "Nie udało się potwierdzić usunięcia. Nie zostanie ono ponowione. Odśwież listę i sprawdź adres, zanim cokolwiek usuniesz.",
+        "title": "Maskowane adresy",
+        "intro": "Odbieraj pocztę bez udostępniania swojego głównego adresu. Wyłączony adres odrzuca nową pocztę. Z tych adresów nie można wysyłać poczty.",
+        "loading": "Wczytywanie maskowanych adresów…",
+        "count": "{count, plural, one {# adres} few {# adresy} many {# adresów} other {# adresu}}",
+        "empty": "Nie ma jeszcze maskowanych adresów.",
+        "website": "Witryna (opcjonalnie)",
+        "description": "Opis (opcjonalnie)",
+        "no_website": "Nie podano",
+        "enabled": "Włączony",
+        "disabled": "Wyłączony",
+        "enable": "Włącz",
+        "disable": "Wyłącz",
+        "copy": "Kopiuj",
+        "copied": "Skopiowano adres.",
+        "copy_failed": "Nie udało się skopiować. Zaznacz i skopiuj adres powyżej.",
+        "save": "Zapisz opis",
+        "create": "Utwórz maskowany adres",
+        "refresh": "Odśwież",
+        "saved": "Zapisano zmianę.",
+        "forbidden": "Twoja bieżąca sesja nie ma uprawnień do wyświetlania maskowanych adresów.",
+        "unavailable": "Maskowane adresy nie są dostępne dla tego konta lub serwera.",
+        "load_failed": "Nie udało się wczytać pełnej listy adresów. Odśwież, aby spróbować ponownie.",
+        "save_failed": "Nie udało się potwierdzić zmiany. Odśwież listę, zanim spróbujesz ponownie.",
+        "create_forbidden": "Serwer nie zezwolił na utworzenie maskowanego adresu w tej sesji.",
+        "update_forbidden": "Serwer nie zezwolił na edycję maskowanych adresów w tej sesji. Nadal możesz kopiować adresy.",
+        "over_quota": "Osiągnięto limit maskowanych adresów na serwerze. Wyłączone adresy mogą nadal wliczać się do limitu.",
+        "rate_limit": "Osiągnięto limit tworzenia adresów na serwerze. Spróbuj ponownie później."
+      },
       "title": "Bezpieczeństwo konta",
       "description": "Zarządzaj hasłem, uwierzytelnianiem dwuskładnikowym i ustawieniami bezpieczeństwa",
       "detecting": "Wykrywanie możliwości serwera...",
@@ -3336,7 +3416,8 @@
         "description": "Ramka wokół przycisku, linku lub pola, na którym jest klawiatura.",
         "normal": "Normalna",
         "thick": "Gruba",
-        "extra": "Bardzo gruba"
+        "extra": "Bardzo gruba",
+        "off": "Wyłączone"
       },
       "focus_always": {
         "label": "Zawsze pokazuj fokus",
@@ -3596,6 +3677,10 @@
       "sync_on": "Twoje inne urządzenia używają tych samych ustawień, więc też się zmienią.",
       "sync_off": "Twoje inne urządzenia zachowają swoje ustawienia."
     }
+  },
+  "layout_preview": {
+    "default_description": "Aplikacje i foldery po lewej, wyszukiwanie nad listą",
+    "mountain_view_description": "Wyszukiwanie u góry, wiadomości otwierają się na całą szerokość"
   },
   "setup": {
     "title": "Konfiguracja Bulwark Webmail",
@@ -3899,6 +3984,8 @@
     "delete_folder": "Usuń folder",
     "refresh": "Odśwież",
     "hide_shared_account": "Ukryj na pasku bocznym",
+    "move_shared_account_up": "Przenieś w górę",
+    "move_shared_account_down": "Przenieś w dół",
     "mute_notifications": "Wycisz powiadomienia",
     "unmute_notifications": "Włącz powiadomienia",
     "mute_account_notifications": "Wycisz powiadomienia tego konta",
@@ -5386,10 +5473,10 @@
     "title": "Witaj w swojej skrzynce pocztowej",
     "tip_compose": "Naciśnij c, aby napisać nową wiadomość e-mail",
     "tip_shortcuts": "Naciśnij ?, aby zobaczyć wszystkie skróty klawiszowe",
-    "tip_sidebar": "Kalendarz, Kontakty i Ustawienia są na pasku po lewej",
+    "tip_sidebar_apps": "{apps} są na pasku po lewej",
     "tip_settings": "Dostosuj działanie aplikacji w Ustawieniach",
     "tip_compose_touch": "Stuknij przycisk z ołówkiem, aby napisać nowy e-mail",
-    "tip_sidebar_touch": "Kalendarz, Kontakty i Ustawienia znajdziesz na dolnym pasku",
+    "tip_sidebar_apps_touch": "{apps} znajdziesz na dolnym pasku",
     "got_it": "Rozumiem",
     "settings": "Ustawienia",
     "dismiss": "Zamknij",
@@ -5964,7 +6051,8 @@
     "invited": "{name} zaprosił(a) Cię na „{title}”",
     "updated": "{name} zaktualizował(a) „{title}”",
     "cancelled": "{name} odwołał(a) „{title}”",
-    "untitled": "Wydarzenie bez tytułu"
+    "untitled": "Wydarzenie bez tytułu",
+    "summary": "Zmiany w wydarzeniach, w których uczestniczysz: {count}"
   },
   "calendar_month_select": {
     "selected_range": "Wybrano od {start} do {end}.",
@@ -6108,6 +6196,7 @@
     "shared": "{name} udostępnił(a) Ci {kind} „{object}”",
     "changed": "{name} zmienił(a) Twój dostęp do {kind} „{object}”",
     "revoked": "{name} odebrał(a) Ci dostęp do {kind} „{object}”",
+    "summary": "{name} zmienił(a) Twój dostęp do {count, plural, one {# udostępnionego elementu} few {# udostępnionych elementów} many {# udostępnionych elementów} other {# udostępnionego elementu}}",
     "object": {
       "folder": "folder",
       "calendar": "kalendarz",
@@ -6232,6 +6321,14 @@
     "from_label": "Od",
     "date_label": "Data",
     "subject_label": "Temat"
+  },
+  "print_styles": {
+    "title": "Drukowanie",
+    "description": "Jak wyglądają wydrukowane wiadomości, kontakty i kalendarze.",
+    "style_label": "Styl wydruku",
+    "style_description": "Dodatki mogą dodawać style, na przykład papier firmowy z adresem Twojej firmy.",
+    "standard": "Standardowy",
+    "from_plugin": "{name} ({plugin})"
   },
   "pwa_install": {
     "title": "Zainstaluj {appName}",
@@ -6371,6 +6468,9 @@
     "attachments_description": "Załączniki przechowywanych wiadomości i pliki przechowywane offline, razem do {total}. Najstarsze są usuwane najpierw.",
     "total_locked": "Twoja organizacja zezwala na najwyżej {size} załączników i plików.",
     "attachment_cap_label": "Największy przechowywany załącznik",
+    "total_cap_label": "Łączny rozmiar przechowywanych załączników",
+    "total_cap_unlimited": "Bez limitu",
+    "attachments_description_unlimited": "Załączniki przechowywanych wiadomości i pliki przechowywane offline, bez limitu łącznego rozmiaru.",
     "usage_mail": "Wiadomości i indeks wyszukiwania",
     "usage_attachments": "Załączniki",
     "usage_calendar": "Kalendarz",
@@ -6712,6 +6812,10 @@
       "auth_emit": {
         "title": "Wylogowywanie",
         "body": "Może wylogować Cię z webmaila."
+      },
+      "auth_impersonation_return": {
+        "title": "Przywrócić cię na twoje konto",
+        "body": "Gdy administrator otworzył skrzynkę przez podszywanie się, zakończyć tę sesję i ponownie zalogować na konto, z którego się zaczęła."
       },
       "account_read": {
         "title": "Podgląd kont",
@@ -7282,6 +7386,8 @@
       "title": "Okna aplikacji",
       "double_click_label": "Otwieraj wiadomości w nowym oknie po dwukrotnym kliknięciu",
       "double_click_description": "Pojedyncze kliknięcie nadal otwiera wiadomość obok listy.",
+      "compose_window_label": "Zawsze pisz wiadomości w nowym oknie",
+      "compose_window_description": "Nowe wiadomości, odpowiedzi, przekazania i wersje robocze otwierają się we własnym oknie zamiast w oknie głównym.",
       "restore_label": "Otwieraj okna ponownie przy starcie",
       "restore_description": "Okna wiadomości i wersji roboczych otwarte przy zamykaniu wrócą."
     },
@@ -7400,6 +7506,18 @@
     "attach_files": "Załącz pliki…",
     "shortcut_apps": "Przejdź do Poczty, Kalendarza, Kontaktów lub Plików"
   },
+  "desktopSaveOpen": {
+    "menu_open": "Otwórz…",
+    "menu_save_as": "Zapisz jako…",
+    "open_filter": "Wiadomości, wydarzenia i kontakty",
+    "save_filter": "Wiadomość e-mail",
+    "folder_title": "Wybierz folder na wiadomości",
+    "folder_button": "Zapisz tutaj",
+    "saved_many": "{count, plural, one {Zapisano # wiadomość.} few {Zapisano # wiadomości.} many {Zapisano # wiadomości.} other {Zapisano # wiadomości.}}",
+    "save_failed": "{count, plural, one {Nie udało się zapisać # wiadomości.} few {Nie udało się zapisać # wiadomości.} many {Nie udało się zapisać # wiadomości.} other {Nie udało się zapisać # wiadomości.}}",
+    "shortcut_open": "Otwórz zapisaną wiadomość, wydarzenie lub kontakt",
+    "shortcut_save_as": "Zapisz wiadomość jako plik"
+  },
   "appLock": {
     "section_title": "Blokada aplikacji",
     "section_desc": "Prosi o PIN po pewnym czasie bezczynności, w każdym oknie i na każdej karcie. Gdy jest zablokowana, aplikacja nie może czytać poczty zapisanej na tym urządzeniu, dopóki ktoś nie poda PIN-u.",
@@ -7414,7 +7532,8 @@
     "pin_current": "Obecny PIN",
     "pin_new": "Nowy PIN",
     "pin_repeat": "Powtórz PIN",
-    "pin_hint": "Co najmniej 6 znaków. Można też użyć liter, a dłuższy PIN trudniej odgadnąć.",
+    "pin_hint": "Co najmniej 5 znaków. Można też użyć liter, a dłuższy PIN trudniej odgadnąć.",
+    "pin_hint_policy": "Twoja organizacja wymaga co najmniej {count, plural, one {# znak} few {# znaki} many {# znaków} other {# znaku}}. Można też użyć liter.",
     "pin_obvious": "Ten PIN jest zbyt łatwy do odgadnięcia. Unikaj powtórzeń, ciągów i popularnych wyborów.",
     "pin_mismatch": "Te dwa kody PIN nie są takie same.",
     "pin_recovery": "Jeśli go zapomnisz, jedynym wyjściem jest usunięcie danych z tego urządzenia i ponowne zalogowanie. Twoja poczta na serwerze zostaje. Wiadomości czekające na wysłanie na tym urządzeniu przepadną.",
@@ -7468,6 +7587,25 @@
     "blocked_seconds": "Zbyt wiele prób. Spróbuj za {count, plural, one {# sekundę} few {# sekundy} many {# sekund} other {# sekundy}}.",
     "blocked_minutes": "Zbyt wiele prób. Spróbuj za {count, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}."
   },
+  "appLockHello": {
+    "switch_label": "Odblokowuj za pomocą Windows Hello",
+    "switch_desc": "Twarzą, odciskiem palca lub kodem PIN systemu Windows. PIN aplikacji nadal działa.",
+    "protects": "Gdy Windows Hello jest włączone, Windows przechowuje dla tej aplikacji klucz, który działa dopiero wtedy, gdy Windows Hello sprawdzi, że to Ty. Klucz aplikacji jest też nim zablokowany, więc do odblokowania potrzebna jest Twoja twarz, odcisk palca lub PIN systemu Windows, a inny program na tym komputerze nie może użyć tego klucza, zanim Windows Cię o to nie zapyta. PIN aplikacji nadal działa i będzie potrzebny, jeśli Windows Hello zostanie zresetowane lub wyłączone.",
+    "enable_title": "Włącz Windows Hello",
+    "enable_body": "Wpisz PIN aplikacji. Potem Windows poprosi o potwierdzenie za pomocą Windows Hello.",
+    "enable_failed": "Nie udało się włączyć Windows Hello. Spróbuj ponownie.",
+    "cancelled": "Windows Hello zostało anulowane.",
+    "unsupported": "Windows Hello na tym komputerze nie może chronić klucza. Twój PIN nadal działa.",
+    "unavailable": "Windows Hello nie jest dostępne na tym komputerze.",
+    "busy": "Windows Hello jest zajęte lub zablokowane. Spróbuj później.",
+    "off_after_pin_change": "Windows Hello jest teraz wyłączone, bo nie potwierdziło po zmianie kodu PIN. Włącz je ponownie, jeśli z niego korzystasz.",
+    "prompt": "Potwierdź za pomocą Windows Hello, że to Ty.",
+    "waiting": "Czekanie na Windows Hello…",
+    "use_hello": "Odblokuj za pomocą Windows Hello",
+    "use_pin": "Użyj kodu PIN",
+    "failed": "Windows Hello nie odblokowało aplikacji. Wpisz PIN.",
+    "gone": "Windows Hello nie odblokowuje już aplikacji na tym komputerze. Wpisz PIN."
+  },
   "uxs_general": {
     "time_zone_common": "Popularne strefy czasowe",
     "time_zone_all": "Wszystkie strefy czasowe",
@@ -7479,6 +7617,8 @@
     "app_lock_now_desc_desktop": "Blokuje od razu wszystkie okna.",
     "app_lock_protects_toggle": "Przed czym to chroni?",
     "app_lock_timeout_hours": "{count, plural, one {# godzina} few {# godziny} many {# godzin} other {# godziny}}",
+    "app_lock_until_screen": "Gdy ekran się zablokuje",
+    "app_lock_until_session": "Po wylogowaniu lub ponownym uruchomieniu",
     "desktop_attention_title": "Na tym komputerze"
   },
   "uxs2_ident": {
@@ -7566,6 +7706,10 @@
     "trouble_cors": "Twój serwer poczty musi zezwalać na logowanie z tej witryny. Jeśli logowanie się nie udaje, poproś osobę, która zarządza serwerem poczty, o zezwolenie.",
     "provider_unsupported": "{provider} nie oferuje JMAP, czyli sposobu, w jaki Bulwark rozmawia z serwerami poczty, więc Bulwark nie może jeszcze połączyć się z nim bezpośrednio."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock jest włączony",
+    "language_button": "Język: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "Zmienić sposób łączenia Bulwark?",
@@ -7651,6 +7795,8 @@
     "start_at_login_description": "Aplikacja uruchamia się sama po zalogowaniu.",
     "start_minimized_label": "Uruchamiaj w zasobniku",
     "start_minimized_description": "Po zalogowaniu nie otwiera się okno. Otwórz je ikoną w zasobniku.",
+    "reopen_after_restart_label": "Otwórz ponownie po ponownym uruchomieniu",
+    "reopen_after_restart_description": "Jeśli aplikacja jest otwarta, gdy komputer uruchamia się ponownie lub się wylogowujesz, otworzy się znowu po zalogowaniu, w tym samym folderze, przy tej samej wiadomości lub stronie.",
     "attention_label": "Migaj na pasku zadań przy nowej poczcie",
     "attention_mac_label": "Podskakuj ikoną w Docku przy nowej poczcie",
     "attention_description": "Tylko gdy aplikacja nie jest na wierzchu.",
@@ -7754,6 +7900,45 @@
     "clear_confirm": "Usuń",
     "signout_changed": "Jeszcze niedołączone ani niezapisane, a teraz usunięte: {names}.",
     "signout_held": "Nadal otwarte w innym programie, więc zostaną usunięte dopiero po zamknięciu: {names}."
+  },
+  "desktopPrint": {
+    "title": "Drukuj",
+    "pages_one": "1 strona",
+    "pages_many": "Strony: {count}",
+    "preparing": "Przygotowywanie podglądu…",
+    "preview_failed": "Nie udało się utworzyć podglądu.",
+    "preview_label": "Podgląd",
+    "destination": "Miejsce docelowe",
+    "save_as_pdf": "Zapisz jako PDF",
+    "pages": "Strony",
+    "pages_all": "Wszystkie",
+    "pages_custom": "Niestandardowe",
+    "pages_example": "np. 1-3, 5",
+    "pages_invalid": "Wpisz strony od 1 do {count}, na przykład 1-3, 5.",
+    "copies": "Kopie",
+    "layout": "Układ",
+    "portrait": "Pionowy",
+    "landscape": "Poziomy",
+    "color": "Kolor",
+    "color_color": "Kolor",
+    "color_mono": "Czarno-biały",
+    "more": "Więcej ustawień",
+    "paper": "Rozmiar papieru",
+    "paper_printer": "Domyślny drukarki",
+    "margins": "Marginesy",
+    "margins_default": "Domyślne",
+    "margins_none": "Brak",
+    "margins_minimum": "Minimalne",
+    "scale": "Skala (%)",
+    "options": "Opcje",
+    "header_footer": "Nagłówki i stopki",
+    "background": "Grafika tła",
+    "print": "Drukuj",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "system_dialog": "Drukuj za pomocą okna systemowego…",
+    "failed_title": "Nie można wydrukować",
+    "failed_detail": "Drukarka nie przyjęła zadania. Sprawdź, czy jest włączona, i spróbuj ponownie."
   },
   "files_sync": {
     "title": "Pliki na tym komputerze",
@@ -8049,6 +8234,20 @@
       "app_lock_hello": "Windows Hello Touch ID odcisk palca twarz klucz dostępu passkey"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "Prywatność i bezpieczeństwo",
+      "security": "Hasło i logowanie",
+      "about_updates": "Informacje i aktualizacje",
+      "backup": "Kopia zapasowa i import"
+    },
+    "sections": {
+      "start": "Uruchamianie i zamykanie",
+      "shortcuts": "Skróty z innych aplikacji",
+      "mail_links": "Linki i pliki poczty"
+    },
+    "privacy_link_description": "Te ustawienia są na stronie Prywatność i bezpieczeństwo."
+  },
   "desktop_policy": {
     "server_refused": "Twoja organizacja nie zezwala na ten serwer na tym urządzeniu.",
     "plugin_refused": "Twoja organizacja nie zezwala na tę wtyczkę na tym urządzeniu, więc nie działa. Jej ustawienia i dane zostają zachowane.",
@@ -8095,5 +8294,9 @@
   "selectionView": {
     "starred": "Oznaczono gwiazdką",
     "unstarred": "Usunięto gwiazdkę"
+  },
+  "impersonation": {
+    "return_notice": "Skrzynka {mailbox} została otwarta przez podszywanie się.",
+    "return_button": "Wróć do mojego konta"
   }
 }

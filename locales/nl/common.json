@@ -355,6 +355,9 @@
     "no_search_results": "Geen resultaten gevonden",
     "no_search_results_description": "Pas je zoekopdracht of filters aan",
     "more_results_searching": "Meer resultaten zoeken…",
+    "resize_plugin_results": "Formaat van resultaten uit plug-ins wijzigen",
+    "compact_plugin_results": "Eén regel per resultaat",
+    "plugin_result_score": "{count} van 5",
     "loading": "E-mails laden...",
     "unread": "ongelezen",
     "to_me": "Aan mij",
@@ -1078,6 +1081,7 @@
     "templates_menu": "Sjablonen",
     "insert_template": "Sjabloon invoegen…",
     "options": "Opties",
+    "tags": "Labels",
     "option_plain_text": "Platte tekst",
     "option_plain_text_hint": "Verzenden zonder opmaak",
     "option_read_receipt": "Leesbevestiging vragen",
@@ -1280,6 +1284,14 @@
       "plain_text": "[Afbeelding: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "Naam wijzigen",
+    "rename_named": "Naam van {name} wijzigen",
+    "rename_menu": "Naam wijzigen…",
+    "rename_title": "Naam van bijlage wijzigen",
+    "rename_invalid_chars": "Bestandsnamen mogen geen / of \\ of stuurtekens bevatten",
+    "rename_too_long": "Deze naam is te lang"
+  },
   "compose_ux": {
     "draft_discarded": "Concept verwijderd",
     "undo": "Ongedaan maken",
@@ -1294,6 +1306,12 @@
     "shortcut_save_draft": "Concept opslaan",
     "shortcut_show_cc": "Cc tonen",
     "shortcut_show_bcc": "Bcc tonen"
+  },
+  "compose_dock": {
+    "open_draft": "Openen",
+    "reply_type": "Soort antwoord: {kind}",
+    "resize_reply": "Grootte van antwoord aanpassen",
+    "fields_menu": "Meer velden"
   },
   "confirm_dialog": {
     "confirm": "Bevestigen",
@@ -1473,6 +1491,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "Je organisatie blokkeert externe inhoud in alle mail, dus die wordt ook bij vertrouwde afzenders niet geladen."
+  },
+  "trusted_senders_book": {
+    "unavailable": "Niet beschikbaar: dit account kan geen adresboeken op de server bewaren. De lijst blijft op dit apparaat."
   },
   "date": {
     "today": "Vandaag",
@@ -1672,7 +1693,7 @@
         "label": "Interface-indeling",
         "description": "Waar zoeken, navigatie en werkbalken staan",
         "default": "Standaard",
-        "mountain_view": "Zoekbalk boven, apps links"
+        "mountain_view": "Zoekbalk boven"
       },
       "animations": {
         "label": "Animaties inschakelen",
@@ -1785,12 +1806,17 @@
       "title": "E-maillabels",
       "description": "Maak labels om uw berichten te ordenen. De labels worden met uw berichten op de server opgeslagen.",
       "add_keyword": "Label toevoegen",
+      "empty": "Nog geen labels.",
       "label_field": "Weergavenaam",
       "label_placeholder": "bijv. Werk, Persoonlijk, Urgent",
       "id_field": "Label-ID",
       "id_placeholder": "bijv. werk, persoonlijk",
       "color_field": "Kleur",
-      "id_exists": "Deze label-ID bestaat al",
+      "custom_color": "Eigen kleur",
+      "color_code": "Kleurcode",
+      "pick_custom_color": "Kies een eigen kleur",
+      "invalid_color": "Gebruik een kleurcode zoals #1a73e8.",
+      "name_exists": "Er bestaat al een label met deze naam",
       "edit": "Label bewerken",
       "delete": "Label verwijderen",
       "edit_tag": "{name} bewerken",
@@ -2062,6 +2088,10 @@
         "label": "Alleen platte tekst",
         "description": "Schakel de rich text-editor uit en verzend alle e-mails alleen als platte tekst, inclusief antwoorden en doorgestuurde berichten"
       },
+      "reply_under_message": {
+        "label": "Antwoorden onder het bericht",
+        "description": "Een antwoord of doorgestuurd bericht opent onder het bijbehorende bericht, dat erboven leesbaar blijft. Als dit uit staat, neemt het het hele leesvenster in, zoals een nieuw bericht."
+      },
       "quick_reply": {
         "label": "Snel antwoorden",
         "description": "Het vak voor snel antwoorden onder berichten tonen."
@@ -2110,17 +2140,15 @@
         "label": "Verificatiecodes tonen",
         "description": "De code uit aanmeld- en bevestigingsmails aanbieden om met één klik te kopiëren, een dag lang in de lijst en in het bericht"
       },
+      "show_attachment_chips": {
+        "label": "Bijlagen in de lijst tonen",
+        "description": "Bijgevoegde bestanden onder elk bericht tonen, zodat je ze direct vanuit de lijst kunt openen. De paperclip blijft hoe dan ook zichtbaar."
+      },
       "attachment_click_action": {
         "label": "Actie bij klikken op bijlagen",
         "description": "Kies of een klik op een bijlage een voorbeeld opent of direct downloadt",
         "preview": "Voorbeeld tonen indien mogelijk",
         "download": "Direct downloaden"
-      },
-      "attachment_position": {
-        "label": "Positie van bijlagen",
-        "description": "Waar bijlagen in de e-mailkop worden weergegeven",
-        "below-header": "Onder de kop",
-        "below-message": "Kaarten onder het bericht"
       },
       "emails_per_page": {
         "10": "10 e-mails",
@@ -2279,6 +2307,7 @@
       "auth_method_oauth": "Single Sign-On (OAuth/OIDC)",
       "auth_method_basic": "Wachtwoord",
       "auth_method_token": "Toegangstoken",
+      "account_management_link": "Accountbeveiliging beheren (2FA, app-wachtwoorden)",
       "demo_account": "Demoaccount",
       "email": {
         "label": "E-mailadres",
@@ -2358,6 +2387,57 @@
       }
     },
     "security": {
+      "masked_addresses": {
+        "address": "Adres",
+        "description_column": "Beschrijving",
+        "website_column": "Website",
+        "state": "Status",
+        "actions": "Acties",
+        "no_description": "Geen beschrijving",
+        "edit": "Bewerken",
+        "close": "Sluiten",
+        "pagination": "Pagina's met gemaskeerde adressen",
+        "page": "Pagina {page} van {pages}",
+        "previous": "Vorige",
+        "next": "Volgende",
+        "delete": "Verwijderen",
+        "delete_title": "Gemaskeerd adres definitief verwijderen?",
+        "delete_warning": "{address} verwijderen? Dit kan niet ongedaan worden gemaakt. E-mail naar dit adres wordt niet meer bezorgd.",
+        "delete_confirm": "Definitief verwijderen",
+        "cancel": "Annuleren",
+        "deleted": "Adres definitief verwijderd.",
+        "deleted_refresh_failed": "Verwijdering bevestigd, maar de lijst kon niet worden vernieuwd. Vernieuw om de actuele lijst te laden.",
+        "delete_forbidden": "Uw huidige sessie mag geen gemaskeerde adressen verwijderen. Andere toegestane acties blijven beschikbaar.",
+        "delete_failed": "Het adres is niet verwijderd. Vernieuw de lijst voordat u het opnieuw probeert.",
+        "delete_unconfirmed": "De verwijdering kon niet worden bevestigd en wordt niet opnieuw geprobeerd. Vernieuw de lijst en controleer het adres voordat u verder iets verwijdert.",
+        "title": "Gemaskeerde adressen",
+        "intro": "Ontvang e-mail zonder uw hoofdadres te delen. Als u een adres uitschakelt, wordt nieuwe e-mail naar dat adres geweigerd. Met deze adressen kunt u geen e-mail versturen.",
+        "loading": "Gemaskeerde adressen laden…",
+        "count": "{count, plural, one {# adres} other {# adressen}}",
+        "empty": "Nog geen gemaskeerde adressen.",
+        "website": "Website (optioneel)",
+        "description": "Beschrijving (optioneel)",
+        "no_website": "Niet opgegeven",
+        "enabled": "Ingeschakeld",
+        "disabled": "Uitgeschakeld",
+        "enable": "Inschakelen",
+        "disable": "Uitschakelen",
+        "copy": "Kopiëren",
+        "copied": "Adres gekopieerd.",
+        "copy_failed": "Kopiëren mislukt. Selecteer en kopieer het adres hierboven.",
+        "save": "Beschrijving opslaan",
+        "create": "Gemaskeerd adres maken",
+        "refresh": "Vernieuwen",
+        "saved": "Wijziging opgeslagen.",
+        "forbidden": "Uw huidige sessie mag geen gemaskeerde adressen weergeven.",
+        "unavailable": "Gemaskeerde adressen zijn niet beschikbaar voor dit account of deze server.",
+        "load_failed": "De volledige adreslijst kon niet worden geladen. Vernieuw om het opnieuw te proberen.",
+        "save_failed": "De wijziging kon niet worden bevestigd. Vernieuw de lijst voordat u het opnieuw probeert.",
+        "create_forbidden": "De server stond niet toe dat met deze sessie een gemaskeerd adres werd gemaakt.",
+        "update_forbidden": "De server stond niet toe dat met deze sessie gemaskeerde adressen werden bewerkt. U kunt adressen nog wel kopiëren.",
+        "over_quota": "Het quotum voor gemaskeerde adressen op de server is bereikt. Uitgeschakelde adressen kunnen nog meetellen voor de limiet.",
+        "rate_limit": "De aanmaaklimiet van de server is bereikt. Probeer het later opnieuw."
+      },
       "title": "Accountbeveiliging",
       "description": "Beheer uw wachtwoord, tweefactorauthenticatie en beveiligingsinstellingen",
       "detecting": "Servermogelijkheden worden gedetecteerd...",
@@ -3336,7 +3416,8 @@
         "description": "De rand rond de knop, link of het veld waar het toetsenbord op staat.",
         "normal": "Normaal",
         "thick": "Dik",
-        "extra": "Extra dik"
+        "extra": "Extra dik",
+        "off": "Uit"
       },
       "focus_always": {
         "label": "Focus altijd tonen",
@@ -3596,6 +3677,10 @@
       "sync_on": "Uw andere apparaten gebruiken dezelfde instellingen, dus die veranderen ook.",
       "sync_off": "Uw andere apparaten houden hun instellingen."
     }
+  },
+  "layout_preview": {
+    "default_description": "Apps en mappen links, zoeken boven de lijst",
+    "mountain_view_description": "Zoeken bovenaan, berichten openen over de volle breedte"
   },
   "setup": {
     "title": "Bulwark Webmail instellen",
@@ -3899,6 +3984,8 @@
     "delete_folder": "Map verwijderen",
     "refresh": "Vernieuwen",
     "hide_shared_account": "Verbergen in zijbalk",
+    "move_shared_account_up": "Omhoog verplaatsen",
+    "move_shared_account_down": "Omlaag verplaatsen",
     "mute_notifications": "Meldingen dempen",
     "unmute_notifications": "Meldingen inschakelen",
     "mute_account_notifications": "Meldingen voor dit account dempen",
@@ -5386,10 +5473,10 @@
     "title": "Welkom bij uw mailbox",
     "tip_compose": "Druk op c om een nieuwe e-mail te schrijven",
     "tip_shortcuts": "Druk op ? om alle sneltoetsen te bekijken",
-    "tip_sidebar": "Agenda, Contacten en Instellingen staan in de balk links",
+    "tip_sidebar_apps": "{apps} staan in de balk links",
     "tip_settings": "Pas uw ervaring aan in Instellingen",
     "tip_compose_touch": "Tik op de potloodknop om een nieuwe e-mail te schrijven",
-    "tip_sidebar_touch": "Agenda, Contacten en Instellingen vind je in de balk onderaan",
+    "tip_sidebar_apps_touch": "{apps} vind je in de balk onderaan",
     "got_it": "Begrepen",
     "settings": "Instellingen",
     "dismiss": "Sluiten",
@@ -5964,7 +6051,8 @@
     "invited": "{name} heeft je uitgenodigd voor \"{title}\"",
     "updated": "{name} heeft \"{title}\" bijgewerkt",
     "cancelled": "{name} heeft \"{title}\" geannuleerd",
-    "untitled": "Afspraak zonder titel"
+    "untitled": "Afspraak zonder titel",
+    "summary": "Wijzigingen in afspraken waaraan je deelneemt: {count}"
   },
   "calendar_month_select": {
     "selected_range": "{start} tot {end} geselecteerd.",
@@ -6108,6 +6196,7 @@
     "shared": "{name} heeft {kind} \"{object}\" met je gedeeld",
     "changed": "{name} heeft je toegang tot {kind} \"{object}\" gewijzigd",
     "revoked": "{name} heeft je toegang tot {kind} \"{object}\" ingetrokken",
+    "summary": "{name} heeft je toegang tot {count, plural, one {# gedeeld item} other {# gedeelde items}} gewijzigd",
     "object": {
       "folder": "de map",
       "calendar": "de agenda",
@@ -6232,6 +6321,14 @@
     "from_label": "Van",
     "date_label": "Datum",
     "subject_label": "Onderwerp"
+  },
+  "print_styles": {
+    "title": "Afdrukken",
+    "description": "Hoe afgedrukte berichten, contacten en agenda's eruitzien.",
+    "style_label": "Afdrukstijl",
+    "style_description": "Add-ons kunnen stijlen toevoegen, bijvoorbeeld briefpapier met het adres van je bedrijf.",
+    "standard": "Standaard",
+    "from_plugin": "{name} ({plugin})"
   },
   "pwa_install": {
     "title": "{appName} installeren",
@@ -6371,6 +6468,9 @@
     "attachments_description": "Bijlagen van bewaarde berichten en de bestanden die je offline bewaart, samen maximaal {total}. De oudste gaan eerst weg.",
     "total_locked": "Je organisatie staat maximaal {size} aan bijlagen en bestanden toe.",
     "attachment_cap_label": "Grootste bijlage om te bewaren",
+    "total_cap_label": "Totale grootte van bewaarde bijlagen",
+    "total_cap_unlimited": "Geen limiet",
+    "attachments_description_unlimited": "Bijlagen van bewaarde berichten en de bestanden die je offline bewaart, zonder limiet op het totaal.",
     "usage_mail": "Berichten en zoekindex",
     "usage_attachments": "Bijlagen",
     "usage_calendar": "Agenda",
@@ -6712,6 +6812,10 @@
       "auth_emit": {
         "title": "Je afmelden",
         "body": "Je afmelden bij de webmail."
+      },
+      "auth_impersonation_return": {
+        "title": "Je terugbrengen naar je eigen account",
+        "body": "Nadat een beheerder een mailbox via impersonatie heeft geopend, die sessie beëindigen en opnieuw inloggen op het account waar die begon."
       },
       "account_read": {
         "title": "Je accounts zien",
@@ -7282,6 +7386,8 @@
       "title": "Vensters van de app",
       "double_click_label": "Berichten openen in een nieuw venster met dubbelklikken",
       "double_click_description": "Eén klik opent het bericht nog steeds naast de lijst.",
+      "compose_window_label": "Berichten altijd in een nieuw venster schrijven",
+      "compose_window_description": "Nieuwe berichten, antwoorden, doorgestuurde berichten en concepten openen in een eigen venster in plaats van in het hoofdvenster.",
       "restore_label": "Vensters opnieuw openen bij het starten",
       "restore_description": "Bericht- en conceptvensters die open waren bij het afsluiten, komen terug."
     },
@@ -7400,6 +7506,18 @@
     "attach_files": "Bestanden bijvoegen…",
     "shortcut_apps": "Naar E-mail, Agenda, Contacten of Bestanden"
   },
+  "desktopSaveOpen": {
+    "menu_open": "Openen…",
+    "menu_save_as": "Opslaan als…",
+    "open_filter": "Berichten, afspraken en contacten",
+    "save_filter": "E-mailbericht",
+    "folder_title": "Kies een map voor de berichten",
+    "folder_button": "Hier opslaan",
+    "saved_many": "{count, plural, one {# bericht opgeslagen.} other {# berichten opgeslagen.}}",
+    "save_failed": "{count, plural, one {# bericht kon niet worden opgeslagen.} other {# berichten konden niet worden opgeslagen.}}",
+    "shortcut_open": "Een opgeslagen bericht, afspraak of contact openen",
+    "shortcut_save_as": "Het bericht opslaan als bestand"
+  },
   "appLock": {
     "section_title": "App-vergrendeling",
     "section_desc": "Vraagt om een pincode na een tijd zonder gebruik, in elk venster en tabblad. Zolang de app vergrendeld is, kan die de mail op dit apparaat niet lezen totdat iemand de pincode invoert.",
@@ -7414,7 +7532,8 @@
     "pin_current": "Huidige pincode",
     "pin_new": "Nieuwe pincode",
     "pin_repeat": "Herhaal de pincode",
-    "pin_hint": "Minstens 6 tekens. Letters mogen ook, en een langere pincode is moeilijker te raden.",
+    "pin_hint": "Minstens 5 tekens. Letters mogen ook, en een langere pincode is moeilijker te raden.",
+    "pin_hint_policy": "Uw organisatie vereist minstens {count, plural, one {# teken} other {# tekens}}. Letters mogen ook.",
     "pin_obvious": "Deze pincode is te makkelijk te raden. Vermijd herhalingen, reeksen en veelgebruikte keuzes.",
     "pin_mismatch": "De twee pincodes zijn niet gelijk.",
     "pin_recovery": "Als u hem vergeet, kunt u alleen de gegevens op dit apparaat verwijderen en opnieuw inloggen. Uw mail op de server blijft. Berichten die op dit apparaat nog op verzending wachten, gaan verloren.",
@@ -7468,6 +7587,25 @@
     "blocked_seconds": "Te veel pogingen. Probeer het over {count, plural, one {# seconde} other {# seconden}} opnieuw.",
     "blocked_minutes": "Te veel pogingen. Probeer het over {count, plural, one {# minuut} other {# minuten}} opnieuw."
   },
+  "appLockHello": {
+    "switch_label": "Ontgrendelen met Windows Hello",
+    "switch_desc": "Met uw gezicht, vingerafdruk of Windows-pincode. De pincode van de app blijft werken.",
+    "protects": "Met Windows Hello aan bewaart Windows voor deze app een sleutel die pas werkt nadat Windows Hello heeft gecontroleerd dat u het bent. De sleutel van de app wordt daar ook mee vergrendeld. Ontgrendelen vraagt dan om uw gezicht, vingerafdruk of Windows-pincode, en een ander programma op deze computer kan die sleutel niet gebruiken zonder dat Windows het u eerst vraagt. De pincode van de app blijft werken, en die hebt u nodig als Windows Hello wordt hersteld of uitgezet.",
+    "enable_title": "Windows Hello aanzetten",
+    "enable_body": "Voer de pincode van de app in. Daarna vraagt Windows u te bevestigen met Windows Hello.",
+    "enable_failed": "Windows Hello kon niet worden aangezet. Probeer het opnieuw.",
+    "cancelled": "Windows Hello is geannuleerd.",
+    "unsupported": "Windows Hello kan de sleutel op deze computer niet beschermen. Uw pincode blijft werken.",
+    "unavailable": "Windows Hello is niet beschikbaar op deze computer.",
+    "busy": "Windows Hello is bezet of geblokkeerd. Probeer het later opnieuw.",
+    "off_after_pin_change": "Windows Hello staat nu uit, omdat het na het wijzigen van de pincode niet heeft bevestigd. Zet het weer aan als u het gebruikt.",
+    "prompt": "Bevestig met Windows Hello dat u het bent.",
+    "waiting": "Wachten op Windows Hello…",
+    "use_hello": "Ontgrendelen met Windows Hello",
+    "use_pin": "Pincode gebruiken",
+    "failed": "Windows Hello heeft de app niet ontgrendeld. Voer uw pincode in.",
+    "gone": "Windows Hello ontgrendelt de app op deze computer niet meer. Voer uw pincode in."
+  },
   "uxs_general": {
     "time_zone_common": "Veelgebruikte tijdzones",
     "time_zone_all": "Alle tijdzones",
@@ -7479,6 +7617,8 @@
     "app_lock_now_desc_desktop": "Vergrendelt alle vensters meteen.",
     "app_lock_protects_toggle": "Waartegen beschermt dit?",
     "app_lock_timeout_hours": "{count, plural, one {# uur} other {# uur}}",
+    "app_lock_until_screen": "Als het scherm vergrendelt",
+    "app_lock_until_session": "Bij afmelden of opnieuw opstarten",
     "desktop_attention_title": "Op deze computer"
   },
   "uxs2_ident": {
@@ -7566,6 +7706,10 @@
     "trouble_cors": "Je mailserver moet aanmelden vanaf deze website toestaan. Lukt aanmelden niet, vraag dan wie je mailserver beheert om het toe te staan.",
     "provider_unsupported": "{provider} biedt geen JMAP, de manier waarop Bulwark met mailservers praat, dus Bulwark kan er nog niet rechtstreeks mee verbinden."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock staat aan",
+    "language_button": "Taal: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "Wijzigen hoe Bulwark verbinding maakt?",
@@ -7651,6 +7795,8 @@
     "start_at_login_description": "De app start vanzelf als je je aanmeldt.",
     "start_minimized_label": "Starten in het systeemvak",
     "start_minimized_description": "Bij het aanmelden opent geen venster. Open de app met het pictogram in het systeemvak.",
+    "reopen_after_restart_label": "Opnieuw openen na een herstart",
+    "reopen_after_restart_description": "Als de app open is wanneer de computer opnieuw opstart of je je afmeldt, opent hij weer wanneer je je aanmeldt, in dezelfde map, hetzelfde bericht of dezelfde pagina.",
     "attention_label": "Taakbalk laten knipperen bij nieuwe mail",
     "attention_mac_label": "Dock-pictogram laten stuiteren bij nieuwe mail",
     "attention_description": "Alleen als de app niet vooraan staat.",
@@ -7754,6 +7900,45 @@
     "clear_confirm": "Verwijderen",
     "signout_changed": "Nog niet bijgevoegd of opgeslagen, en nu verwijderd: {names}.",
     "signout_held": "Nog geopend in een ander programma, dus pas verwijderd als u ze daar sluit: {names}."
+  },
+  "desktopPrint": {
+    "title": "Afdrukken",
+    "pages_one": "1 pagina",
+    "pages_many": "{count} pagina’s",
+    "preparing": "Voorbeeld voorbereiden…",
+    "preview_failed": "Het voorbeeld kon niet worden gemaakt.",
+    "preview_label": "Voorbeeld",
+    "destination": "Bestemming",
+    "save_as_pdf": "Opslaan als pdf",
+    "pages": "Pagina’s",
+    "pages_all": "Alle",
+    "pages_custom": "Aangepast",
+    "pages_example": "bijv. 1-3, 5",
+    "pages_invalid": "Voer pagina’s in tussen 1 en {count}, zoals 1-3, 5.",
+    "copies": "Exemplaren",
+    "layout": "Indeling",
+    "portrait": "Staand",
+    "landscape": "Liggend",
+    "color": "Kleur",
+    "color_color": "Kleur",
+    "color_mono": "Zwart-wit",
+    "more": "Meer instellingen",
+    "paper": "Papierformaat",
+    "paper_printer": "Standaard van de printer",
+    "margins": "Marges",
+    "margins_default": "Standaard",
+    "margins_none": "Geen",
+    "margins_minimum": "Minimaal",
+    "scale": "Schaal (%)",
+    "options": "Opties",
+    "header_footer": "Kop- en voetteksten",
+    "background": "Achtergrondafbeeldingen",
+    "print": "Afdrukken",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "system_dialog": "Afdrukken via systeemdialoogvenster…",
+    "failed_title": "Afdrukken mislukt",
+    "failed_detail": "De printer heeft de taak niet aangenomen. Controleer of hij aanstaat en probeer het opnieuw."
   },
   "files_sync": {
     "title": "Bestanden op deze computer",
@@ -8049,6 +8234,20 @@
       "app_lock_hello": "Windows Hello Touch ID vingerafdruk gezicht passkey toegangssleutel"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "Privacy en beveiliging",
+      "security": "Wachtwoord en inloggen",
+      "about_updates": "Over en updates",
+      "backup": "Back-up en importeren"
+    },
+    "sections": {
+      "start": "Starten en sluiten",
+      "shortcuts": "Sneltoetsen vanuit andere apps",
+      "mail_links": "Maillinks en -bestanden"
+    },
+    "privacy_link_description": "Deze instellingen staan op de pagina Privacy en beveiliging."
+  },
   "desktop_policy": {
     "server_refused": "Je organisatie staat deze server niet toe op dit apparaat.",
     "plugin_refused": "Je organisatie staat deze plug-in niet toe op dit apparaat, dus hij draait niet. De instellingen en gegevens blijven bewaard.",
@@ -8095,5 +8294,9 @@
   "selectionView": {
     "starred": "Met ster gemarkeerd",
     "unstarred": "Ster verwijderd"
+  },
+  "impersonation": {
+    "return_notice": "Je hebt {mailbox} geopend via impersonatie.",
+    "return_button": "Terug naar mijn account"
   }
 }

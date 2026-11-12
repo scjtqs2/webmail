@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { TimeField } from "@/components/ui/time-field";
 import { getDesktopBridge } from "@/lib/desktop/bridge";
 import type { DesktopOsDefaultAppStatus, DesktopOsSettings as Settings, DesktopOsStatus } from "@/lib/desktop/types";
 import { describeAccelerator, showShortcutDefault } from "@/lib/desktop/shortcut-keys";
 import { DesktopQuickComposeSetting } from "./desktop-quick-compose-setting";
+import { DesktopWindowSettings } from "./desktop-window-settings";
 import { SettingItem, SettingsSection, ToggleSwitch } from "./settings-section";
 import { goToSettings, SettingsLinkRow } from "./privacy-settings";
 import { productName } from "@/lib/product-name";
@@ -14,14 +16,14 @@ import { useConfig } from "@/hooks/use-config";
 
 /**
  * The desktop app's own settings: only where there's an app to set. A browser never sees
- * them, and they render nothing until the bridge has answered. The General page has how
- * the app runs; the Notifications page has the taskbar flash and, under Do not disturb,
- * quiet hours, next to the rest of what notifies.
+ * them, and they render nothing until the bridge has answered. The Desktop app page has
+ * how the app runs; the Notifications page has the taskbar flash and, under Do not
+ * disturb, quiet hours, next to the rest of what notifies.
  */
 export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notifications" | "quietHours" } = {}) {
   const t = useTranslations("desktopOs");
   const tP2 = useTranslations("uxp2_settings.desktop_notifications");
-  const tTabs = useTranslations("settings.tabs");
+  const tReorg = useTranslations("settings_reorg.sections");
   const appName = productName(useConfig().appName);
   const [status, setStatus] = useState<DesktopOsStatus | null>(null);
   const [defaultApp, setDefaultApp] = useState<DesktopOsDefaultAppStatus | null>(null);
@@ -63,20 +65,18 @@ export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notificati
         {settings.quietHoursEnabled && (
           <SettingItem nested label={t("quiet_hours_from")}>
             <div className="flex items-center gap-2">
-              <input
-                type="time"
+              <TimeField
                 aria-label={t("quiet_hours_from")}
                 value={settings.quietHoursStart}
-                onChange={(event) => change({ quietHoursStart: event.target.value })}
-                className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+                onChange={(quietHoursStart) => change({ quietHoursStart })}
+                className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm"
               />
               <span className="text-sm text-muted-foreground">{t("quiet_hours_to")}</span>
-              <input
-                type="time"
+              <TimeField
                 aria-label={t("quiet_hours_to")}
                 value={settings.quietHoursEnd}
-                onChange={(event) => change({ quietHoursEnd: event.target.value })}
-                className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+                onChange={(quietHoursEnd) => change({ quietHoursEnd })}
+                className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm"
               />
             </div>
           </SettingItem>
@@ -91,9 +91,9 @@ export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notificati
         {/* The app tells about new mail as long as it runs; a browser's push section has nothing to add (settings-p2-4). */}
         <SettingsLinkRow
           label={tP2("closed_label")}
-          description={tP2("closed_description", { appName, page: tTabs("general") })}
-          button={tTabs("general")}
-          onClick={() => goToSettings("general", "desktop-app")}
+          description={tP2("closed_description", { appName, page: t("section_title") })}
+          button={t("section_title")}
+          onClick={() => goToSettings("desktop", "desktop-app")}
         />
         <SettingItem
           label={bridge?.platform === "darwin" ? t("attention_mac_label") : t("attention_label")}
@@ -105,11 +105,11 @@ export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notificati
     );
   }
 
+  // The Desktop app page (settings reorg 2026-11-05): how the app starts and closes, its
+  // windows, its keys from anywhere, and the mail links and files it opens.
   return (
-    <SettingsSection id="desktop-app" title={t("section_title")} description={t("section_description")}>
-      <SettingItem label={t("close_to_tray_label")} description={t("close_to_tray_description")}>
-        <ToggleSwitch checked={settings.closeToTray} onChange={(closeToTray) => change({ closeToTray })} />
-      </SettingItem>
+    <>
+    <SettingsSection id="desktop-app" title={tReorg("start")}>
       <SettingItem label={t("start_at_login_label")} description={t("start_at_login_description")}>
         <ToggleSwitch checked={settings.startAtLogin} onChange={(startAtLogin) => change({ startAtLogin })} />
       </SettingItem>
@@ -118,6 +118,21 @@ export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notificati
           <ToggleSwitch checked={settings.startMinimized} onChange={(startMinimized) => change({ startMinimized })} />
         </SettingItem>
       )}
+      {typeof settings.reopenAfterRestart === "boolean" && (
+        <SettingItem label={t("reopen_after_restart_label")} description={t("reopen_after_restart_description")}>
+          <ToggleSwitch
+            checked={settings.reopenAfterRestart}
+            onChange={(reopenAfterRestart) => change({ reopenAfterRestart })}
+            testId="desktop-reopen-after-restart"
+          />
+        </SettingItem>
+      )}
+      <SettingItem label={t("close_to_tray_label")} description={t("close_to_tray_description")}>
+        <ToggleSwitch checked={settings.closeToTray} onChange={(closeToTray) => change({ closeToTray })} />
+      </SettingItem>
+    </SettingsSection>
+    <DesktopWindowSettings />
+    <SettingsSection id="desktop-shortcuts" title={tReorg("shortcuts")}>
       <SettingItem
         label={t("show_shortcut_label")}
         description={settings.showShortcut && !status.shortcutActive
@@ -136,6 +151,8 @@ export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notificati
           onChange={(quickComposeShortcut) => change({ quickComposeShortcut })}
         />
       )}
+    </SettingsSection>
+    <SettingsSection id="desktop-mail-links" title={tReorg("mail_links")}>
       <SettingItem
         label={t("default_app_label")}
         description={defaultApp?.mailto ? t("default_app_is_default") : t("default_app_description")}
@@ -150,5 +167,6 @@ export function DesktopOsSettings({ part = "app" }: { part?: "app" | "notificati
         </Button>
       </SettingItem>
     </SettingsSection>
+    </>
   );
 }

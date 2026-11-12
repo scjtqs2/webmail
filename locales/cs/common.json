@@ -355,6 +355,9 @@
     "no_search_results": "Nenalezeny žádné výsledky",
     "no_search_results_description": "Zkuste změnit hledání nebo filtry",
     "more_results_searching": "Hledají se další výsledky…",
+    "resize_plugin_results": "Změnit velikost výsledků z doplňků",
+    "compact_plugin_results": "Jeden řádek na výsledek",
+    "plugin_result_score": "{count} z 5",
     "loading": "Načítání zpráv...",
     "unread": "nepřečtené",
     "to_me": "Pro mě",
@@ -1078,6 +1081,7 @@
     "templates_menu": "Šablony",
     "insert_template": "Vložit šablonu…",
     "options": "Možnosti",
+    "tags": "Štítky",
     "option_plain_text": "Prostý text",
     "option_plain_text_hint": "Odeslat bez formátování",
     "option_read_receipt": "Vyžádat potvrzení o přečtení",
@@ -1280,6 +1284,14 @@
       "plain_text": "[Obrázek: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "Přejmenovat",
+    "rename_named": "Přejmenovat {name}",
+    "rename_menu": "Přejmenovat…",
+    "rename_title": "Přejmenovat přílohu",
+    "rename_invalid_chars": "Názvy souborů nesmí obsahovat / ani \\ ani řídicí znaky",
+    "rename_too_long": "Tento název je příliš dlouhý"
+  },
   "compose_ux": {
     "draft_discarded": "Koncept zahozen",
     "undo": "Zpět",
@@ -1294,6 +1306,12 @@
     "shortcut_save_draft": "Uložit koncept",
     "shortcut_show_cc": "Zobrazit kopii",
     "shortcut_show_bcc": "Zobrazit skrytou kopii"
+  },
+  "compose_dock": {
+    "open_draft": "Otevřít",
+    "reply_type": "Typ odpovědi: {kind}",
+    "resize_reply": "Změnit velikost odpovědi",
+    "fields_menu": "Další pole"
   },
   "confirm_dialog": {
     "confirm": "Potvrdit",
@@ -1473,6 +1491,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "Vaše organizace blokuje vzdálený obsah ve všech zprávách, takže se nenačítá ani od důvěryhodných odesílatelů."
+  },
+  "trusted_senders_book": {
+    "unavailable": "Není k dispozici: tento účet nemůže ukládat adresáře na server. Seznam zůstane v tomto zařízení."
   },
   "date": {
     "today": "Dnes",
@@ -1672,7 +1693,7 @@
         "label": "Rozvržení rozhraní",
         "description": "Kde se nachází hledání, navigace a panely nástrojů",
         "default": "Výchozí",
-        "mountain_view": "Vyhledávání nahoře, aplikace vlevo"
+        "mountain_view": "Vyhledávání nahoře"
       },
       "animations": {
         "label": "Povolit animace",
@@ -1785,12 +1806,17 @@
       "title": "E-mailové štítky",
       "description": "Vytvořte štítky pro třídění zpráv. Štítky se ukládají se zprávami na serveru.",
       "add_keyword": "Přidat štítek",
+      "empty": "Zatím nemáte žádné štítky.",
       "label_field": "Zobrazovaný název",
       "label_placeholder": "např. Práce, Osobní, Naliehavé",
       "id_field": "ID štítku",
       "id_placeholder": "např. prace, osobni",
       "color_field": "Barva",
-      "id_exists": "Toto ID štítku již existuje",
+      "custom_color": "Vlastní barva",
+      "color_code": "Kód barvy",
+      "pick_custom_color": "Vybrat vlastní barvu",
+      "invalid_color": "Zadejte kód barvy, například #1a73e8.",
+      "name_exists": "Štítek s tímto názvem už existuje",
       "edit": "Upravit štítek",
       "delete": "Odstranit štítek",
       "edit_tag": "Upravit {name}",
@@ -2067,9 +2093,17 @@
         "label": "Zobrazovat ověřovací kódy",
         "description": "Nabízet kód z přihlašovacích a potvrzovacích e-mailů ke zkopírování jedním kliknutím, v seznamu po dobu jednoho dne a ve zprávě"
       },
+      "show_attachment_chips": {
+        "label": "Zobrazit přílohy v seznamu",
+        "description": "Zobrazovat přiložené soubory pod každou zprávou, aby šly otevřít přímo ze seznamu. Ikona sponky se zobrazuje vždy."
+      },
       "plain_text_mode": {
         "label": "Pouze prostý text",
         "description": "Zakázat editor formátovaného textu a odesílat všechny e-maily pouze jako prostý text, včetně odpovědí a přeposílání"
+      },
+      "reply_under_message": {
+        "label": "Odpovědi pod zprávou",
+        "description": "Odpověď nebo přeposlání se otevře pod svou zprávou, která nad ní zůstane čitelná. Když je vypnuto, zabere celý panel čtení jako nová zpráva."
       },
       "quick_reply": {
         "label": "Rychlá odpověď",
@@ -2115,12 +2149,6 @@
         "description": "Vyberte, zda má kliknutí na přílohu zobrazit náhled, nebo ji ihned stáhnout",
         "preview": "Náhled, pokud je to možné",
         "download": "Okamžitě stáhnout"
-      },
-      "attachment_position": {
-        "label": "Pozice příloh",
-        "description": "Kde zobrazovat přílohy v hlavičce e-mailu",
-        "below-header": "Pod hlavičkou",
-        "below-message": "Karty pod zprávou"
       },
       "emails_per_page": {
         "10": "10 zpráv",
@@ -2279,6 +2307,7 @@
       "auth_method_oauth": "Jednotné přihlášení (OAuth/OIDC)",
       "auth_method_basic": "Heslo",
       "auth_method_token": "Přístupový token",
+      "account_management_link": "Spravovat zabezpečení účtu (2FA, hesla aplikací)",
       "demo_account": "Demo účet",
       "email": {
         "label": "E-mailová adresa",
@@ -2358,6 +2387,57 @@
       }
     },
     "security": {
+      "masked_addresses": {
+        "address": "Adresa",
+        "description_column": "Popis",
+        "website_column": "Web",
+        "state": "Stav",
+        "actions": "Akce",
+        "no_description": "Bez popisu",
+        "edit": "Upravit",
+        "close": "Zavřít",
+        "pagination": "Stránky maskovaných adres",
+        "page": "Stránka {page} z {pages}",
+        "previous": "Předchozí",
+        "next": "Další",
+        "delete": "Odstranit",
+        "delete_title": "Trvale odstranit maskovanou adresu?",
+        "delete_warning": "Odstranit {address}? Tuto akci nelze vrátit zpět. Pošta odeslaná na tuto adresu už nebude doručena.",
+        "delete_confirm": "Trvale odstranit",
+        "cancel": "Zrušit",
+        "deleted": "Adresa byla trvale odstraněna.",
+        "deleted_refresh_failed": "Odstranění bylo potvrzeno, ale seznam se nepodařilo obnovit. Obnovte ho, abyste načetli aktuální seznam.",
+        "delete_forbidden": "Vaše aktuální relace nemá oprávnění odstraňovat maskované adresy. Ostatní povolené akce zůstávají dostupné.",
+        "delete_failed": "Adresa nebyla odstraněna. Než to zkusíte znovu, obnovte seznam.",
+        "delete_unconfirmed": "Odstranění se nepodařilo potvrdit. Nebude se opakovat. Před dalším odstraňováním obnovte seznam a zkontrolujte adresu.",
+        "title": "Maskované adresy",
+        "intro": "Přijímejte poštu, aniž byste sdíleli svou hlavní adresu. Vypnutá adresa odmítá novou poštu. Z těchto adres nelze poštu odesílat.",
+        "loading": "Načítání maskovaných adres…",
+        "count": "{count, plural, one {# adresa} few {# adresy} many {# adresy} other {# adres}}",
+        "empty": "Zatím žádné maskované adresy.",
+        "website": "Web (nepovinné)",
+        "description": "Popis (nepovinné)",
+        "no_website": "Neuvedeno",
+        "enabled": "Zapnuto",
+        "disabled": "Vypnuto",
+        "enable": "Zapnout",
+        "disable": "Vypnout",
+        "copy": "Kopírovat",
+        "copied": "Adresa zkopírována.",
+        "copy_failed": "Kopírování se nezdařilo. Označte a zkopírujte adresu výše.",
+        "save": "Uložit popis",
+        "create": "Vytvořit maskovanou adresu",
+        "refresh": "Obnovit",
+        "saved": "Změna uložena.",
+        "forbidden": "Vaše aktuální relace nemá oprávnění zobrazit maskované adresy.",
+        "unavailable": "Maskované adresy nejsou pro tento účet nebo server k dispozici.",
+        "load_failed": "Úplný seznam adres se nepodařilo načíst. Obnovte ho a zkuste to znovu.",
+        "save_failed": "Změnu se nepodařilo potvrdit. Než to zkusíte znovu, obnovte seznam.",
+        "create_forbidden": "Server v této relaci nepovolil vytvoření maskované adresy.",
+        "update_forbidden": "Server v této relaci nepovolil úpravy maskovaných adres. Adresy můžete dál kopírovat.",
+        "over_quota": "Byla dosažena kvóta maskovaných adres na serveru. Vypnuté adresy se do limitu mohou stále počítat.",
+        "rate_limit": "Byl dosažen limit serveru pro vytváření adres. Zkuste to později."
+      },
       "title": "Zabezpečení účtu",
       "description": "Správa hesla, dvoufázového ověření a nastavení zabezpečení",
       "detecting": "Zjišťování možností serveru...",
@@ -3336,7 +3416,8 @@
         "description": "Obrys kolem tlačítka, odkazu nebo pole, na kterém je klávesnice.",
         "normal": "Normální",
         "thick": "Silný",
-        "extra": "Extra silný"
+        "extra": "Extra silný",
+        "off": "Vypnuto"
       },
       "focus_always": {
         "label": "Vždy zobrazovat zaměření",
@@ -3596,6 +3677,10 @@
       "sync_on": "Vaše další zařízení používají stejná nastavení, takže se změní také.",
       "sync_off": "Vaše další zařízení si nastavení ponechají."
     }
+  },
+  "layout_preview": {
+    "default_description": "Aplikace a složky vlevo, hledání nad seznamem",
+    "mountain_view_description": "Hledání přes celou horní lištu, zprávy se otevírají na celou šířku"
   },
   "setup": {
     "title": "Nastavení Bulwark Webmail",
@@ -3899,6 +3984,8 @@
     "delete_folder": "Smazat složku",
     "refresh": "Obnovit",
     "hide_shared_account": "Skrýt z postranního panelu",
+    "move_shared_account_up": "Posunout nahoru",
+    "move_shared_account_down": "Posunout dolů",
     "mute_notifications": "Ztlumit oznámení",
     "unmute_notifications": "Zapnout oznámení",
     "mute_account_notifications": "Ztlumit oznámení tohoto účtu",
@@ -5386,10 +5473,10 @@
     "title": "Vítejte ve své poštovní schránce",
     "tip_compose": "Stiskněte c pro napsání nové zprávy",
     "tip_shortcuts": "Stiskněte ? pro zobrazení všech klávesových zkratek",
-    "tip_sidebar": "Kalendář, Kontakty a Nastavení najdete na liště vlevo",
+    "tip_sidebar_apps": "{apps} najdete na liště vlevo",
     "tip_settings": "Přizpůsobte si aplikaci v Nastavení",
     "tip_compose_touch": "Klepnutím na tlačítko s tužkou napíšete nový e-mail",
-    "tip_sidebar_touch": "Kalendář, Kontakty a Nastavení najdete na liště dole",
+    "tip_sidebar_apps_touch": "{apps} najdete na liště dole",
     "got_it": "Rozumím",
     "settings": "Nastavení",
     "dismiss": "Zavřít",
@@ -5964,7 +6051,8 @@
     "invited": "{name} vás pozval(a) na „{title}“",
     "updated": "{name} aktualizoval(a) „{title}“",
     "cancelled": "{name} zrušil(a) „{title}“",
-    "untitled": "Událost bez názvu"
+    "untitled": "Událost bez názvu",
+    "summary": "Změny událostí, kterých se účastníte: {count}"
   },
   "calendar_month_select": {
     "selected_range": "Vybráno {start} až {end}.",
@@ -6108,6 +6196,7 @@
     "shared": "{name} s vámi sdílí {kind} „{object}“",
     "changed": "{name} změnil(a) váš přístup k {kind} „{object}“",
     "revoked": "{name} odebral(a) váš přístup k {kind} „{object}“",
+    "summary": "{name} změnil(a) váš přístup k {count, plural, one {# sdílené položce} few {# sdíleným položkám} many {# sdílené položce} other {# sdíleným položkám}}",
     "object": {
       "folder": "složku",
       "calendar": "kalendář",
@@ -6232,6 +6321,14 @@
     "from_label": "Od",
     "date_label": "Datum",
     "subject_label": "Předmět"
+  },
+  "print_styles": {
+    "title": "Tisk",
+    "description": "Jak vypadají vytištěné zprávy, kontakty a kalendáře.",
+    "style_label": "Styl tisku",
+    "style_description": "Doplňky mohou přidat styly, například hlavičkový papír s adresou vaší firmy.",
+    "standard": "Standardní",
+    "from_plugin": "{name} ({plugin})"
   },
   "pwa_install": {
     "title": "Nainstalovat {appName}",
@@ -6371,6 +6468,9 @@
     "attachments_description": "Přílohy uchovaných zpráv a soubory, které uchováváte offline, celkem až {total}. Nejstarší se odstraní jako první.",
     "total_locked": "Vaše organizace povoluje nejvýše {size} příloh a souborů.",
     "attachment_cap_label": "Největší uchovávaná příloha",
+    "total_cap_label": "Celková velikost uchovaných příloh",
+    "total_cap_unlimited": "Bez omezení",
+    "attachments_description_unlimited": "Přílohy uchovaných zpráv a soubory, které uchováváte offline, bez omezení jejich celkové velikosti.",
     "usage_mail": "Zprávy a index vyhledávání",
     "usage_attachments": "Přílohy",
     "usage_calendar": "Kalendář",
@@ -6712,6 +6812,10 @@
       "auth_emit": {
         "title": "Odhlásit vás",
         "body": "Může vás odhlásit z webmailu."
+      },
+      "auth_impersonation_return": {
+        "title": "Vrátit vás do vašeho účtu",
+        "body": "Když správce otevře schránku přes zosobnění, ukončit tuto relaci a znovu vás přihlásit k účtu, ze kterého začala."
       },
       "account_read": {
         "title": "Vidět vaše účty",
@@ -7282,6 +7386,8 @@
       "title": "Okna aplikace",
       "double_click_label": "Otevírat zprávy v novém okně dvojitým kliknutím",
       "double_click_description": "Jedním kliknutím se zpráva dál otevře vedle seznamu.",
+      "compose_window_label": "Vždy psát zprávy v novém okně",
+      "compose_window_description": "Nové zprávy, odpovědi, přeposlání a koncepty se otevírají ve vlastním okně místo v hlavním okně.",
       "restore_label": "Při spuštění znovu otevřít okna",
       "restore_description": "Okna zpráv a konceptů otevřená při ukončení se znovu otevřou."
     },
@@ -7400,6 +7506,18 @@
     "attach_files": "Přiložit soubory…",
     "shortcut_apps": "Přejít na Poštu, Kalendář, Kontakty nebo Soubory"
   },
+  "desktopSaveOpen": {
+    "menu_open": "Otevřít…",
+    "menu_save_as": "Uložit jako…",
+    "open_filter": "Zprávy, události a kontakty",
+    "save_filter": "E-mailová zpráva",
+    "folder_title": "Vyberte složku pro zprávy",
+    "folder_button": "Uložit sem",
+    "saved_many": "{count, plural, one {# zpráva uložena.} few {# zprávy uloženy.} many {# zprávy uloženo.} other {# zpráv uloženo.}}",
+    "save_failed": "{count, plural, one {# zprávu nebylo možné uložit.} few {# zprávy nebylo možné uložit.} many {# zprávy nebylo možné uložit.} other {# zpráv nebylo možné uložit.}}",
+    "shortcut_open": "Otevřít uloženou zprávu, událost nebo kontakt",
+    "shortcut_save_as": "Uložit zprávu jako soubor"
+  },
   "appLock": {
     "section_title": "Zámek aplikace",
     "section_desc": "Po době nečinnosti žádá o PIN v každém okně a na každé kartě. Dokud je zamčeno, aplikace nemůže číst poštu uloženou v tomto zařízení, dokud někdo nezadá PIN.",
@@ -7414,7 +7532,8 @@
     "pin_current": "Současný PIN",
     "pin_new": "Nový PIN",
     "pin_repeat": "Zopakujte PIN",
-    "pin_hint": "Alespoň 6 znaků. Fungují i písmena a delší PIN se hůř uhodne.",
+    "pin_hint": "Alespoň 5 znaků. Fungují i písmena a delší PIN se hůř uhodne.",
+    "pin_hint_policy": "Vaše organizace vyžaduje alespoň {count, plural, one {# znak} few {# znaky} many {# znaku} other {# znaků}}. Fungují i písmena.",
     "pin_obvious": "Tento PIN se dá snadno uhodnout. Vyhněte se opakování, řadám a běžným volbám.",
     "pin_mismatch": "Oba kódy PIN nejsou stejné.",
     "pin_recovery": "Pokud ho zapomenete, jedinou cestou je odebrat data z tohoto zařízení a znovu se přihlásit. Vaše pošta na serveru zůstává. Zprávy čekající na odeslání na tomto zařízení se ztratí.",
@@ -7468,6 +7587,25 @@
     "blocked_seconds": "Příliš mnoho pokusů. Zkuste to za {count, plural, one {# sekundu} few {# sekundy} many {# sekundy} other {# sekund}}.",
     "blocked_minutes": "Příliš mnoho pokusů. Zkuste to za {count, plural, one {# minutu} few {# minuty} many {# minuty} other {# minut}}."
   },
+  "appLockHello": {
+    "switch_label": "Odemykat pomocí Windows Hello",
+    "switch_desc": "Obličejem, otiskem prstu nebo PINem Windows. PIN aplikace dál funguje.",
+    "protects": "Když je Windows Hello zapnuté, Windows pro tuto aplikaci uchovává klíč, který funguje jen poté, co Windows Hello ověří, že jste to vy. Klíč aplikace je zamčený i tímto klíčem, takže k odemčení je potřeba váš obličej, otisk prstu nebo PIN Windows, a jiný program v tomto počítači nemůže klíč použít, aniž by se vás Windows nejdřív zeptal. PIN aplikace dál funguje a budete ho potřebovat, pokud se Windows Hello obnoví nebo vypne.",
+    "enable_title": "Zapnout Windows Hello",
+    "enable_body": "Zadejte PIN aplikace. Windows vás pak požádá o potvrzení pomocí Windows Hello.",
+    "enable_failed": "Windows Hello se nepodařilo zapnout. Zkuste to znovu.",
+    "cancelled": "Windows Hello bylo zrušeno.",
+    "unsupported": "Windows Hello v tomto počítači nemůže klíč chránit. Váš PIN dál funguje.",
+    "unavailable": "Windows Hello v tomto počítači není k dispozici.",
+    "busy": "Windows Hello je zaneprázdněné nebo zablokované. Zkuste to později.",
+    "off_after_pin_change": "Windows Hello je teď vypnuté, protože po změně PINu nepotvrdilo. Pokud ho používáte, zapněte ho znovu.",
+    "prompt": "Potvrďte pomocí Windows Hello, že jste to vy.",
+    "waiting": "Čeká se na Windows Hello…",
+    "use_hello": "Odemknout pomocí Windows Hello",
+    "use_pin": "Použít PIN",
+    "failed": "Windows Hello aplikaci neodemklo. Zadejte PIN.",
+    "gone": "Windows Hello už v tomto počítači aplikaci neodemyká. Zadejte PIN."
+  },
   "uxs_general": {
     "time_zone_common": "Běžná časová pásma",
     "time_zone_all": "Všechna časová pásma",
@@ -7479,6 +7617,8 @@
     "app_lock_now_desc_desktop": "Zamkne hned všechna okna.",
     "app_lock_protects_toggle": "Před čím to chrání?",
     "app_lock_timeout_hours": "{count, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodin}}",
+    "app_lock_until_screen": "Při zamknutí obrazovky",
+    "app_lock_until_session": "Při odhlášení nebo restartu",
     "desktop_attention_title": "Na tomto počítači"
   },
   "uxs2_ident": {
@@ -7566,6 +7706,10 @@
     "trouble_cors": "Váš poštovní server musí povolit přihlašování z tohoto webu. Pokud přihlášení selže, požádejte správce poštovního serveru, aby to povolil.",
     "provider_unsupported": "{provider} nenabízí JMAP, způsob, jakým Bulwark komunikuje s poštovními servery, takže se k němu Bulwark zatím nemůže připojit přímo."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock je zapnutý",
+    "language_button": "Jazyk: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "Změnit, jak se Bulwark připojuje?",
@@ -7651,6 +7795,8 @@
     "start_at_login_description": "Aplikace se po přihlášení spustí sama.",
     "start_minimized_label": "Spustit v oznamovací oblasti",
     "start_minimized_description": "Po přihlášení se neotevře žádné okno. Otevřete ji ikonou v oznamovací oblasti.",
+    "reopen_after_restart_label": "Znovu otevřít po restartu",
+    "reopen_after_restart_description": "Pokud je aplikace otevřená, když se počítač restartuje nebo se odhlásíte, po opětovném přihlášení se znovu otevře na stejné složce, zprávě nebo stránce.",
     "attention_label": "Při nové poště blikat na hlavním panelu",
     "attention_mac_label": "Při nové poště poskakovat ikonou v Docku",
     "attention_description": "Jen když aplikace není v popředí.",
@@ -7754,6 +7900,45 @@
     "clear_confirm": "Smazat",
     "signout_changed": "Zatím nepřipojené ani neuložené, a teď smazané: {names}.",
     "signout_held": "Stále otevřené v jiném programu, takže se smažou až po zavření: {names}."
+  },
+  "desktopPrint": {
+    "title": "Tisk",
+    "pages_one": "1 stránka",
+    "pages_many": "Počet stran: {count}",
+    "preparing": "Připravuje se náhled…",
+    "preview_failed": "Náhled se nepodařilo vytvořit.",
+    "preview_label": "Náhled",
+    "destination": "Cíl",
+    "save_as_pdf": "Uložit jako PDF",
+    "pages": "Stránky",
+    "pages_all": "Vše",
+    "pages_custom": "Vlastní",
+    "pages_example": "např. 1-3, 5",
+    "pages_invalid": "Zadejte stránky od 1 do {count}, například 1-3, 5.",
+    "copies": "Kopie",
+    "layout": "Rozvržení",
+    "portrait": "Na výšku",
+    "landscape": "Na šířku",
+    "color": "Barva",
+    "color_color": "Barevně",
+    "color_mono": "Černobíle",
+    "more": "Další nastavení",
+    "paper": "Velikost papíru",
+    "paper_printer": "Výchozí nastavení tiskárny",
+    "margins": "Okraje",
+    "margins_default": "Výchozí",
+    "margins_none": "Žádné",
+    "margins_minimum": "Minimální",
+    "scale": "Měřítko (%)",
+    "options": "Možnosti",
+    "header_footer": "Záhlaví a zápatí",
+    "background": "Grafika na pozadí",
+    "print": "Tisk",
+    "save": "Uložit",
+    "cancel": "Zrušit",
+    "system_dialog": "Tisknout pomocí systémového dialogu…",
+    "failed_title": "Tisk se nezdařil",
+    "failed_detail": "Tiskárna úlohu nepřijala. Zkontrolujte, zda je zapnutá, a zkuste to znovu."
   },
   "files_sync": {
     "title": "Soubory v tomto počítači",
@@ -8049,6 +8234,20 @@
       "app_lock_hello": "Windows Hello Touch ID otisk prstu obličej přístupový klíč passkey"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "Soukromí a zabezpečení",
+      "security": "Heslo a přihlášení",
+      "about_updates": "O aplikaci a aktualizace",
+      "backup": "Záloha a import"
+    },
+    "sections": {
+      "start": "Spuštění a zavření",
+      "shortcuts": "Zkratky z jiných aplikací",
+      "mail_links": "Poštovní odkazy a soubory"
+    },
+    "privacy_link_description": "Tato nastavení najdete na stránce Soukromí a zabezpečení."
+  },
   "desktop_policy": {
     "server_refused": "Vaše organizace tento server na tomto zařízení nepovoluje.",
     "plugin_refused": "Vaše organizace tento plugin na tomto zařízení nepovoluje, proto neběží. Jeho nastavení a data zůstávají zachována.",
@@ -8095,5 +8294,9 @@
   "selectionView": {
     "starred": "Označeno hvězdičkou",
     "unstarred": "Hvězdička odebrána"
+  },
+  "impersonation": {
+    "return_notice": "Schránku {mailbox} jste otevřeli přes zosobnění.",
+    "return_button": "Zpět na můj účet"
   }
 }

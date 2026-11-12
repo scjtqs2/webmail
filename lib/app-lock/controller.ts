@@ -24,16 +24,16 @@ import { IS_LITE } from '@/lib/lite';
 import { useOfflineStore } from '@/lib/offline/state';
 import { keepRescuedDraft } from '@/lib/popout/rescued-drafts';
 import { closePopoutWindow, isPopoutWindow } from '@/lib/popout/window-role';
-import { getStore, type StoreBackend } from '@/lib/store/client/api';
+import { configureStoreKeys, getStore, type StoreBackend } from '@/lib/store/client/api';
 import { forgetAccountKey, listAccountRecords, rewrapAccountKey, StoreKeyLayerMissingError, type AccountRecord, type WrapLayer } from '@/lib/store/client/keys';
 import { purgeStoreFiles } from '@/lib/store/client/purge';
 import { purgeSignedOutData } from '@/lib/sign-out-cleanup';
 import { OWNER_LOCK } from '@/lib/store/worker/protocol';
 import type { ComposerDraftData } from '@/components/email/email-composer';
-import { importLockKey, LOCK_LAYER, lockLayer, mainProof, ObviousPinError, pinIsObvious, randomBytes, SHELL_LAYER } from './crypto';
+import { HELLO_SALT_BYTES, importLockKey, LOCK_LAYER, lockLayer, mainProof, ObviousPinError, pinIsObvious, pinLongEnough, randomBytes, SHELL_LAYER, ShortPinError } from './crypto';
 import { watchIdle } from './idle';
 import { createPasskey, passkeyPrf, PasskeyNoPrfError } from './passkey';
-import { appLockRequired, effectiveTimeout, onLockPolicyChange } from './policy';
+import { appLockHelloAllowed, appLockRequired, effectiveTimeout, onLockPolicyChange, pinMinLength } from './policy';
 import { reloadSealedStores, restoreSealedStorage, scrubBrowserStorage } from './scrub';
 import { shellControls, shellHasWrap, shellUnwrapCall, shellWrapCall, resetShellForTests } from './shell';
 import { clearPendingCookies, markCookiesToClear, rememberMainProof, requireFreshLogin } from './sign-out';
@@ -41,6 +41,7 @@ import {
   APP_LOCK_CHANNEL,
   APP_LOCK_HOLDER,
   APP_LOCK_KEY,
+  DEFAULT_TIMEOUT_MINUTES,
   headScriptFoundNoVault,
   isAppLockedNow,
   postAppLockMessage,
@@ -49,17 +50,21 @@ import {
   writeAppLockFile,
   type AppLockFile,
   type AppLockMessage,
+  type AppLockUntil,
 } from './state';
 import {
+  addVaultHello,
   addVaultPrf,
   clearVaultPrevious,
   createVault,
   deleteVault,
   openSealedDrafts,
   openVaultPrevious,
+  openVaultWithHello,
   openVaultWithPin,
   openVaultWithPrf,
   readVault,
+  removeVaultHello,
   removeVaultPrf,
   rotateVaultKey,
   sealDraft,
@@ -170,6 +175,8 @@ export function bootAppLock(): void {
   if (booted || typeof window === 'undefined' || IS_LITE) return;
   booted = true;
   setAppLockCheck(isAppLockedNow);
+  // Before anything can open the store: the app may ask for it before offline mode has loaded.
+  configureStoreKeys({ keyLayers: storeKeyLayers, onKeyLocked: onStoreKeyMissing });
   desktopControls();
   const file = readAppLockFile();
   if (file.on) {
@@ -327,9 +334,16 @@ function startIdle(): void {
     return;
   }
   stopIdle = watchIdle({
-    timeoutMs: () => effectiveTimeout(readAppLockFile().timeoutMinutes).minutes * 60_000,
-    onIdle: () => lockEverywhere(),
+    timeoutMs: timeoutMsNow,
+    onIdle: () => lockOnItsOwn('idle'),
   });
+}
+
+/** Read on every check, so a change in settings reaches every window's watcher. */
+function timeoutMsNow(): number {
+  const file = readAppLockFile();
+  const timeout = effectiveTimeout(file.timeoutMinutes, file.until);
+  return timeout.until ? Infinity : timeout.minutes * 60_000;
 }
 
 /**
@@ -344,7 +358,7 @@ function watchHolder(): void {
   holderWatch = watch;
   void navigator.locks.request(APP_LOCK_HOLDER, { signal: watch.signal }, () => {
     if (heldKey) return keepHolder();
-    if (readAppLockFile().on && !readAppLockFile().locked) lockEverywhere();
+    if (readAppLockFile().on && !readAppLockFile().locked) lockOnItsOwn('the tab with the key went');
     return undefined;
   }).catch(() => {});
 }
@@ -389,6 +403,34 @@ function openUp(): void {
 }
 
 // ---- Locking ----
+
+/** When this tab last saw an unlock, its own or another window's. 0: none since it started. */
+let unlockedAt = 0;
+/** A lock this soon after an unlock is a bug somewhere, whoever asked for it. */
+const RELOCK_ERROR_MS = 1_000;
+
+function noteUnlocked(): void {
+  unlockedAt = Date.now();
+}
+
+/**
+ * A lock the app decides on by itself: the idle timeout, the tab with the key gone, a store key
+ * this tab can't open. Within the timeout after an unlock none of them can be right: the user was
+ * just here. A bug in one would lock again after every unlock, and nobody could get back in. So
+ * they wait out the timeout; the user's own lock (the menu, the tray, settings, the screen
+ * locking) always goes through.
+ */
+function lockOnItsOwn(cause: string): void {
+  const since = Date.now() - unlockedAt;
+  // With no timeout, the default's worth of time.
+  const timeout = timeoutMsNow();
+  const grace = Number.isFinite(timeout) ? timeout : DEFAULT_TIMEOUT_MINUTES * 60_000;
+  if (unlockedAt > 0 && since < grace) {
+    console.error(`[app-lock] Not locking again ${since} ms after an unlock: ${cause}`);
+    return;
+  }
+  lockEverywhere();
+}
 
 /** Every window and tab. Safe to call at any time; it only ever makes things more locked. */
 export function lockEverywhere(): void {
@@ -509,6 +551,8 @@ function stayUntilReachable(): void {
 
 async function applyLockHere(): Promise<void> {
   if (phase === 'locking' || phase === 'locked' || phase === 'locked-stay') return;
+  const sinceUnlock = Date.now() - unlockedAt;
+  if (unlockedAt > 0 && sinceUnlock < RELOCK_ERROR_MS) console.error(`[app-lock] Locked again ${sinceUnlock} ms after an unlock`);
   const wasRunning = phase === 'open';
   setLockedHere(true);
   markDocument(true);
@@ -599,6 +643,7 @@ async function holdAndOpen(raw: Uint8Array): Promise<void> {
     await reloadSealedStores();
   }
   writeAppLockFile({ ...readAppLockFile(), on: true, locked: false });
+  noteUnlocked();
   postAppLockMessage({ type: 'unlocked' });
   tellServiceWorker('unlocked');
   openUp();
@@ -627,7 +672,7 @@ export async function unlockWithPasskey(): Promise<void> {
   await holdAndOpen(await openVaultWithPrf(output));
 }
 
-/** Windows Hello or Touch ID. Main asks, and only hands over the key after a yes. */
+/** Touch ID. Main asks, and only hands over the key after a yes. */
 export async function unlockWithOs(): Promise<boolean> {
   const member = desktopControls();
   if (!member) return false;
@@ -635,6 +680,132 @@ export async function unlockWithOs(): Promise<boolean> {
   if (!answer.ok) return false;
   await holdAndOpen(new Uint8Array(answer.key));
   return true;
+}
+
+// ---- Windows Hello ----
+
+/** Why Windows Hello said no, or couldn't be asked. The PIN works either way. */
+export class HelloError extends Error {
+  constructor(readonly reason: string) {
+    super(`Windows Hello: ${reason}`);
+    this.name = 'HelloError';
+  }
+}
+
+export interface HelloState {
+  /** The switch shows: the desktop app on Windows with Hello set up, the policy allows it, and the lock is on. */
+  shown: boolean;
+  /** Hello unlocks the app: there's a wrap here and main has the key credential for it. */
+  on: boolean;
+}
+
+/**
+ * Whether Hello can unlock, and whether it does. A wrap whose key credential main no longer has
+ * (Hello was reset, the policy removed it) opens nothing, so it goes.
+ */
+export async function helloState(): Promise<HelloState> {
+  const member = getDesktopBridge()?.appLock;
+  const controls = desktopControls();
+  if (!member || !controls?.helloEnroll || !controls.helloSign) return { shown: false, on: false };
+  const status = await member.status().catch(() => null);
+  const hello = status?.hello;
+  if (!hello) return { shown: false, on: false };
+  const vault = await readVault().catch(() => null);
+  const allowed = hello.allowed && appLockHelloAllowed();
+  if (vault?.hello && (!allowed || !hello.enrolled)) await removeVaultHello().catch(() => {});
+  const shown = allowed && hello.available && Boolean(vault);
+  return { shown, on: shown && Boolean(vault?.hello) && hello.enrolled };
+}
+
+/**
+ * Turns Hello on: the PIN gives the lock key, main makes a key credential and signs its challenge
+ * (Hello's prompt), and the lock key goes under a key from that signature.
+ */
+export async function enableHello(pin: string): Promise<void> {
+  const controls = desktopControls();
+  if (!controls?.helloEnroll || !appLockHelloAllowed()) throw new HelloError('unavailable');
+  const raw = await openVaultWithPin(pin);
+  try {
+    const salt = randomBytes(HELLO_SALT_BYTES);
+    const answer = await controls.helloEnroll(await mainProof(raw), salt);
+    if (!answer.ok) throw new HelloError(answer.reason);
+    try {
+      await addVaultHello(raw, salt, answer.signature);
+    } catch (error) {
+      await controls.helloRemove?.().catch(() => {});
+      throw error;
+    } finally {
+      answer.signature.fill(0);
+    }
+  } finally {
+    raw.fill(0);
+  }
+}
+
+/** Off: the wrap and the key credential both go. */
+export async function disableHello(): Promise<void> {
+  await removeVaultHello();
+  await desktopControls()?.helloRemove?.().catch(() => {});
+}
+
+/**
+ * The lock screen's way in with Hello. Main signs only while it's locked, and the page proves the
+ * unlock with the lock key as after a PIN. A no from Hello costs no PIN try.
+ */
+export async function unlockWithHello(): Promise<void> {
+  const controls = desktopControls();
+  const vault = await readVault();
+  if (!vault?.hello || !controls?.helloSign) throw new HelloError('missing');
+  const answer = await controls.helloSign(vault.hello.salt);
+  if (!answer.ok) {
+    // Nothing will open this wrap again: Windows lost the key credential, or the policy took it.
+    if (answer.reason === 'missing' || answer.reason === 'policy') await removeVaultHello().catch(() => {});
+    throw new HelloError(answer.reason);
+  }
+  let raw: Uint8Array;
+  try {
+    raw = await openVaultWithHello(answer.signature);
+  } catch {
+    throw new HelloError('failed');
+  } finally {
+    answer.signature.fill(0);
+  }
+  await holdAndOpen(raw);
+}
+
+/** "Use PIN instead" while Hello's prompt is up. */
+export function cancelHello(): void {
+  desktopControls()?.helloCancel?.();
+}
+
+/** A policy forced Hello off: a wrap left here goes, as main deletes the key credential. */
+async function dropHelloIfNotAllowed(): Promise<void> {
+  if (appLockHelloAllowed()) return;
+  if ((await readVault().catch(() => null))?.hello) await disableHello().catch(() => {});
+}
+
+/**
+ * After a new lock key: Hello's prompt for a new wrap. A no turns Hello off, with its key
+ * credential, and says so: nothing may stay that opens the old key. True when it's on again.
+ */
+async function redoHelloWrap(newRaw: Uint8Array, newProof: Uint8Array): Promise<boolean> {
+  const controls = desktopControls();
+  if (controls?.helloSign && appLockHelloAllowed()) {
+    const salt = randomBytes(HELLO_SALT_BYTES);
+    const answer = await controls.helloSign(salt, newProof).catch(() => null);
+    if (answer?.ok) {
+      try {
+        await addVaultHello(newRaw, salt, answer.signature);
+        return true;
+      } catch {
+        // Off, below.
+      } finally {
+        answer.signature.fill(0);
+      }
+    }
+  }
+  await controls?.helloRemove?.().catch(() => {});
+  return false;
 }
 
 // ---- The account keys ----
@@ -722,7 +893,7 @@ export async function storeKeyLayers(): Promise<readonly WrapLayer[]> {
 
 /** This tab inherited the store and has no key for it. */
 export function onStoreKeyMissing(): void {
-  lockEverywhere();
+  lockOnItsOwn(heldKey ? 'the store asked for the key this tab holds' : 'this tab has the store and no key');
 }
 
 async function ownerIsElsewhere(): Promise<boolean> {
@@ -743,6 +914,7 @@ export async function enableAppLock(pin: string): Promise<void> {
 }
 
 async function enable(pin: string): Promise<void> {
+  if (!pinLongEnough(pin, pinMinLength())) throw new ShortPinError();
   const raw = await createVault(pin);
   const proof = await mainProof(raw);
   const member = getDesktopBridge()?.appLock;
@@ -768,6 +940,7 @@ async function enable(pin: string): Promise<void> {
   } catch {
     // Storage blocked: there's no snapshot either.
   }
+  noteUnlocked();
   postAppLockMessage({ type: 'enabled' });
   tellServiceWorker('unlocked');
   openUp();
@@ -824,12 +997,16 @@ function afterOff(): void {
  * A new PIN takes a new lock key and, in the background, new store keys: the old PIN's record can
  * stay in the browser's files, and must not open anything any more. Main hears first, so that
  * wherever this stops the vault can still be opened. `reenroll`: the passkey and the OS's unlock
- * held the old key, and have to be set up again.
+ * held the old key, and have to be set up again. Windows Hello is asked for a new wrap at once;
+ * `helloOff` says it said no and is off now.
  */
-export async function changeAppLockPin(currentPin: string, newPin: string): Promise<{ reenroll: boolean }> {
+export async function changeAppLockPin(currentPin: string, newPin: string): Promise<{ reenroll: boolean; helloOff: boolean }> {
+  if (!pinLongEnough(newPin, pinMinLength())) throw new ShortPinError();
   if (pinIsObvious(newPin)) throw new ObviousPinError();
   const member = getDesktopBridge()?.appLock;
-  const hadOther = Boolean((await readVault())?.prf) || Boolean((await member?.status().catch(() => null))?.osEnrolled);
+  const before = await readVault();
+  const hadOther = Boolean(before?.prf) || Boolean((await member?.status().catch(() => null))?.osEnrolled);
+  const hadHello = Boolean(before?.hello);
   const oldRaw = await openVaultWithPin(currentPin);
   const newRaw = randomBytes(32);
   try {
@@ -842,26 +1019,40 @@ export async function changeAppLockPin(currentPin: string, newPin: string): Prom
     await rotateVaultKey(newPin, oldRaw, newRaw);
     // Setting the new PIN went through main's count too.
     await member?.prove(newProof).catch(() => false);
+    const helloOff = hadHello && !(await redoHelloWrap(newRaw, newProof));
     const key = await importLockKey(newRaw);
     await askShell();
     await moveFromPreviousKey(key);
     if (!hadKey) {
       // Another tab holds the old key: everyone starts over with the new one.
       lockEverywhere();
-      return { reenroll: hadOther };
+      return { reenroll: hadOther, helloOff };
     }
     heldKey = key;
     rememberMainProof(newProof);
     void storeBackend().rekeyPending?.();
-    return { reenroll: hadOther };
+    return { reenroll: hadOther, helloOff };
   } finally {
     oldRaw.fill(0);
     newRaw.fill(0);
   }
 }
 
-export function setAppLockTimeout(minutes: number): void {
-  writeAppLockFile({ ...readAppLockFile(), timeoutMinutes: minutes });
+/** Minutes without use, or a desktop event instead. */
+export function setAppLockTimeout(choice: number | AppLockUntil): void {
+  const { until: _until, ...file } = readAppLockFile();
+  writeAppLockFile(typeof choice === 'number' ? { ...file, timeoutMinutes: choice } : { ...file, until: choice });
+  // Main locks on the screen lock by itself. A shell that can't be told keeps doing that.
+  void desktopControls()?.setScreenLock?.(choice !== 'session').catch(() => {});
+}
+
+/** The desktop events this shell can lock on instead of a timeout. None in a browser. */
+export function appLockUntilChoices(): AppLockUntil[] {
+  const bridge = getDesktopBridge();
+  if (!bridge?.appLock) return [];
+  // Linux tells Electron nothing when the screen locks, so main never locks on it there.
+  if (bridge.platform === 'linux') return ['session'];
+  return desktopControls()?.setScreenLock ? ['screen', 'session'] : ['screen'];
 }
 
 export async function addPasskey(pin: string, appName: string): Promise<void> {
@@ -989,6 +1180,7 @@ function onMessage(message: AppLockMessage): void {
         void desktopSaysLocked().then(async (locked) => {
           if (locked) return;
           await reloadSealedStores();
+          noteUnlocked();
           openUp();
         });
       }
@@ -1031,13 +1223,17 @@ export function startAppLock(): () => void {
   const stopDesktop = getDesktopBridge()?.appLock?.onLockRequest(() => lockEverywhere());
   const reevaluate = () => {
     if (phase === 'open' && setupNeeded()) setPhase('setup');
+    void dropHelloIfNotAllowed();
   };
   const stopPolicy = onLockPolicyChange(reevaluate);
   if (phase === 'open' && readAppLockFile().on) {
     startIdle();
     if (!heldKey) watchHolder();
   }
-  if (readAppLockFile().on) tellServiceWorker(isAppLockedNow() ? 'locked' : 'unlocked');
+  if (readAppLockFile().on) {
+    tellServiceWorker(isAppLockedNow() ? 'locked' : 'unlocked');
+    void dropHelloIfNotAllowed();
+  }
   return () => {
     channel?.close();
     window.removeEventListener('storage', onStorage);
@@ -1065,6 +1261,8 @@ export function resetAppLockForTests(): void {
   stopIdle = null;
   stopStay?.();
   resetShellForTests();
+  configureStoreKeys(null);
+  unlockedAt = 0;
   enabling = false;
   shellWraps = false;
   shellAsked = false;

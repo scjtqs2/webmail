@@ -355,6 +355,9 @@
     "no_search_results": "Sonuç bulunamadı",
     "no_search_results_description": "Arama teriminizi veya filtrelerinizi değiştirmeyi deneyin",
     "more_results_searching": "Başka sonuçlar aranıyor…",
+    "resize_plugin_results": "Eklenti sonuçlarını yeniden boyutlandır",
+    "compact_plugin_results": "Sonuç başına bir satır",
+    "plugin_result_score": "5 üzerinden {count}",
     "loading": "E-postalar yükleniyor...",
     "unread": "okunmamış",
     "to_me": "Bana",
@@ -1081,6 +1084,7 @@
     "templates_menu": "Şablonlar",
     "insert_template": "Şablon ekle…",
     "options": "Seçenekler",
+    "tags": "Etiketler",
     "option_plain_text": "Düz metin",
     "option_plain_text_hint": "Biçimlendirmeden gönder",
     "option_read_receipt": "Okundu bilgisi iste",
@@ -1280,6 +1284,14 @@
       "plain_text": "[Görsel: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "Yeniden adlandır",
+    "rename_named": "{name} dosyasını yeniden adlandır",
+    "rename_menu": "Yeniden adlandır…",
+    "rename_title": "Eki yeniden adlandır",
+    "rename_invalid_chars": "Dosya adları / veya \\ ya da denetim karakterleri içeremez",
+    "rename_too_long": "Bu ad çok uzun"
+  },
   "compose_ux": {
     "draft_discarded": "Taslak silindi",
     "undo": "Geri al",
@@ -1294,6 +1306,12 @@
     "shortcut_save_draft": "Taslağı kaydet",
     "shortcut_show_cc": "Bilgiyi göster",
     "shortcut_show_bcc": "Gizli bilgiyi göster"
+  },
+  "compose_dock": {
+    "open_draft": "Aç",
+    "reply_type": "Yanıt türü: {kind}",
+    "resize_reply": "Yanıtı yeniden boyutlandır",
+    "fields_menu": "Diğer alanlar"
   },
   "confirm_dialog": {
     "confirm": "Onayla",
@@ -1473,6 +1491,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "Kuruluşunuz tüm e-postalarda uzak içeriği engelliyor, bu yüzden güvenilir gönderenlerde de yüklenmez."
+  },
+  "trusted_senders_book": {
+    "unavailable": "Kullanılamıyor: bu hesap sunucuda adres defteri tutamıyor. Liste bu cihazda kalır."
   },
   "date": {
     "today": "Bugün",
@@ -1672,7 +1693,7 @@
         "label": "Arayüz düzeni",
         "description": "Arama, gezinme ve araç çubuklarının konumu",
         "default": "Varsayılan",
-        "mountain_view": "Arama üstte, uygulamalar solda"
+        "mountain_view": "Arama üstte"
       },
       "animations": {
         "label": "Animasyonları Etkinleştir",
@@ -1785,12 +1806,17 @@
       "title": "E-posta Etiketleri",
       "description": "İletilerinizi düzenlemek için etiketler oluşturun. Etiketler iletilerinizle birlikte sunucuda saklanır.",
       "add_keyword": "Etiket Ekle",
+      "empty": "Henüz etiket yok.",
       "label_field": "Görünen Ad",
       "label_placeholder": "ör. İş, Kişisel, Acil",
       "id_field": "Etiket Kimliği",
       "id_placeholder": "ör. is, kisisel",
       "color_field": "Renk",
-      "id_exists": "Bu etiket kimliği zaten mevcut",
+      "custom_color": "Özel renk",
+      "color_code": "Renk kodu",
+      "pick_custom_color": "Özel bir renk seçin",
+      "invalid_color": "#1a73e8 gibi bir renk kodu kullanın.",
+      "name_exists": "Bu adda bir etiket zaten var",
       "edit": "Etiketi düzenle",
       "delete": "Etiketi sil",
       "edit_tag": "{name} düzenle",
@@ -2067,9 +2093,17 @@
         "label": "Doğrulama kodlarını göster",
         "description": "Giriş ve onay e-postalarındaki kodu tek tıkla kopyalamak için sun; listede bir gün boyunca ve iletide"
       },
+      "show_attachment_chips": {
+        "label": "Ekleri listede göster",
+        "description": "Ekli dosyaları her iletinin altında göster, böylece doğrudan listeden açılabilsinler. Ataç simgesi her durumda görünür."
+      },
       "plain_text_mode": {
         "label": "Yalnızca Düz Metin",
         "description": "Zengin metin düzenleyicisini devre dışı bırak ve yanıtlar ve iletmeler dahil tüm e-postaları yalnızca düz metin olarak gönder"
+      },
+      "reply_under_message": {
+        "label": "Yanıtlar iletinin altında",
+        "description": "Bir yanıt veya iletme kendi iletisinin altında açılır ve ileti üstte okunabilir kalır. Kapalıyken yeni bir ileti gibi tüm okuma bölmesini kaplar."
       },
       "quick_reply": {
         "label": "Hızlı yanıt",
@@ -2115,12 +2149,6 @@
         "description": "Bir dosya ekine tıklandığında önizleme mi yoksa anında indirme mi yapılacağını seçin",
         "preview": "Mümkünse önizle",
         "download": "Anında indir"
-      },
-      "attachment_position": {
-        "label": "Ek Konumu",
-        "description": "E-posta başlığında eklerin nerede görüntüleneceği",
-        "below-header": "Başlığın altı",
-        "below-message": "Mesajın altında kartlar"
       },
       "emails_per_page": {
         "10": "10 e-posta",
@@ -2279,6 +2307,7 @@
       "auth_method_oauth": "Tekil Oturum Açma (OAuth/OIDC)",
       "auth_method_basic": "Parola",
       "auth_method_token": "Erişim belirteci",
+      "account_management_link": "Hesap güvenliğini yönet (2FA, uygulama parolaları)",
       "demo_account": "Demo Hesabı",
       "email": {
         "label": "E-posta Adresi",
@@ -2358,6 +2387,57 @@
       }
     },
     "security": {
+      "masked_addresses": {
+        "address": "Adres",
+        "description_column": "Açıklama",
+        "website_column": "Web sitesi",
+        "state": "Durum",
+        "actions": "İşlemler",
+        "no_description": "Açıklama yok",
+        "edit": "Düzenle",
+        "close": "Kapat",
+        "pagination": "Maskeli adres sayfaları",
+        "page": "Sayfa {page}/{pages}",
+        "previous": "Önceki",
+        "next": "Sonraki",
+        "delete": "Sil",
+        "delete_title": "Maskeli adres kalıcı olarak silinsin mi?",
+        "delete_warning": "{address} silinsin mi? Bu işlem geri alınamaz. Bu adrese gönderilen postalar artık teslim edilmeyecek.",
+        "delete_confirm": "Kalıcı olarak sil",
+        "cancel": "İptal",
+        "deleted": "Adres kalıcı olarak silindi.",
+        "deleted_refresh_failed": "Silme işlemi onaylandı ancak liste yenilenemedi. Güncel listeyi yüklemek için yenileyin.",
+        "delete_forbidden": "Geçerli oturumunuzun maskeli adres silme izni yok. İzin verilen diğer işlemler kullanılabilir durumda.",
+        "delete_failed": "Adres silinmedi. Tekrar denemeden önce listeyi yenileyin.",
+        "delete_unconfirmed": "Silme işlemi onaylanamadı. Yeniden denenmeyecek. Başka bir silme işleminden önce listeyi yenileyip adresi kontrol edin.",
+        "title": "Maskeli adresler",
+        "intro": "Ana adresinizi paylaşmadan posta alın. Devre dışı bırakılan bir adres, kendisine gelen yeni postaları reddeder. Bu adreslerle posta gönderilemez.",
+        "loading": "Maskeli adresler yükleniyor…",
+        "count": "{count, plural, one {# adres} other {# adres}}",
+        "empty": "Henüz maskeli adres yok.",
+        "website": "Web sitesi (isteğe bağlı)",
+        "description": "Açıklama (isteğe bağlı)",
+        "no_website": "Belirtilmedi",
+        "enabled": "Etkin",
+        "disabled": "Devre dışı",
+        "enable": "Etkinleştir",
+        "disable": "Devre dışı bırak",
+        "copy": "Kopyala",
+        "copied": "Adres kopyalandı.",
+        "copy_failed": "Kopyalanamadı. Yukarıdaki adresi seçip kopyalayın.",
+        "save": "Açıklamayı kaydet",
+        "create": "Maskeli adres oluştur",
+        "refresh": "Yenile",
+        "saved": "Değişiklik kaydedildi.",
+        "forbidden": "Geçerli oturumunuzun maskeli adresleri listeleme izni yok.",
+        "unavailable": "Maskeli adresler bu hesap veya sunucu için kullanılamıyor.",
+        "load_failed": "Adres listesinin tamamı yüklenemedi. Tekrar denemek için yenileyin.",
+        "save_failed": "Değişiklik onaylanamadı. Tekrar denemeden önce listeyi yenileyin.",
+        "create_forbidden": "Sunucu bu oturumla maskeli adres oluşturulmasına izin vermedi.",
+        "update_forbidden": "Sunucu bu oturumla maskeli adreslerin düzenlenmesine izin vermedi. Adresleri kopyalamaya devam edebilirsiniz.",
+        "over_quota": "Sunucunun maskeli adres kotasına ulaşıldı. Devre dışı adresler sınıra dahil edilmeye devam edebilir.",
+        "rate_limit": "Sunucunun oluşturma hızı sınırına ulaşıldı. Daha sonra tekrar deneyin."
+      },
       "title": "Hesap Güvenliği",
       "description": "Parolanızı, iki faktörlü kimlik doğrulamayı ve güvenlik ayarlarını yönetin",
       "detecting": "Sunucu özellikleri algılanıyor...",
@@ -3336,7 +3416,8 @@
         "description": "Klavyenin üzerinde olduğu düğmenin, bağlantının veya alanın çevresindeki çerçeve.",
         "normal": "Normal",
         "thick": "Kalın",
-        "extra": "Çok kalın"
+        "extra": "Çok kalın",
+        "off": "Kapalı"
       },
       "focus_always": {
         "label": "Odağı her zaman göster",
@@ -3596,6 +3677,10 @@
       "sync_on": "Diğer cihazlarınız aynı ayarları kullanıyor, bu yüzden onlar da değişir.",
       "sync_off": "Diğer cihazlarınız kendi ayarlarını korur."
     }
+  },
+  "layout_preview": {
+    "default_description": "Uygulamalar ve klasörler solda, arama listenin üstünde",
+    "mountain_view_description": "Arama en üstte, iletiler tam genişlikte açılır"
   },
   "setup": {
     "title": "Bulwark Webmail kurulumu",
@@ -3899,6 +3984,8 @@
     "delete_folder": "Klasörü sil",
     "refresh": "Yenile",
     "hide_shared_account": "Kenar çubuğundan gizle",
+    "move_shared_account_up": "Yukarı taşı",
+    "move_shared_account_down": "Aşağı taşı",
     "mute_notifications": "Bildirimleri sessize al",
     "unmute_notifications": "Bildirimleri aç",
     "mute_account_notifications": "Bu hesabın bildirimlerini sessize al",
@@ -5332,7 +5419,8 @@
     "invited": "{name} sizi \"{title}\" etkinliğine davet etti",
     "updated": "{name} \"{title}\" etkinliğini güncelledi",
     "cancelled": "{name} \"{title}\" etkinliğini iptal etti",
-    "untitled": "Başlıksız etkinlik"
+    "untitled": "Başlıksız etkinlik",
+    "summary": "Katıldığınız etkinliklerdeki değişiklikler: {count}"
   },
   "calendar_month_select": {
     "selected_range": "{start} ile {end} arası seçildi.",
@@ -5476,6 +5564,7 @@
     "shared": "{name}, \"{object}\" {kind} sizinle paylaştı",
     "changed": "{name}, \"{object}\" {kind} erişiminizi değiştirdi",
     "revoked": "{name}, \"{object}\" {kind} erişiminizi kaldırdı",
+    "summary": "{name}, {count, plural, other {# paylaşılan öğeye}} erişiminizi değiştirdi",
     "object": {
       "folder": "klasörünü",
       "calendar": "takvimini",
@@ -5653,10 +5742,10 @@
     "title": "Posta kutunuza hoş geldiniz",
     "tip_compose": "Yeni e-posta oluşturmak için c tuşuna basın",
     "tip_shortcuts": "Tüm klavye kısayollarını görmek için ? tuşuna basın",
-    "tip_sidebar": "Takvim, Kişiler ve Ayarlar soldaki çubukta",
+    "tip_sidebar_apps": "{apps} soldaki çubukta",
     "tip_settings": "Deneyiminizi Ayarlar'dan özelleştirin",
     "tip_compose_touch": "Yeni bir e-posta yazmak için kalem düğmesine dokunun",
-    "tip_sidebar_touch": "Takvim, Kişiler ve Ayarlar alttaki çubukta",
+    "tip_sidebar_apps_touch": "{apps} alttaki çubukta",
     "got_it": "Anladım",
     "settings": "Ayarlar",
     "dismiss": "Kapat",
@@ -6233,6 +6322,14 @@
     "date_label": "Tarih",
     "subject_label": "Konu"
   },
+  "print_styles": {
+    "title": "Yazdırma",
+    "description": "Yazdırılan iletilerin, kişilerin ve takvimlerin görünümü.",
+    "style_label": "Yazdırma stili",
+    "style_description": "Eklentiler stil ekleyebilir, örneğin şirketinizin adresini içeren antetli bir sayfa.",
+    "standard": "Standart",
+    "from_plugin": "{name} ({plugin})"
+  },
   "pwa_install": {
     "title": "{appName} uygulamasını yükle",
     "description": "Hızlı erişim için uygulamamızı yükleyin.",
@@ -6371,6 +6468,9 @@
     "attachments_description": "Tutulan iletilerin ekleri ve çevrimdışı tuttuğunuz dosyalar, toplam en fazla {total}. En eskiler önce silinir.",
     "total_locked": "Kuruluşunuz en fazla {size} ek ve dosyaya izin veriyor.",
     "attachment_cap_label": "Tutulacak en büyük ek",
+    "total_cap_label": "Saklanan eklerin toplam boyutu",
+    "total_cap_unlimited": "Sınır yok",
+    "attachments_description_unlimited": "Saklanan iletilerin ekleri ve çevrimdışı sakladığınız dosyalar, toplam boyut sınırı olmadan.",
     "usage_mail": "İletiler ve arama dizini",
     "usage_attachments": "Ekler",
     "usage_calendar": "Takvim",
@@ -6712,6 +6812,10 @@
       "auth_emit": {
         "title": "Oturumunuzu kapatma",
         "body": "Webmail'den çıkış yapmanızı sağlama."
+      },
+      "auth_impersonation_return": {
+        "title": "Sizi kendi hesabınıza geri götürmek",
+        "body": "Bir yönetici bir posta kutusunu kimliğe bürünerek açtıktan sonra o oturumu kapatıp başladığı hesaba yeniden giriş yapmak."
       },
       "account_read": {
         "title": "Hesaplarınızı görme",
@@ -7282,6 +7386,8 @@
       "title": "Uygulama pencereleri",
       "double_click_label": "İletileri çift tıklamayla yeni pencerede aç",
       "double_click_description": "Tek tıklama iletiyi yine listenin yanında açar.",
+      "compose_window_label": "İletileri her zaman yeni pencerede yaz",
+      "compose_window_description": "Yeni iletiler, yanıtlar, iletmeler ve taslaklar ana pencere yerine kendi pencerelerinde açılır.",
       "restore_label": "Başlangıçta pencereleri yeniden aç",
       "restore_description": "Çıkarken açık olan ileti ve taslak pencereleri geri gelir."
     },
@@ -7400,6 +7506,18 @@
     "attach_files": "Dosya ekle…",
     "shortcut_apps": "Posta, Takvim, Kişiler veya Dosyalar'a git"
   },
+  "desktopSaveOpen": {
+    "menu_open": "Aç…",
+    "menu_save_as": "Farklı kaydet…",
+    "open_filter": "İletiler, etkinlikler ve kişiler",
+    "save_filter": "E-posta iletisi",
+    "folder_title": "İletiler için bir klasör seçin",
+    "folder_button": "Buraya kaydet",
+    "saved_many": "{count, plural, one {# ileti kaydedildi.} other {# ileti kaydedildi.}}",
+    "save_failed": "{count, plural, one {# ileti kaydedilemedi.} other {# ileti kaydedilemedi.}}",
+    "shortcut_open": "Kaydedilmiş bir ileti, etkinlik veya kişi açın",
+    "shortcut_save_as": "İletiyi dosya olarak kaydedin"
+  },
   "appLock": {
     "section_title": "Uygulama kilidi",
     "section_desc": "Bir süre kullanılmadığında her pencerede ve sekmede PIN ister. Kilitliyken uygulama, biri PIN'i girene kadar bu cihazda saklanan postayı okuyamaz.",
@@ -7414,7 +7532,8 @@
     "pin_current": "Geçerli PIN",
     "pin_new": "Yeni PIN",
     "pin_repeat": "PIN'i tekrarlayın",
-    "pin_hint": "En az 6 karakter. Harfler de olur ve daha uzun bir PIN'i tahmin etmek daha zordur.",
+    "pin_hint": "En az 5 karakter. Harfler de olur ve daha uzun bir PIN'i tahmin etmek daha zordur.",
+    "pin_hint_policy": "Kuruluşunuz en az {count, plural, one {# karakter} other {# karakter}} istiyor. Harfler de olur.",
     "pin_obvious": "Bu PIN'i tahmin etmek çok kolay. Tekrarlardan, sıralı dizilerden ve yaygın seçimlerden kaçının.",
     "pin_mismatch": "İki PIN aynı değil.",
     "pin_recovery": "Unutursanız tek çözüm bu cihazdaki verileri kaldırıp yeniden oturum açmaktır. Sunucudaki e-postalarınız kalır. Bu cihazda hâlâ gönderilmeyi bekleyen iletiler kaybolur.",
@@ -7468,6 +7587,25 @@
     "blocked_seconds": "Çok fazla deneme. {count, plural, one {# saniye} other {# saniye}} sonra yeniden deneyin.",
     "blocked_minutes": "Çok fazla deneme. {count, plural, one {# dakika} other {# dakika}} sonra yeniden deneyin."
   },
+  "appLockHello": {
+    "switch_label": "Windows Hello ile kilidi aç",
+    "switch_desc": "Yüzünüzü, parmak izinizi veya Windows PIN'inizi kullanın. Uygulamanın PIN'i çalışmaya devam eder.",
+    "protects": "Windows Hello açıkken Windows bu uygulama için yalnızca Windows Hello sizin olduğunuzu doğruladıktan sonra çalışan bir anahtar saklar. Uygulamanın anahtarı da bununla kilitlenir; bu yüzden kilidi açmak için yüzünüz, parmak iziniz veya Windows PIN'iniz gerekir ve bu bilgisayardaki başka bir program, Windows önce size sormadan bu anahtarı kullanamaz. Uygulamanın PIN'i çalışmaya devam eder ve Windows Hello sıfırlanır veya kapatılırsa ona ihtiyacınız olur.",
+    "enable_title": "Windows Hello'yu aç",
+    "enable_body": "Uygulamanın PIN'ini girin. Ardından Windows, Windows Hello ile onaylamanızı ister.",
+    "enable_failed": "Windows Hello açılamadı. Yeniden deneyin.",
+    "cancelled": "Windows Hello iptal edildi.",
+    "unsupported": "Bu bilgisayardaki Windows Hello anahtarı koruyamıyor. PIN'iniz çalışmaya devam eder.",
+    "unavailable": "Windows Hello bu bilgisayarda kullanılamıyor.",
+    "busy": "Windows Hello meşgul veya kilitli. Daha sonra yeniden deneyin.",
+    "off_after_pin_change": "Windows Hello şimdi kapalı, çünkü PIN değişikliğinden sonra onay vermedi. Kullanıyorsanız yeniden açın.",
+    "prompt": "Windows Hello ile siz olduğunuzu onaylayın.",
+    "waiting": "Windows Hello bekleniyor…",
+    "use_hello": "Windows Hello ile kilidi aç",
+    "use_pin": "Bunun yerine PIN kullan",
+    "failed": "Windows Hello uygulamanın kilidini açmadı. PIN'inizi girin.",
+    "gone": "Windows Hello artık bu bilgisayarda uygulamanın kilidini açmıyor. PIN'inizi girin."
+  },
   "uxs_general": {
     "time_zone_common": "Sık kullanılan saat dilimleri",
     "time_zone_all": "Tüm saat dilimleri",
@@ -7479,6 +7617,8 @@
     "app_lock_now_desc_desktop": "Tüm pencereleri hemen kilitler.",
     "app_lock_protects_toggle": "Bu neye karşı korur?",
     "app_lock_timeout_hours": "{count, plural, one {# saat} other {# saat}}",
+    "app_lock_until_screen": "Ekran kilitlendiğinde",
+    "app_lock_until_session": "Oturumu kapattığımda veya yeniden başlattığımda",
     "desktop_attention_title": "Bu bilgisayarda"
   },
   "uxs2_ident": {
@@ -7566,6 +7706,10 @@
     "trouble_cors": "Posta sunucunuzun bu web sitesinden oturum açmaya izin vermesi gerekir. Oturum açılamazsa posta sunucunuzu yöneten kişiden buna izin vermesini isteyin.",
     "provider_unsupported": "{provider}, Bulwark'ın posta sunucularıyla konuştuğu yol olan JMAP'i sunmuyor, bu yüzden Bulwark henüz ona doğrudan bağlanamıyor."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock açık",
+    "language_button": "Dil: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "Bulwark'ın bağlanma şekli değiştirilsin mi?",
@@ -7651,6 +7795,8 @@
     "start_at_login_description": "Oturum açtığınızda uygulama kendiliğinden başlar.",
     "start_minimized_label": "Sistem tepsisinde başlat",
     "start_minimized_description": "Oturum açarken pencere açılmaz. Sistem tepsisindeki simgeyle açın.",
+    "reopen_after_restart_label": "Yeniden başlatmadan sonra tekrar aç",
+    "reopen_after_restart_description": "Bilgisayar yeniden başlatıldığında veya oturumu kapattığınızda uygulama açıksa, yeniden oturum açtığınızda aynı klasörde, iletide veya sayfada tekrar açılır.",
     "attention_label": "Yeni postada görev çubuğunu yanıp söndür",
     "attention_mac_label": "Yeni postada Dock simgesini zıplat",
     "attention_description": "Yalnızca uygulama önde değilken.",
@@ -7754,6 +7900,45 @@
     "clear_confirm": "Sil",
     "signout_changed": "Henüz eklenmedi veya kaydedilmedi, şimdi siliniyor: {names}.",
     "signout_held": "Hâlâ başka bir programda açık, bu yüzden ancak orada kapatınca silinir: {names}."
+  },
+  "desktopPrint": {
+    "title": "Yazdır",
+    "pages_one": "1 sayfa",
+    "pages_many": "{count} sayfa",
+    "preparing": "Önizleme hazırlanıyor…",
+    "preview_failed": "Önizleme oluşturulamadı.",
+    "preview_label": "Önizleme",
+    "destination": "Hedef",
+    "save_as_pdf": "PDF olarak kaydet",
+    "pages": "Sayfalar",
+    "pages_all": "Tümü",
+    "pages_custom": "Özel",
+    "pages_example": "ör. 1-3, 5",
+    "pages_invalid": "1 ile {count} arasında sayfalar girin, örneğin 1-3, 5.",
+    "copies": "Kopya sayısı",
+    "layout": "Düzen",
+    "portrait": "Dikey",
+    "landscape": "Yatay",
+    "color": "Renk",
+    "color_color": "Renkli",
+    "color_mono": "Siyah beyaz",
+    "more": "Diğer ayarlar",
+    "paper": "Kâğıt boyutu",
+    "paper_printer": "Yazıcı varsayılanı",
+    "margins": "Kenar boşlukları",
+    "margins_default": "Varsayılan",
+    "margins_none": "Yok",
+    "margins_minimum": "En az",
+    "scale": "Ölçek (%)",
+    "options": "Seçenekler",
+    "header_footer": "Üst bilgi ve alt bilgi",
+    "background": "Arka plan grafikleri",
+    "print": "Yazdır",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "system_dialog": "Sistem iletişim kutusuyla yazdır…",
+    "failed_title": "Yazdırılamadı",
+    "failed_detail": "Yazıcı işi kabul etmedi. Açık olduğunu kontrol edip yeniden deneyin."
   },
   "files_sync": {
     "title": "Bu bilgisayardaki dosyalar",
@@ -8049,6 +8234,20 @@
       "app_lock_hello": "Windows Hello Touch ID parmak izi yüz geçiş anahtarı passkey"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "Gizlilik ve güvenlik",
+      "security": "Parola ve oturum açma",
+      "about_updates": "Hakkında ve güncellemeler",
+      "backup": "Yedekleme ve içe aktarma"
+    },
+    "sections": {
+      "start": "Başlatma ve kapatma",
+      "shortcuts": "Diğer uygulamalardan kısayollar",
+      "mail_links": "E-posta bağlantıları ve dosyaları"
+    },
+    "privacy_link_description": "Bu ayarlar Gizlilik ve güvenlik sayfasındadır."
+  },
   "desktop_policy": {
     "server_refused": "Kuruluşunuz bu cihazda bu sunucuya izin vermiyor.",
     "plugin_refused": "Kuruluşunuz bu cihazda bu eklentiye izin vermiyor, bu yüzden çalışmıyor. Ayarları ve verileri korunur.",
@@ -8095,5 +8294,9 @@
   "selectionView": {
     "starred": "Yıldız eklendi",
     "unstarred": "Yıldız kaldırıldı"
+  },
+  "impersonation": {
+    "return_notice": "{mailbox} posta kutusunu kimliğe bürünerek açtınız.",
+    "return_button": "Hesabıma dön"
   }
 }

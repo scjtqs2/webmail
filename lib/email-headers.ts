@@ -1,5 +1,6 @@
 import { AuthenticationResults } from './jmap/types';
 import { parseUnsubscribeUrls } from './validation';
+import { toAsciiDomain } from './idn';
 
 type SpfResult = 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
 type SpfEntry = NonNullable<NonNullable<AuthenticationResults['spf']>['all']>[number];
@@ -87,6 +88,25 @@ function domainOf(address: string): string | undefined {
   return /^[^\s<>@]+\.[^\s<>@]+$/.test(domain) ? domain : undefined;
 }
 
+/**
+ * The original envelope domain of a Sender Rewriting Scheme address, or
+ * undefined when `address` isn't one. A forwarder rewrites
+ * `user@orig.example` to `SRS0=hash=tt=orig.example=user@forwarder`, and a
+ * second forwarder to `SRS1=hash=forwarder==hash=tt=orig.example=user@...`.
+ * Only the leading fields are split off: the local part may contain `=`.
+ */
+function srsOriginalDomain(address: string): string | undefined {
+  const at = address.lastIndexOf('@');
+  if (at < 0) return undefined;
+  const fields = address.slice(0, at).split('=');
+  const tag = fields[0].toUpperCase();
+  // SRS0: tag, hash, timestamp, domain, local part...
+  // SRS1: tag, hash, first forwarder, '', hash, timestamp, domain, local part...
+  const index = tag === 'SRS0' ? 3 : tag === 'SRS1' && fields[3] === '' ? 6 : -1;
+  if (index < 0 || fields.length <= index + 1) return undefined;
+  return domainOf(`@${fields[index]}`);
+}
+
 export interface SenderVerification {
   /**
    * `failed`: the message fails the From domain's checks (see
@@ -117,12 +137,18 @@ export function getSenderVerification(
   const domain = domainOf(fromEmail);
   if (!domain) return null;
 
-  // DMARC only counts the MAIL FROM identity; a HELO pass proves nothing
-  // about who wrote the message.
+  // Name the sender by a passing DKIM signature first: it survives
+  // forwarding, where the envelope is the forwarder's. Otherwise use the
+  // MAIL FROM identity (a HELO pass proves nothing about who wrote the
+  // message), decoding an SRS rewrite back to the original envelope domain.
+  const dkimPass = (auth.dkim?.all ?? (auth.dkim ? [auth.dkim] : []))
+    .find((entry) => entry.result === 'pass' && entry.domain);
   const mailFrom = auth.spf?.all?.find((entry) => entry.identity === 'mailfrom');
   const envelope = mailFrom?.domain ?? auth.spf?.domain;
-  const envelopeDomain = envelope ? domainOf(envelope) : undefined;
-  const sentFrom = envelopeDomain && envelopeDomain !== domain ? envelopeDomain : undefined;
+  const senderDomain = dkimPass?.domain
+    ? domainOf(`@${dkimPass.domain}`)
+    : envelope ? srsOriginalDomain(envelope) ?? domainOf(envelope) : undefined;
+  const sentFrom = senderDomain && senderDomain !== domain ? senderDomain : undefined;
 
   if (isAuthenticationSpoofed(auth)) return { status: 'failed', domain, sentFrom };
   // Only a pass that aligns with the From domain counts: `spf=pass` for the
@@ -171,15 +197,29 @@ export function authenticationResultsOnReceipt(headers: readonly { name: string;
  * pass without a DMARC verdict isn't enough, and neither is a pass that the
  * receiving server recorded for another header.from. Whether the domain
  * enforces DMARC and publishes a logo is /api/bimi's to find out.
+ *
+ * Mail a signed-in user handed in to the same server never gets a DMARC
+ * verdict: Stalwart writes Authentication-Results only on what arrives from
+ * outside, and lets a user send only from their own addresses. So a message
+ * with no such header at all counts as well when its From domain is one of
+ * `internalDomains`, the organisation's own (lib/external-mail.ts
+ * internalDomains, in ASCII form; a domain covers its subdomains). The same
+ * domain's mail from outside carries the header and still needs the pass.
  */
 export function brandIndicatorDomain(
   email: { from?: { email?: string | null }[] | null; authenticationResults?: AuthenticationResults } | undefined,
+  internalDomains: readonly string[] = [],
 ): string | undefined {
   const auth = email?.authenticationResults;
   const fromEmail = email?.from?.[0]?.email ?? undefined;
-  if (!auth?.dmarc || auth.dmarc.result !== 'pass' || !fromEmail) return undefined;
+  if (!fromEmail) return undefined;
   const domain = domainOf(fromEmail);
-  if (!domain || isAuthenticationSpoofed(auth)) return undefined;
+  if (!domain) return undefined;
+  if (!auth) {
+    const ascii = toAsciiDomain(domain) ?? domain;
+    return internalDomains.some((entry) => ascii === entry || ascii.endsWith(`.${entry}`)) ? domain : undefined;
+  }
+  if (auth.dmarc?.result !== 'pass' || isAuthenticationSpoofed(auth)) return undefined;
   const checked = auth.dmarc.domain ? domainOf(`@${auth.dmarc.domain}`) : domain;
   return checked === domain ? domain : undefined;
 }

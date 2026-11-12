@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ContactCard, AddressBook, AddressBookRights, ContactName, ContactMedia } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
-import { loadPrincipalDirectory } from '@/lib/jmap/principal-directory';
+import { loadScopedPrincipalDirectory } from '@/lib/directory-scope';
 import { generateUUID } from '@/lib/utils';
 import { debug } from '@/lib/debug';
 import { calendarHooks, contactHooks, settingsHooks } from '@/lib/plugin-hooks';
 import { BIRTHDAY_CALENDAR_ID } from '@/lib/birthday-calendar';
 import { useSettingsStore } from './settings-store';
 import { getClientByLocalAccountId } from './client-registry';
+import { usePolicyStore } from './policy-store';
 import { sanitizeDisplayName, splitMailbox } from '@/lib/rfc5322-mailbox';
 import { inlineContactMedia, writeContactWithNewPhoto, type ContactSaveOptions } from '@/lib/contact-media';
 import { contactToView } from '@/lib/plugin-projection';
@@ -119,6 +120,11 @@ export interface ContactAccountClient {
   localAccountId: string;
   client: IJMAPClient;
 }
+
+// The newest list fetch of each kind, one login's or every login's; an older
+// answer is dropped.
+let contactsLoadSeq = 0;
+let addressBooksLoadSeq = 0;
 
 /**
  * Prefix used to namespace contact/address-book IDs when the Pro shell
@@ -430,6 +436,72 @@ export async function consolidateTrustedSenderBooks(
   return Array.from(emails);
 }
 
+/**
+ * Moves the trusted senders kept on this device into the trusted senders
+ * book: an address the book lacks becomes a card there. Runs on every load
+ * while the book is in use, so turning the book on (by the user, by
+ * default or by the v14 settings migration) files the device's list once
+ * and a later run finds nothing to do. Two devices filing the same list at
+ * the same moment can both create a card for one address; the next load
+ * deletes the copy with the later id, the same one on every device, unless
+ * that card is filed in another book too. `known` holds addresses already
+ * in the book that `contacts` doesn't list (moved there from a duplicate
+ * book). Returns the book's addresses and the device's addresses that could
+ * not be filed (kept on the device).
+ */
+export async function mergeLocalTrustedSenders(
+  client: IJMAPClient,
+  bookId: string,
+  contacts: ContactCard[],
+  known: string[],
+  local: string[],
+): Promise<{ emails: string[]; unfiled: string[] }> {
+  const emails = new Set<string>();
+  for (const contact of [...contacts].sort((a, b) => a.id.localeCompare(b.id))) {
+    const addresses = collectContactEmails([contact]);
+    const onlyHere = Object.keys(contact.addressBookIds || {}).every((id) => id === bookId);
+    if (addresses.length > 0 && onlyHere && addresses.every((address) => emails.has(address))) {
+      try {
+        await client.deleteContact(contact.id);
+        debug.log('contacts', 'Removed a second trusted sender card for', addresses.join(', '));
+      } catch (error) {
+        debug.error('Failed to remove a duplicate trusted sender card:', contact.id, error);
+      }
+      continue;
+    }
+    addresses.forEach((address) => emails.add(address));
+  }
+  known.forEach((address) => emails.add(address));
+
+  const unfiled: string[] = [];
+  for (const entry of local) {
+    const address = entry.toLowerCase().trim();
+    if (!address || emails.has(address)) continue;
+    try {
+      await client.createContact({
+        addressBookIds: { [bookId]: true },
+        emails: { email: { address } },
+      });
+      emails.add(address);
+    } catch (error) {
+      debug.error('Failed to file a trusted sender in the address book:', address, error);
+      unfiled.push(address);
+    }
+  }
+  return { emails: Array.from(emails), unfiled };
+}
+
+/**
+ * Whether trusted senders live in the address book right now: the setting
+ * is on and the account can keep the book. Otherwise the list on the
+ * device is the one to show and change.
+ */
+export function useTrustedSendersInBook(): boolean {
+  const setting = useSettingsStore((s) => s.trustedSendersAddressBook);
+  const unavailable = useContactStore((s) => s.trustedSendersBookUnavailable);
+  return !!setting && !unavailable;
+}
+
 interface ContactStore {
   contacts: ContactCard[];
   addressBooks: AddressBook[];
@@ -446,6 +518,13 @@ interface ContactStore {
   trustedSendersBookId: string | null;
   trustedSendersLoaded: boolean;
   trustedSendersLoading: boolean;
+  /**
+   * The account can't keep the trusted senders book: no address book
+   * capability, or the book couldn't be read or created (no rights, server
+   * error). The list then stays on the device, and Settings shows the
+   * switch as unavailable.
+   */
+  trustedSendersBookUnavailable: boolean;
 
   // Recent recipients (from the Sent folder) for compose autocomplete - runtime only
   recentRecipients: Array<{ name: string; email: string }>;
@@ -468,6 +547,13 @@ interface ContactStore {
   fetchAddressBooks: (client: IJMAPClient) => Promise<void>;
   fetchAllAccountsContacts: (accounts: ContactAccountClient[]) => Promise<void>;
   fetchAllAccountsAddressBooks: (accounts: ContactAccountClient[]) => Promise<void>;
+  /**
+   * The logins the Pro shell lists together (hooks/use-pro-multi-account-contacts),
+   * or null with one login shown. Runtime only. While set, fetchContacts and
+   * fetchAddressBooks list every login, so a refresh keeps the others.
+   */
+  accountClients: ContactAccountClient[] | null;
+  setAccountClients: (accounts: ContactAccountClient[] | null) => void;
   // The contact actions resolve to false when a plugin stopped them
   // (onBeforeContactCreate / Update / Delete); nothing changed then.
   createContact: (client: IJMAPClient, contact: Partial<ContactCard>, options?: ContactSaveOptions) => Promise<boolean>;
@@ -631,6 +717,7 @@ export const useContactStore = create<ContactStore>()(
       trustedSendersBookId: null,
       trustedSendersLoaded: false,
       trustedSendersLoading: false,
+      trustedSendersBookUnavailable: false,
       recentRecipients: [],
       recentRecipientsLoaded: false,
       sentMailboxId: null,
@@ -644,16 +731,28 @@ export const useContactStore = create<ContactStore>()(
       // Every fetch below captures the store epoch before awaiting the server
       // and drops its result once the stores were cleared for another account
       // (lib/store-epoch.ts): a slow answer for account A must not become
-      // account B's address book, autocomplete and contact list.
+      // account B's address book, autocomplete and contact list. Within one
+      // account only the newest fetch lands: the one login's list asked for at
+      // a switch could otherwise answer after the Pro shell's list of every
+      // login and replace it.
+      accountClients: null,
+      setAccountClients: (accounts) => {
+        set({ accountClients: accounts && accounts.length > 0 ? accounts : null });
+      },
+
       fetchContacts: async (client) => {
+        // While the Pro shell lists every login, a refresh lists them all too.
+        const merged = get().accountClients;
+        if (merged) return get().fetchAllAccountsContacts(merged);
         const epoch = currentStoreEpoch();
+        const seq = ++contactsLoadSeq;
         set({ isLoading: true, error: null });
         try {
           const contacts = await client.getAllContacts();
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== contactsLoadSeq) return;
           set({ contacts, isLoading: false, contactsLoaded: true });
         } catch (error) {
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== contactsLoadSeq) return;
           console.error('Failed to fetch contacts:', error);
           // An account that couldn't answer keeps its cards; the others are fresh.
           const partial = partialAccounts<ContactCard>(error);
@@ -674,8 +773,11 @@ export const useContactStore = create<ContactStore>()(
         const epoch = currentStoreEpoch();
         set({ directoryStatus: 'loading' });
         try {
-          // Shared with the share dialog and free/busy (loadPrincipalDirectory).
-          const { principals, status } = await loadPrincipalDirectory(client);
+          // The public policy from before the sign-in carries no directory rules.
+          await usePolicyStore.getState().refreshIfPartial();
+          // Shared with the share dialog and free/busy, narrowed by the admin
+          // policy's directory rules (lib/directory-scope.ts).
+          const { principals, status } = await loadScopedPrincipalDirectory(client);
           if (currentStoreEpoch() !== epoch) return;
           if (status === 'error') throw new PrincipalsRequestError(null);
           if (status !== 'ok') debug.log('contacts', `Directory listing is ${status}; autocomplete offers ${principals.length} principals`);
@@ -696,13 +798,16 @@ export const useContactStore = create<ContactStore>()(
       },
 
       fetchAddressBooks: async (client) => {
+        const merged = get().accountClients;
+        if (merged) return get().fetchAllAccountsAddressBooks(merged);
         const epoch = currentStoreEpoch();
+        const seq = ++addressBooksLoadSeq;
         try {
           const addressBooks = await client.getAllAddressBooks();
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== addressBooksLoadSeq) return;
           set({ addressBooks });
         } catch (error) {
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== addressBooksLoadSeq) return;
           console.error('Failed to fetch address books:', error);
           const partial = partialAccounts<AddressBook>(error);
           set((state) => ({
@@ -714,6 +819,7 @@ export const useContactStore = create<ContactStore>()(
 
       fetchAllAccountsContacts: async (accounts) => {
         const epoch = currentStoreEpoch();
+        const seq = ++contactsLoadSeq;
         set({ isLoading: true, error: null });
         try {
           const results = await Promise.all(
@@ -732,10 +838,10 @@ export const useContactStore = create<ContactStore>()(
               }
             }),
           );
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== contactsLoadSeq) return;
           set({ contacts: results.flat(), isLoading: false, contactsLoaded: true });
         } catch (error) {
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== contactsLoadSeq) return;
           console.error('Failed to fetch all-account contacts:', error);
           set({ error: 'Failed to fetch contacts', isLoading: false, contactsLoaded: true });
         }
@@ -743,6 +849,7 @@ export const useContactStore = create<ContactStore>()(
 
       fetchAllAccountsAddressBooks: async (accounts) => {
         const epoch = currentStoreEpoch();
+        const seq = ++addressBooksLoadSeq;
         try {
           const results = await Promise.all(
             accounts.map(async ({ client, localAccountId }) => {
@@ -759,10 +866,10 @@ export const useContactStore = create<ContactStore>()(
               }
             }),
           );
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== addressBooksLoadSeq) return;
           set({ addressBooks: results.flat() });
         } catch (error) {
-          if (currentStoreEpoch() !== epoch) return;
+          if (currentStoreEpoch() !== epoch || seq !== addressBooksLoadSeq) return;
           console.error('Failed to fetch all-account address books:', error);
           set({ error: 'Failed to fetch address books' });
         }
@@ -1576,6 +1683,12 @@ export const useContactStore = create<ContactStore>()(
         // Share the in-flight load so parallel callers (mail view, settings,
         // the modal, addToTrustedSendersBook) can never create the book twice.
         if (trustedSendersLoadPromise) return trustedSendersLoadPromise;
+        // No address books on this server: the list stays on the device,
+        // without asking the server or telling the user off.
+        if (!client.supportsContacts?.()) {
+          set({ trustedSendersLoaded: true, trustedSendersLoading: false, trustedSendersBookUnavailable: true });
+          return;
+        }
         set({ trustedSendersLoading: true });
 
         trustedSendersLoadPromise = (async () => {
@@ -1605,10 +1718,22 @@ export const useContactStore = create<ContactStore>()(
               emails = await consolidateTrustedSenderBooks(client, bookId, matches.slice(1), emails);
             }
 
-            set({ trustedSendersBookId: bookId, trustedSenderEmails: emails, trustedSendersLoaded: true, trustedSendersLoading: false });
+            // The list kept on this device goes into the book, and what the
+            // book now holds leaves the device's list (it syncs to the
+            // other devices, which then have nothing left to file).
+            if (useSettingsStore.getState().trustedSendersAddressBook) {
+              const merged = await mergeLocalTrustedSenders(client, bookId, contacts, emails, useSettingsStore.getState().trustedSenders);
+              emails = merged.emails;
+              const inBook = new Set(emails);
+              const local = useSettingsStore.getState().trustedSenders;
+              const remaining = local.filter((address) => !inBook.has(address.toLowerCase().trim()));
+              if (remaining.length !== local.length) useSettingsStore.setState({ trustedSenders: remaining });
+            }
+
+            set({ trustedSendersBookId: bookId, trustedSenderEmails: emails, trustedSendersLoaded: true, trustedSendersLoading: false, trustedSendersBookUnavailable: false });
           } catch (error) {
             debug.error('Failed to load trusted senders address book:', error);
-            set({ trustedSendersLoaded: true, trustedSendersLoading: false });
+            set({ trustedSendersLoaded: true, trustedSendersLoading: false, trustedSendersBookUnavailable: true });
           } finally {
             trustedSendersLoadPromise = null;
           }
@@ -1631,6 +1756,12 @@ export const useContactStore = create<ContactStore>()(
           await get().loadTrustedSendersBook(client);
           bookId = get().trustedSendersBookId;
         }
+        // The account can't keep the book: the sender stays trusted on this
+        // device and goes into the book once it can be had.
+        if (!bookId && get().trustedSendersBookUnavailable) {
+          useSettingsStore.getState().addTrustedSender(emailAddress);
+          return;
+        }
         if (!bookId) throw new Error('Could not find or create trusted senders address book');
 
         debug.log('contacts', 'Adding trusted sender:', emailAddress, 'to book:', bookId);
@@ -1650,20 +1781,30 @@ export const useContactStore = create<ContactStore>()(
         const angleMatch = trimmed.match(/^(.+?)\s*<([^>]+)>$/);
         const normalizedEmail = (angleMatch ? angleMatch[2] : trimmed).toLowerCase().trim();
         const { trustedSendersBookId } = get();
-        if (!trustedSendersBookId) return;
+        // A sender kept on the device (no book here, or not filed yet) is
+        // taken off that list too, or it would stay trusted.
+        const settings = useSettingsStore.getState();
+        const wasLocal = settings.trustedSenders.includes(normalizedEmail);
+        if (!trustedSendersBookId) {
+          if (wasLocal) settings.removeTrustedSender(normalizedEmail);
+          return;
+        }
 
         debug.log('contacts', 'Removing trusted sender:', normalizedEmail);
         const contacts = await client.getContacts(trustedSendersBookId);
-        const match = contacts.find(c =>
+        const matches = contacts.filter(c =>
           c.emails && Object.values(c.emails).some(e => e.address.toLowerCase().trim() === normalizedEmail)
         );
-        if (match) {
+        for (const match of matches) {
           await client.deleteContact(match.id);
           debug.log('contacts', 'Trusted sender removed');
         }
         const wasTrusted = get().trustedSenderEmails.includes(normalizedEmail);
         set((state) => ({ trustedSenderEmails: state.trustedSenderEmails.filter(e => e !== normalizedEmail) }));
-        if (wasTrusted) void settingsHooks.onTrustedSenderChange.emit({ email: normalizedEmail, trusted: false });
+        if (wasLocal) {
+          useSettingsStore.setState({ trustedSenders: useSettingsStore.getState().trustedSenders.filter(e => e !== normalizedEmail) });
+        }
+        if (wasTrusted || wasLocal) void settingsHooks.onTrustedSenderChange.emit({ email: normalizedEmail, trusted: false });
       },
 
       isTrustedAddressBookSender: (email) => {

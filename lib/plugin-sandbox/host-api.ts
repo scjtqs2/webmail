@@ -16,12 +16,15 @@ import { doGetCheckText, doRecheck, doRegisterChecker, doSetAnnotations, doUnreg
 import { proxyAccounts, proxyCancel, proxyConnect, proxyDisconnect, proxyFetch, type StreamSink } from './proxy-client';
 import { checkActions, isActionSurface, setPluginActions } from './actions';
 import { checkDayLabels, setDayLabels } from './day-labels';
+import { registerPrintTheme, unregisterPrintTheme } from './print-themes';
 import { refreshRowBadges } from './row-badges';
 import { checkListFilters, setPluginListFilters } from './list-filters';
 import { checkPages, setPluginPages } from './pages';
 import { dismissPluginToast, showPluginProgressToast, showPluginToast } from './host-api-toasts';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAccountStore } from '@/stores/account-store';
+import { returnToOwnAccount } from '@/lib/impersonation/return-client';
+import { isPopoutWindow } from '@/lib/popout/window-role';
 import { claimLegacyPluginStorage, pluginStoragePrefix } from './storage-scope';
 import { useIdentityStore } from '@/stores/identity-store';
 import { resolveEmailBlobContext, useEmailStore } from '@/stores/email-store';
@@ -30,20 +33,22 @@ import { useFilterStore } from '@/stores/filter-store';
 import { useMessageListTabsStore } from '@/stores/message-list-tabs-store';
 import {
   KEYWORD_PALETTE,
+  emailKeywordsChosenPatch,
   useSettingsStore,
   type KeywordDefinition,
   type KeywordVisibility,
 } from '@/stores/settings-store';
 import type { MessageListTabsConfig } from '../plugin-types';
 import { apiFetch, getPathPrefix, withBasePath } from '../browser-navigation';
-import { createOAuthState } from '../plugin-oauth';
+import { createOAuthState, isPluginSignIn } from '../plugin-oauth';
+import { openPluginSignInInApp } from '../desktop/browser-sign-in';
 import { reportUploadProgress } from '../upload-progress';
 import { DEFAULT_KEYWORD_SCAN_LIMIT } from '../jmap/client';
 import { isServerSetKeyword } from '../jmap/server-keywords';
 import { suggestKeywordColor } from '../keyword-discovery';
-import { MAX_KEYWORD_LENGTH } from '../keyword-nesting';
-import { emailKeyFor, KEYWORD_PREFIX } from '../thread-utils';
-import { DEFAULT_SEARCH_FILTERS, normalizePluginFilter } from '../jmap/search-utils';
+import { isValidKeywordDefinitionId, MAX_KEYWORD_LABEL_LENGTH } from '../keyword-nesting';
+import { emailKeyFor } from '../thread-utils';
+import { DEFAULT_SEARCH_FILTERS, isFilterEmpty, normalizePluginFilter } from '../jmap/search-utils';
 import { awaitDialog, awaitPrompt, awaitCustomDialog, type PromptField } from './host-dialog';
 import { triggerAnchor } from './dialog-anchor';
 import { fileStorage } from '../plugin-storage';
@@ -66,6 +71,7 @@ import { MAX_PLUGIN_FETCH_BYTES, readFileName, readMediaType, sessionClient } fr
 import { doComposeOpen, doComposeReply, doDraftsCreate } from './host-api-compose';
 import { doEmailForward } from './host-api-forward';
 import { doUiPrint } from './host-api-print';
+import { doUiOpenFile } from './host-api-file-viewer';
 import { doNotificationsShow } from './host-api-notify';
 import { doAccountDataGet, doAccountDataSet, doUserFindPeople, doUserGetMailAccounts, doUserGetSelf } from './host-api-account';
 import { setSectionTitle } from './section-titles';
@@ -75,7 +81,7 @@ import { requestPageNavigation } from './page-navigation';
 import { requestCalendarView } from './calendar-navigation';
 import { requestOpenTask } from './open-task';
 import { requestOpenEmail } from './open-email';
-import { doComposerAttach, doComposerGetBody, doComposerGetSelection, doComposerGetSnapshot, doComposerReadAttachment, doComposerReplaceBody, doComposerReplaceSelection } from './host-api-composer';
+import { doComposerAttach, doComposerGetBody, doComposerGetSelection, doComposerGetSnapshot, doComposerReadAttachment, doComposerReplaceBody, doComposerReplaceSelection, doComposerSetSubject } from './host-api-composer';
 import { wkdAllowed } from '../outgoing-hosts';
 import { noThirdPartyTraffic } from '../third-party-mode';
 import { openExternalLink } from '../plugin-hook-result';
@@ -199,6 +205,8 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   // The user's preferences (layout, formats, reading and sending behaviour).
   'app.getSettings': 'settings:read',
   'user.logout': 'auth:emit',
+  // Only in an impersonated session; see doUserReturnToOwnAccount.
+  'user.returnToOwnAccount': 'auth:impersonation-return',
   // admin
   'admin.getConfig': 'admin:config',
   'admin.getAllConfig': 'admin:config',
@@ -215,8 +223,13 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   'ui.rerenderEmail': null,
   'ui.rerenderFetchedEmails': null,
   'ui.openExternalUrl': null,
-  // Print a page the plugin made (sanitised, no scripts, no network); 3 a minute.
+  // Print a page the plugin made (sanitised, no scripts, no network), or a
+  // PDF through the file preview; 3 a minute.
   'ui.print': null,
+  // Show a PDF or an image the plugin made in the app's file preview (no
+  // HTML or SVG, checked by its bytes); 5 a minute. The user decides whether
+  // to download or print it there.
+  'ui.openFile': null,
   'ui.downloadFile': 'ui:download-file',
   // email keyword mutations
   'email.setKeyword': 'email:write',
@@ -246,6 +259,7 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   // message-list search: the plugin never sees the results, but it decides
   // which messages the list shows.
   'search.run': 'email:read',
+  'search.clear': 'email:read',
   // OAuth with a third party: a state value bound to this plugin, and the
   // redirect URI the provider sends the user back to.
   'oauth.createState': 'http:fetch',
@@ -263,6 +277,10 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   'ui.refreshRowBadges': null,
   'ui.setListFilters': 'ui:message-list',
   'ui.setDayLabels': 'ui:calendar-action',
+  // A print style the user may pick for printouts: sanitised CSS and a
+  // plain-text letterhead, applied only to printouts and only when picked.
+  'ui.registerPrintTheme': null,
+  'ui.unregisterPrintTheme': null,
   'ui.setPages': 'ui:app-page',
   // Move the tab to one of the plugin's own pages (never anywhere else).
   'ui.openPage': 'ui:app-page',
@@ -343,6 +361,8 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   'composer.getSelection': 'compose:read',
   'composer.replaceSelection': 'compose:write',
   'composer.replaceBody': 'compose:write',
+  // The subject, as plain text, like an edit of the body.
+  'composer.setSubject': 'compose:write',
   // Attach a file the plugin uploaded (jmap.uploadBlob).
   'composer.attach': 'email:blob-write',
   // Text checkers (checkers.ts): compose:check for one the host sends text
@@ -480,6 +500,23 @@ function doUserGetIdentities(): Identity[] {
 
 async function doUserLogout(): Promise<void>{
   return useAuthStore.getState().logout();
+}
+
+/**
+ * "Return to my account" for a plugin's impersonation banner (#1538): the
+ * same POST /api/auth/impersonate/return as the core strip, falling back to
+ * signing out when the server has nothing to return to. The plugin learns
+ * nothing from it; the session it returns to stays on the server. Refused
+ * outside an impersonated session, so the permission is no way to sign the
+ * user out, and in a pop-out, which doesn't own the account list.
+ */
+async function doUserReturnToOwnAccount(): Promise<void> {
+  if (isPopoutWindow()) throw new Error('user.returnToOwnAccount: not available in a pop-out window');
+  const accounts = useAccountStore.getState();
+  if (!accounts.getActiveAccount()?.impersonated) {
+    throw new Error('user.returnToOwnAccount: the session is not an impersonation');
+  }
+  await returnToOwnAccount();
 }
 
 // ─── http.post (same-origin /api/*) ───────────────────────────
@@ -1525,30 +1562,13 @@ function patchThreadCache(isTarget: (email: Email) => boolean, changes: Record<s
 // ─── Native keyword definitions ──────────────────────────────
 
 const MAX_PLUGIN_KEYWORD_DEFINITIONS = 500;
-const MAX_PLUGIN_KEYWORD_LABEL_LENGTH = 255;
+const MAX_PLUGIN_KEYWORD_LABEL_LENGTH = MAX_KEYWORD_LABEL_LENGTH;
 const VALID_VISIBILITIES = new Set<KeywordVisibility>(['show', 'hide', 'unread']);
 
 type PluginKeywordDefinitionInput = Omit<KeywordDefinition, 'color'> & { color?: string };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** RFC 8621 keyword syntax, applied to the complete `$label:<id>` value. */
-function isValidKeywordDefinitionId(id: string): boolean {
-  const keyword = KEYWORD_PREFIX + id;
-  if (id.length === 0 || keyword.length > MAX_KEYWORD_LENGTH) return false;
-  for (let i = 0; i < keyword.length; i++) {
-    const code = keyword.charCodeAt(i);
-    if (
-      code < 0x21 || code > 0x7e ||
-      code === 0x28 || code === 0x29 || code === 0x7b || code === 0x7d ||
-      code === 0x5d || code === 0x25 || code === 0x2a || code === 0x22 || code === 0x5c
-    ) {
-      return false;
-    }
-  }
-  return true;
 }
 
 /** The fields of a definition a plugin may set; keywords.update sends only the ones it changes. */
@@ -1582,6 +1602,8 @@ function assertKeywordFields(
       `${method}: definitions[${index}].label must be 1-${MAX_PLUGIN_KEYWORD_LABEL_LENGTH} characters`,
     );
   }
+  // Palette keys only. A tag the user coloured in settings may hold a custom
+  // #rrggbb, which keywords.list passes on as stored.
   if (
     color !== undefined &&
     (typeof color !== 'string' || !Object.prototype.hasOwnProperty.call(KEYWORD_PALETTE, color))
@@ -1672,8 +1694,10 @@ function doKeywordsAdd(plugin: InstalledPlugin, value: unknown): { added: Keywor
   if (added.length > 0) {
     // One atomic append keeps concurrent plugin calls from partially
     // overwriting the list and triggers the normal persist/settings-sync path.
+    // A plugin's tags make the list chosen, so no admin default wipes them.
     useSettingsStore.setState((state) => ({
       emailKeywords: [...state.emailKeywords, ...added],
+      ...emailKeywordsChosenPatch(state),
     }));
   }
 
@@ -1697,7 +1721,7 @@ function doKeywordsUpdate(plugin: InstalledPlugin, value: unknown): { updated: K
       updated.push(next);
       return next;
     });
-    return updated.length > 0 ? { emailKeywords } : state;
+    return updated.length > 0 ? { emailKeywords, ...emailKeywordsChosenPatch(state) } : state;
   });
 
   const done = new Set(updated.map((keyword) => keyword.id.toLowerCase()));
@@ -1719,7 +1743,7 @@ function doKeywordsRemove(plugin: InstalledPlugin, value: unknown): { removed: s
       if (drop) removed.push(keyword.id);
       return !drop;
     });
-    return removed.length > 0 ? { emailKeywords } : state;
+    return removed.length > 0 ? { emailKeywords, ...emailKeywordsChosenPatch(state) } : state;
   });
 
   const done = new Set(removed.map((id) => id.toLowerCase()));
@@ -1779,7 +1803,7 @@ function doKeywordsReorder(value: unknown, rawOptions?: unknown): KeywordDefinit
     // Reuse the existing definitions verbatim so ordering cannot change a
     // label's name, colour, visibility, id casing, or any future metadata.
     result = reordered;
-    return { emailKeywords: reordered };
+    return { emailKeywords: reordered, ...emailKeywordsChosenPatch(state) };
   });
   return result.map((keyword) => ({ ...keyword }));
 }
@@ -1908,6 +1932,24 @@ async function doSearchRun(plugin: InstalledPlugin, query: unknown, options: unk
     pluginFilter: { pluginId: plugin.id, label, filter },
   });
   await store.advancedSearch(client);
+}
+
+/**
+ * End the plugin's own search: its chip goes, as with the chip's ✕. Filters
+ * the user added on top stay and the search runs again with them; with
+ * nothing left it clears as "clear all" does, so the folder's list shows
+ * again. A search the user typed or another plugin ran stays. Resolves
+ * whether it ended one.
+ */
+async function doSearchClear(plugin: InstalledPlugin): Promise<boolean> {
+  const store = useEmailStore.getState();
+  if (store.searchFilters.pluginFilter?.pluginId !== plugin.id) return false;
+  const client = requireClient();
+  store.setSearchFilters({ pluginFilter: null });
+  const rest = useEmailStore.getState();
+  if (!rest.searchQuery.trim() && isFilterEmpty(rest.searchFilters)) rest.clearSearchFilters();
+  await useEmailStore.getState().advancedSearch(client);
+  return true;
 }
 
 // ─── Sieve (delivery-time classification) ─────────────────────
@@ -2076,6 +2118,8 @@ export async function dispatchApiCall(
     case 'ui.refreshRowBadges': refreshRowBadges(); return undefined;
     case 'ui.setListFilters': setPluginListFilters(plugin.id, plugin.name, checkListFilters(args[0])); return undefined;
     case 'ui.setDayLabels': setDayLabels(plugin.id, plugin.name, checkDayLabels(args[0])); return undefined;
+    case 'ui.registerPrintTheme': return registerPrintTheme(plugin.id, plugin.name, args[0]);
+    case 'ui.unregisterPrintTheme': unregisterPrintTheme(plugin.id, args[0]); return undefined;
     case 'ui.setPages': setPluginPages(plugin.id, plugin.name, checkPages(args[0])); return undefined;
     case 'ui.openPage': return requestPageNavigation(plugin.id, args[0], args[1]);
     case 'ui.openCalendar': return requestCalendarView(plugin, args[0]);
@@ -2182,6 +2226,7 @@ export async function dispatchApiCall(
     case 'app.searchSettings': return doAppSearchSettings(args[0], args[1]);
     case 'app.getSettings': return doAppGetSettings();
     case 'user.logout' : return doUserLogout();
+    case 'user.returnToOwnAccount': return doUserReturnToOwnAccount();
 
     case 'admin.getConfig':    return adminGet(plugin.id, args[0] as string);
     case 'admin.getAllConfig': return adminGetAll(plugin.id);
@@ -2280,6 +2325,9 @@ export async function dispatchApiCall(
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
         throw new Error(`ui.openExternalUrl: ${parsed.protocol} not allowed`);
       }
+      // The plugin's own OAuth sign-in, in the desktop app: in the system browser its
+      // callback page would park the code where this page can't read it.
+      if (isPluginSignIn(parsed, plugin.id, window.location.origin, getPathPrefix()) && await openPluginSignInInApp(parsed.toString())) return undefined;
       // Other plugins' link checks (onBeforeExternalLink) see it like a
       // click in a message; the plugin's own handler isn't asked again, so a
       // link check opens the link after its dialog.
@@ -2289,6 +2337,7 @@ export async function dispatchApiCall(
       return undefined;
     }
     case 'ui.print': return doUiPrint(plugin, args[0]);
+    case 'ui.openFile': return doUiOpenFile(plugin, args[0]);
     case 'ui.downloadFile': {
       const opts = args[0] as { content: string | ArrayBuffer | Uint8Array; filename: string; contentType?: string };
       return downloadFile(opts ?? { content: '', filename: '' });
@@ -2337,6 +2386,7 @@ export async function dispatchApiCall(
     case 'tabs.categorize': return doTabsCategorize(args[0], args[1]);
 
     case 'search.run': return doSearchRun(plugin, args[0], args[1]);
+    case 'search.clear': return doSearchClear(plugin);
 
     case 'oauth.createState': return createOAuthState(plugin.id);
     case 'oauth.getRedirectUri': {
@@ -2409,6 +2459,7 @@ export async function dispatchApiCall(
     case 'composer.getSelection': return doComposerGetSelection(plugin, args[0]);
     case 'composer.replaceSelection': return doComposerReplaceSelection(plugin, args[0], args[1], args[2]);
     case 'composer.replaceBody': return doComposerReplaceBody(plugin, args[0], args[1], args[2]);
+    case 'composer.setSubject': return doComposerSetSubject(plugin, args[0], args[1]);
     case 'composer.attach': return doComposerAttach(plugin, args[0], args[1]);
     case 'composer.registerChecker': return doRegisterChecker(plugin, args[0], opts?.frame);
     case 'composer.updateChecker': return doUpdateChecker(plugin, args[0], args[1]);

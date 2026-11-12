@@ -1,7 +1,8 @@
 "use client";
 
 import { hoverOpens } from "@/lib/open-on-hover";
-import { memo, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, useId, Fragment, ReactNode } from "react";
+import { memo, createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, useId, Fragment, ReactNode } from "react";
+import { useStableHandlers } from "@/hooks/use-stable-handlers";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
@@ -92,6 +93,7 @@ import { buildSettingsPath, SCHEDULED_MAILBOX_ID, scopedScheduledMailboxId } fro
 import { useTour } from "@/components/tour/tour-provider";
 import { toUnicodeEmail } from "@/lib/idn";
 import { hiddenSharedMailIds, isSharedMailAccountVisible, setSharedMailAccountHidden } from "@/lib/shared-mail-visibility";
+import { moveSharedMailAccount, sharedMailOrderIds, sortSharedMailAccounts, SHARED_ACCOUNT_DRAG_MIME } from "@/lib/shared-mail-order";
 import { compactSharedMailbox } from "@/lib/compact-shared-mailbox";
 import {
   isAccountMuted,
@@ -184,8 +186,20 @@ interface SidebarProps {
 const ROW_PX_BASE = FOLDER_ROW_PX_BASE;
 const CHEVRON_SLOT = FOLDER_CHEVRON_SLOT;
 const INDENT_STEP = 12;
-/** How long the pointer rests on the folded column before the tree floats out. */
+/** How long the pointer rests on the folded column before its names show. */
 const RAIL_HOVER_DELAY_MS = 350;
+/** How long the names stay after the pointer has left, so a slip off the edge doesn't fold them. */
+const RAIL_LEAVE_GRACE_MS = 200;
+// With its names shown the folded column is w-64 instead of w-12, 13rem
+// wider. What sits in the folded column keeps its folded width there as the
+// full width less those 13rem (`calc(100%-13rem)`, literal for Tailwind), so
+// borders and scrollbar gutters cancel out and nothing moves by a subpixel.
+/**
+ * The folded column with its names shown (default layout): the pointer rests
+ * on it, or the keyboard is in it. Every item keeps its place; the name and
+ * count appear to the right of its icon. See Sidebar.
+ */
+const RailLabelsContext = createContext(false);
 /**
  * The header's collapse and close buttons: muted, with the grey hover of the
  * other icon buttons in the sidebar. The ghost button's accent hover is a
@@ -459,6 +473,10 @@ function SidebarRow({
   const foldedUnread = unreadForName + subUnread;
   // The default layout's folded column: one grid of square items.
   const railItem = isCollapsed && !mountainView;
+  // Its names shown: the item widens to the right, the icon stays where it
+  // was (12px in, the centre of the 40px square) and the name and count
+  // follow it, so nothing under the pointer moves.
+  const railLabels = useContext(RailLabelsContext) && railItem;
   const [labelRef, shortenedLabel] = useShortenedText(labelCandidates ?? [label]);
   // Touch has no right-click: a long-press opens the same menu (R7), and a
   // ⋮ shows it too.
@@ -565,20 +583,46 @@ function SidebarRow({
             ? cn(
                 // 36px high: the icon sits 10px down, under the counter's
                 // 12px, so the counter never covers the glyph.
-                "relative justify-center w-full max-w-10 h-9 rounded-md focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
+                "relative w-full h-9 rounded-md focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
+                // Padding that puts the icon where centring put it in the folded
+                // square: min(folded width, 40px) less the icon, halved.
+                railLabels ? "justify-start gap-3 ps-[calc((min(100%-13rem,2.5rem)-1rem)/2)] pe-2 text-start" : "justify-center max-w-10",
                 !isVirtual && (isSelected ? "bg-accent" : "hover:bg-muted/60"),
               )
             : isCollapsed ? "relative justify-center w-10 h-8" : "flex-1 text-start",
           isVirtual && "cursor-default select-none"
         )}
         // Folded, the name and count are only in the tooltip.
-        title={isCollapsed ? (accessibleName ?? label) : undefined}
+        title={isCollapsed && !railLabels ? (accessibleName ?? label) : undefined}
+        data-rail-labels={railLabels ? "" : undefined}
       >
-        <span className="relative flex items-center justify-center flex-shrink-0 w-4 h-4">
+        <span className="relative flex items-center justify-center flex-shrink-0 w-4 h-4" data-rail-icon={railItem ? "" : undefined}>
           {icon}
         </span>
-        {/* Folded to icons, a small counter at the icon's top corner (p2-9); the name says it already. */}
-        {isCollapsed && foldedUnread > 0 && (
+        {railLabels && (
+          <>
+            <span
+              ref={labelRef}
+              data-testid="rail-label"
+              className="flex-1 min-w-0 truncate"
+              onPointerEnter={(e) => titleIfCut(e.currentTarget, label, shortenedLabel !== label)}
+            >
+              {shortenedLabel}
+            </span>
+            <SidebarRowCounts unread={unread} total={total} role={testRole} mailboxId={testMailboxId} isSelected={isSelected} />
+            {subUnread > 0 && (
+              <span
+                aria-hidden="true"
+                data-testid="subfolder-unread"
+                title={tP3('sub_unread', { sub: subUnread })}
+                className="inline-block w-1.5 h-1.5 flex-shrink-0 rounded-full bg-primary/70"
+              />
+            )}
+          </>
+        )}
+        {/* Folded to icons, a small counter at the icon's top corner (p2-9); the name says it already.
+            With the names shown the count is beside the name instead. */}
+        {isCollapsed && !railLabels && foldedUnread > 0 && (
           unreadCountStyle === 'dot' ? (
             <span aria-hidden="true" data-testid="folded-unread" className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
           ) : (
@@ -719,6 +763,8 @@ function SidebarSectionHeader({
   onAdd,
   addTitle,
   railKey,
+  dragProps,
+  className,
 }: {
   label: string;
   expanded: boolean;
@@ -737,6 +783,9 @@ function SidebarSectionHeader({
   status?: ReactNode;
   /** The folded column's item for the same thing (see SidebarRow). */
   railKey?: string;
+  /** Makes the header a drag source (a shared account being reordered). */
+  dragProps?: React.HTMLAttributes<HTMLDivElement> & { draggable?: boolean };
+  className?: string;
 }) {
   if (isCollapsed) {
     // One thin rule between sections. A sub-section (a shared account, the
@@ -759,12 +808,14 @@ function SidebarSectionHeader({
   const headerButtonClass = "-my-0.5 h-6 w-6 rounded text-muted-foreground/70 hover:bg-muted hover:text-foreground";
   return (
     <div
+      {...dragProps}
       onContextMenu={onContextMenu}
       data-rail-key={railKey}
       className={cn(
         "group w-full flex items-center pb-1 select-none rounded-sm hover:bg-muted/40 transition-colors",
         paddingX,
-        paddingY
+        paddingY,
+        className
       )}
     >
       <button
@@ -818,21 +869,31 @@ function useMutedMailbox(node: MailboxNode | null): boolean {
   });
 }
 
-function MailboxTreeItem({
-  node,
-  selectedMailbox,
-  expandedFolders,
-  onMailboxSelect,
-  onToggleExpand,
-  isCollapsed,
-  colorful,
-  onContextMenu,
-  dragAccountId = null,
-  pickOnly = false,
-  sharedAccountName,
-  renderAfterChild,
-  initials = false,
-}: {
+/** The selected folder when it is this node or below it, else ''. */
+function selectionWithin(node: MailboxNode, selected: string): string {
+  if (!selected) return '';
+  if (node.id === selected) return selected;
+  return node.children.some((child) => selectionWithin(child, selected) !== '') ? selected : '';
+}
+
+/**
+ * A folder row draws again only when something it shows changed. The
+ * selected folder matters to a row only when it is the row or one of the
+ * folders under it: every folder click drew the whole folder list again.
+ */
+function sameTreeItemProps(a: MailboxTreeItemProps, b: MailboxTreeItemProps): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof MailboxTreeItemProps>;
+  for (const key of keys) {
+    if (key === 'selectedMailbox') {
+      if (selectionWithin(a.node, a.selectedMailbox) !== selectionWithin(b.node, b.selectedMailbox)) return false;
+    } else if (!Object.is(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+interface MailboxTreeItemProps {
   node: MailboxNode;
   selectedMailbox: string;
   expandedFolders: Set<string>;
@@ -858,7 +919,31 @@ function MailboxTreeItem({
   /** Folded: several folders of one's own are listed, so each carries its
    *  first letter. One alone is a plain folder. */
   initials?: boolean;
-}) {
+  /** Makes this row (not its subfolders) a drag source for reordering the
+   *  shared account it stands for, next to the folder-to-tab drag. */
+  onRowDragStart?: (e: React.DragEvent) => void;
+  onRowDragEnd?: () => void;
+}
+
+const MailboxTreeItem = memo(MailboxTreeItemRow, sameTreeItemProps);
+
+function MailboxTreeItemRow({
+  node,
+  selectedMailbox,
+  expandedFolders,
+  onMailboxSelect,
+  onToggleExpand,
+  isCollapsed,
+  colorful,
+  onContextMenu,
+  dragAccountId = null,
+  pickOnly = false,
+  sharedAccountName,
+  renderAfterChild,
+  initials = false,
+  onRowDragStart,
+  onRowDragEnd,
+}: MailboxTreeItemProps) {
   const tNotifications = useTranslations('notifications');
   const tListExtra = useTranslations('mail_list_extra');
   const tRoot = useTranslations();
@@ -881,17 +966,22 @@ function MailboxTreeItem({
   // Pro shell only: folder rows are drag sources so a folder can be dropped
   // onto a tab strip / pane and open as its own tab. Native HTML5 DnD - the
   // Pro shell's drop targets live outside any dnd-kit context.
+  const tabDrag = isEmbedded && !isVirtualNode && !pickOnly;
   const folderDragHandlers: Record<string, unknown> | undefined =
-    isEmbedded && !isVirtualNode && !pickOnly
+    tabDrag || onRowDragStart
       ? {
           draggable: true,
           onDragStart: (e: React.DragEvent) => {
-            e.dataTransfer.setData(
-              MAILBOX_DRAG_MIME,
-              JSON.stringify({ mailboxId: node.id, name: label, accountId: dragAccountId }),
-            );
-            e.dataTransfer.effectAllowed = 'copy';
+            if (tabDrag) {
+              e.dataTransfer.setData(
+                MAILBOX_DRAG_MIME,
+                JSON.stringify({ mailboxId: node.id, name: label, accountId: dragAccountId }),
+              );
+              e.dataTransfer.effectAllowed = 'copy';
+            }
+            onRowDragStart?.(e);
           },
+          ...(onRowDragEnd ? { onDragEnd: onRowDragEnd } : {}),
         }
       : undefined;
 
@@ -993,16 +1083,27 @@ function ShowAllTagsRow({
   );
 }
 
-function TagItem({
-  node,
-  selectedKeyword,
-  expandedTags,
-  isCollapsed,
-  onTagSelect,
-  onToggleExpand,
-  tagCounts,
-  colorful,
-}: {
+/** The selected tag when it is this node or below it, else null. */
+function tagSelectionWithin(node: KeywordNode, selected: string | null): string | null {
+  if (!selected) return null;
+  if (node.id === selected) return selected;
+  return node.children.some((child) => tagSelectionWithin(child, selected) !== null) ? selected : null;
+}
+
+/** See sameTreeItemProps: the selected tag matters only to its own branch. */
+function sameTagItemProps(a: TagItemProps, b: TagItemProps): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof TagItemProps>;
+  for (const key of keys) {
+    if (key === 'selectedKeyword') {
+      if (tagSelectionWithin(a.node, a.selectedKeyword) !== tagSelectionWithin(b.node, b.selectedKeyword)) return false;
+    } else if (!Object.is(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+interface TagItemProps {
   node: KeywordNode;
   selectedKeyword: string | null;
   expandedTags: Set<string>;
@@ -1011,7 +1112,20 @@ function TagItem({
   onToggleExpand: (keywordId: string) => void;
   tagCounts: Record<string, { total: number; unread: number }>;
   colorful: boolean;
-}) {
+}
+
+const TagItem = memo(TagItemRow, sameTagItemProps);
+
+function TagItemRow({
+  node,
+  selectedKeyword,
+  expandedTags,
+  isCollapsed,
+  onTagSelect,
+  onToggleExpand,
+  tagCounts,
+  colorful,
+}: TagItemProps) {
   const t = useTranslations('notifications');
   const { tagNameCandidates, tagColor } = useKeywordFormat();
   const palette = tagColor(node.id);
@@ -1347,29 +1461,64 @@ function SidebarImpl({
   // floats rather than widening the column, or every hover would reflow the
   // list behind it.
   const [railHovered, setRailHovered] = useState(false);
-  // The default layout's folded column floats the whole tree out too, so
-  // subfolders and folder names are a hover or a click away (p2-9). A hover
-  // waits a moment there, so passing over the column on the way to the list
-  // doesn't open it; "All folders" opens it by click, tap or keyboard.
+  // The default layout's folded column shows its names on a hover instead,
+  // as VS Code's and Outlook's folded panes do: the column widens to the
+  // right from its own edge, over the list, and every item stays where it
+  // was, so the one under the pointer is still the one under the pointer.
+  // The whole tree (account, section headings, subfolders) floated out on a
+  // hover before, from the window's edge over the app rail, and pushed the
+  // hovered rows down by the rows it added above them. The tree is "All
+  // folders" now, by click, tap or keyboard. A hover waits a moment, so
+  // passing over the column on the way to the list shows nothing, and the
+  // keyboard in the column shows the names too.
+  const [railFocused, setRailFocused] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const railHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const railLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Escape hid the names: they stay hidden until the pointer and the focus have left.
+  const railLabelsDismissed = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const allFoldersRef = useRef<HTMLButtonElement>(null);
-  const hoverExpanded = sidebarCollapsed && !isDrawer && (railHovered || railOpen);
+  // Mountain View's peek floats its whole list out on a hover, as Gmail's
+  // does; elsewhere only All folders opens the tree.
+  const hoverExpanded = sidebarCollapsed && !isDrawer && (railOpen || (mvShell && railHovered));
   const isCollapsed = sidebarCollapsed && !hoverExpanded && !isDrawer;
-  // Outside Mountain View the floated tree is a drawer, as in Outlook and
-  // Thunderbird: from the window's start edge, over the app rail and the
-  // folded column, with the page dimmed behind it (the caller draws that).
-  // Floating beside the rail with nothing behind it, it looked like a second
-  // sidebar cut into the list. Mountain View keeps Gmail's peek beside its rail.
+  const railLabels = isCollapsed && !mvShell && (railHovered || railFocused);
+  // The names come and go at once, without the width transition: while the
+  // width moved, the folded items centred in the wider rows and the named
+  // ones were padded from a width that wasn't final yet, so the icons slid.
+  // Folding and unfolding with » keep their transition.
+  const [railLabelsBefore, setRailLabelsBefore] = useState(railLabels);
+  const [railSnap, setRailSnap] = useState(false);
+  if (railLabelsBefore !== railLabels) {
+    setRailLabelsBefore(railLabels);
+    setRailSnap(true);
+  }
+  const [collapsedBefore, setCollapsedBefore] = useState(sidebarCollapsed);
+  if (collapsedBefore !== sidebarCollapsed) {
+    setCollapsedBefore(sidebarCollapsed);
+    setRailSnap(false);
+  }
+  // Outside Mountain View the tree All folders opens is a drawer, as in
+  // Outlook and Thunderbird: from the window's start edge, over the app rail
+  // and the folded column, with the page dimmed behind it (the caller draws
+  // that). Floating beside the rail with nothing behind it, it looked like a
+  // second sidebar cut into the list. Mountain View keeps Gmail's peek beside
+  // its rail.
   const isFolderDrawer = hoverExpanded && !mvShell;
   const closeRailPeek = useCallback(() => {
     if (railHoverTimer.current) clearTimeout(railHoverTimer.current);
     railHoverTimer.current = null;
+    if (railLeaveTimer.current) clearTimeout(railLeaveTimer.current);
+    railLeaveTimer.current = null;
     setRailHovered(false);
+    setRailFocused(false);
     setRailOpen(false);
   }, []);
-  useEffect(() => () => { if (railHoverTimer.current) clearTimeout(railHoverTimer.current); }, []);
+  useEffect(() => () => {
+    if (railHoverTimer.current) clearTimeout(railHoverTimer.current);
+    if (railLeaveTimer.current) clearTimeout(railLeaveTimer.current);
+  }, []);
   const {
     contextMenu: mailboxContextMenu,
     openContextMenu: openMailboxContextMenu,
@@ -1386,9 +1535,11 @@ function SidebarImpl({
   useLayoutEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
   // A subfolder's item to give the focus back to once the tree has folded.
   const refocusAfterFold = useRef<string | null>(null);
-  // Floated out by the hover alone: it folds when the pointer has gone.
+  // Mountain View's tree floated out by the hover alone: it folds when the
+  // pointer has gone. The default layout's names fold too, but every item
+  // stays, so the focus has nowhere to move.
   const foldsOnLeave = useRef(false);
-  useLayoutEffect(() => { foldsOnLeave.current = railHovered && !railOpen; }, [railHovered, railOpen]);
+  useLayoutEffect(() => { foldsOnLeave.current = railHovered && !railOpen && mvShell; }, [railHovered, railOpen, mvShell]);
   useEffect(() => {
     if (!menuOpen) return;
     if (railHoverTimer.current) clearTimeout(railHoverTimer.current);
@@ -1461,7 +1612,10 @@ function SidebarImpl({
       : null;
   }, []);
   const armRailHover = useCallback((e: React.MouseEvent) => {
-    if (!hoverOpens() || menuOpenRef.current) return;
+    // Back within the grace after leaving: the names stay.
+    if (railLeaveTimer.current) clearTimeout(railLeaveTimer.current);
+    railLeaveTimer.current = null;
+    if (!hoverOpens() || menuOpenRef.current || railLabelsDismissed.current) return;
     const target = e.target;
     lastPointer.current = { x: e.clientX, y: e.clientY, target };
     if (mvShell) { noteHoveredRailItem(); setRailHovered(true); return; }
@@ -1615,6 +1769,7 @@ function SidebarImpl({
   const showSharedMailAccounts = useSettingsStore(s => s.showSharedMailAccounts);
   const compactSharedMailboxes = useSettingsStore(s => s.compactSharedMailboxes);
   const hiddenSharedMailAccounts = useSettingsStore(s => s.hiddenSharedMailAccounts);
+  const sharedMailAccountOrder = useSettingsStore(s => s.sharedMailAccountOrder);
   // Mountain View draws its navigation icons in the text colour.
   const colorfulSidebarIcons = useSettingsStore(s => s.colorfulSidebarIcons) && !mvShell;
   const tagCounts = useEmailStore(s => s.tagCounts);
@@ -1651,15 +1806,16 @@ function SidebarImpl({
   const t = useTranslations('sidebar');
   const tP2 = useTranslations('mail_p2_folders');
 
-  // A pick in the floated tree folds it away again (the hover peek of the
-  // default layout, and the one "All folders" opened).
+  // A pick in the tree "All folders" opened folds it away again. The names
+  // a hover shows stay until the pointer leaves: folding them under the
+  // pointer would only show them again a moment later.
   const pickedRef = useRef({ mailbox: selectedMailbox, keyword: selectedKeyword });
   useEffect(() => {
     const before = pickedRef.current;
     pickedRef.current = { mailbox: selectedMailbox, keyword: selectedKeyword };
     if (before.mailbox === selectedMailbox && before.keyword === selectedKeyword) return;
-    if (railOpen || !mvShell) closeRailPeek();
-  }, [selectedMailbox, selectedKeyword, railOpen, mvShell, closeRailPeek]);
+    if (railOpen) closeRailPeek();
+  }, [selectedMailbox, selectedKeyword, railOpen, closeRailPeek]);
   // Opened from "All folders": the focus goes to the open folder in the tree,
   // and a press anywhere outside folds it away.
   useEffect(() => {
@@ -1757,12 +1913,18 @@ function SidebarImpl({
   // so it does not appear twice. (#495)
   const isServerScheduledNode = (n: MailboxNode) => showScheduledMailbox && n.role === 'scheduled';
 
-  const mailboxTree = buildMailboxTree(mailboxes);
+  // Kept while the folders are the same: the folder rows are memoised on their nodes.
+  const mailboxTree = useMemo(() => buildMailboxTree(mailboxes), [mailboxes]);
   const ownTree = mailboxTree.filter(n => !n.id.startsWith('shared-account-') && !isServerScheduledNode(n));
   const hiddenSharedIds = hiddenSharedMailIds(hiddenSharedMailAccounts, activeAccountId);
-  const sharedAccounts = mailboxTree.filter(n =>
-    n.id.startsWith('shared-account-')
-    && isSharedMailAccountVisible(n.accountId, showSharedMailAccounts, hiddenSharedIds));
+  // In the login's saved order, hidden ones included so that one hidden and
+  // shown again comes back to its place.
+  const allSharedAccounts = sortSharedMailAccounts(
+    mailboxTree.filter(n => n.id.startsWith('shared-account-')),
+    sharedMailOrderIds(sharedMailAccountOrder, activeAccountId),
+  );
+  const sharedAccounts = allSharedAccounts.filter(n =>
+    isSharedMailAccountVisible(n.accountId, showSharedMailAccounts, hiddenSharedIds));
 
   // Mountain View's navigation is one flat list of the few places mail
   // actually goes, with everything else - the folders you made, the shared
@@ -1797,9 +1959,10 @@ function SidebarImpl({
 
   // With nesting off every tag is its own root, so the same rows render through
   // one path whether or not the ids describe a hierarchy.
-  const tagTree: KeywordNode[] = nestedTags
+  // Kept while the tags are the same: the tag rows are memoised on their nodes.
+  const tagTree: KeywordNode[] = useMemo(() => (nestedTags
     ? buildKeywordTree(emailKeywords)
-    : emailKeywords.map((kw) => ({ ...kw, children: [], depth: 0 }));
+    : emailKeywords.map((kw) => ({ ...kw, children: [], depth: 0 }))), [nestedTags, emailKeywords]);
 
   // Counts arrive from a separate JMAP round trip, one batch per group of tags;
   // a tag with no count yet is treated as visible rather than blanking it and
@@ -1837,9 +2000,12 @@ function SidebarImpl({
         const hiddenIds = hiddenSharedMailIds(hiddenSharedMailAccounts, account.id);
         const shared = isActive
           ? sharedAccounts
-          : buildMailboxTree(accountSharedMailboxes?.[account.id] ?? []).filter((n) =>
-            n.id.startsWith('shared-account-')
-            && isSharedMailAccountVisible(n.accountId, showSharedMailAccounts, hiddenIds));
+          : sortSharedMailAccounts(
+            buildMailboxTree(accountSharedMailboxes?.[account.id] ?? []).filter((n) =>
+              n.id.startsWith('shared-account-')
+              && isSharedMailAccountVisible(n.accountId, showSharedMailAccounts, hiddenIds)),
+            sharedMailOrderIds(sharedMailAccountOrder, account.id),
+          );
         return { account, isActive, tree, shared };
       })
     : [];
@@ -1916,10 +2082,10 @@ function SidebarImpl({
             selectedMailbox={selected}
             expandedFolders={expandedFolders}
             onMailboxSelect={onSelect}
-            onToggleExpand={handleToggleExpand}
+            onToggleExpand={treeHandlers.onToggleExpand}
             isCollapsed={isCollapsed}
             colorful={colorfulSidebarIcons}
-            onContextMenu={active ? handleMailboxContextMenu : undefined}
+            onContextMenu={active ? treeHandlers.onMailboxContextMenu : undefined}
             dragAccountId={dragAccountId}
             initials={tree.length > 1}
           />
@@ -1951,6 +2117,9 @@ function SidebarImpl({
     },
   ) => {
     if (accounts.length === 0) return null;
+    // Only the active login's own section, unfolded, with something to swap.
+    const reorderable = active && !isCollapsed && accounts.length > 1;
+    const reorderIds = accounts.map((account) => sharedAccountMenuId(account.accountId));
     return (
       <div data-testid={sub ? "section-shared-in-account" : undefined}>
         <SidebarSectionHeader
@@ -1963,10 +2132,12 @@ function SidebarImpl({
         />
         {((expanded && !isCollapsed) || isCollapsed) && (
           <>
-            {accounts.map((account) => {
+            {accounts.map((account, index) => {
               const accountExpanded = expandedSharedAccounts.has(account.id);
               const menuAccountId = sharedAccountMenuId(account.accountId);
               const compact = compactSharedMailboxes ? compactSharedMailbox(account) : null;
+              const reorderId = reorderable ? menuAccountId : undefined;
+              const dropTarget = reorderId ? sharedAccountDropTarget(reorderId, index, reorderIds) : undefined;
               if (compact) {
                 // A row without folders below it has no chevron, so what
                 // else hangs below it (Scheduled, tags) stays shown.
@@ -1982,19 +2153,21 @@ function SidebarImpl({
                 // only, not the account's folders listed below the row.
                 const inboxHasSubfolders = (account.children.find((child) => child.id === compact.id)?.children.length ?? 0) > 0;
                 return (
-                  <div key={account.id} data-testid="compact-shared-mailbox">
+                  <div key={account.id} data-testid="compact-shared-mailbox" {...dropTarget?.handlers} className={dropTarget?.className}>
                     <MailboxTreeItem
                       node={compact}
                       sharedAccountName={account.name}
                       selectedMailbox={selected}
                       expandedFolders={expandedFolders}
                       onMailboxSelect={onSelect}
-                      onToggleExpand={handleToggleExpand}
+                      onToggleExpand={treeHandlers.onToggleExpand}
                       isCollapsed={isCollapsed}
                       colorful={colorfulSidebarIcons}
                       onContextMenu={active ? (e, node) => handleCompactSharedContextMenu(e, node, compact.id, menuAccountId, inboxHasSubfolders) : undefined}
                       pickOnly={!active}
                       renderAfterChild={(child) => child.role === 'drafts' && scheduledRow()}
+                      onRowDragStart={reorderId ? (e) => startSharedAccountDrag(e, reorderId) : undefined}
+                      onRowDragEnd={reorderId ? endSharedAccountDrag : undefined}
                     />
                     {compactExpanded && !hasDrafts && scheduledRow()}
                     {active && compactExpanded && menuAccountId && activeAccountId && (
@@ -2004,7 +2177,7 @@ function SidebarImpl({
                         selectedKeyword={selectedKeywordAccountId === menuAccountId ? selectedKeyword : null}
                         expandedTags={expandedTags}
                         onTagSelect={onTagSelect}
-                        onToggleExpand={handleToggleTagExpand}
+                        onToggleExpand={treeHandlers.onToggleTagExpand}
                         colorful={colorfulSidebarIcons}
                       />
                     )}
@@ -2037,7 +2210,7 @@ function SidebarImpl({
                 );
               }
               return (
-                <div key={account.id}>
+                <div key={account.id} {...dropTarget?.handlers} className={dropTarget?.className}>
                   <SidebarSectionHeader
                     label={account.name}
                     expanded={accountExpanded}
@@ -2050,6 +2223,11 @@ function SidebarImpl({
                     onContextMenu={active && menuAccountId
                       ? (e) => handleSharedAccountContextMenu(e, menuAccountId)
                       : undefined}
+                    dragProps={reorderId ? {
+                      draggable: true,
+                      onDragStart: (e) => startSharedAccountDrag(e, reorderId),
+                      onDragEnd: endSharedAccountDrag,
+                    } : undefined}
                   />
                   {accountExpanded && !isCollapsed && (
                     <>
@@ -2060,10 +2238,10 @@ function SidebarImpl({
                             selectedMailbox={selected}
                             expandedFolders={expandedFolders}
                             onMailboxSelect={onSelect}
-                            onToggleExpand={handleToggleExpand}
+                            onToggleExpand={treeHandlers.onToggleExpand}
                             isCollapsed={isCollapsed}
                             colorful={colorfulSidebarIcons}
-                            onContextMenu={active ? handleMailboxContextMenu : undefined}
+                            onContextMenu={active ? treeHandlers.onMailboxContextMenu : undefined}
                             pickOnly={!active}
                           />
                           {active && child.role === 'drafts' && menuAccountId
@@ -2079,7 +2257,7 @@ function SidebarImpl({
                           selectedKeyword={selectedKeywordAccountId === menuAccountId ? selectedKeyword : null}
                           expandedTags={expandedTags}
                           onTagSelect={onTagSelect}
-                          onToggleExpand={handleToggleTagExpand}
+                          onToggleExpand={treeHandlers.onToggleTagExpand}
                           colorful={colorfulSidebarIcons}
                         />
                       )}
@@ -2122,7 +2300,7 @@ function SidebarImpl({
                 expandedTags={expandedTags}
                 isCollapsed={isCollapsed}
                 onTagSelect={onTagSelect}
-                onToggleExpand={handleToggleTagExpand}
+                onToggleExpand={treeHandlers.onToggleTagExpand}
                 tagCounts={tagCounts}
                 colorful={colorfulSidebarIcons}
               />
@@ -2310,6 +2488,72 @@ function SidebarImpl({
       }
     : undefined;
 
+  // Reordering the active login's shared accounts: dragging one onto another
+  // in its Shared section, or Move up / Move down in its menu. The order
+  // covers the hidden ones too, so they keep their place.
+  const moveSharedAccount = (draggedId: string, targetId: string) => {
+    if (!activeAccountId) return;
+    const { sharedMailAccountOrder: order, updateSetting } = useSettingsStore.getState();
+    const currentIds = allSharedAccounts.flatMap((n) => sharedAccountMenuId(n.accountId) ?? []);
+    const next = moveSharedMailAccount(order, activeAccountId, currentIds, draggedId, targetId);
+    if (next !== order) updateSetting('sharedMailAccountOrder', next);
+  };
+  const visibleSharedIds = sharedAccounts.flatMap((n) => sharedAccountMenuId(n.accountId) ?? []);
+  const sharedNeighbour = (accountId: string, direction: 'up' | 'down') => {
+    const index = visibleSharedIds.indexOf(accountId);
+    return index < 0 ? undefined : visibleSharedIds[index + (direction === 'up' ? -1 : 1)];
+  };
+  const sharedAccountOrder = {
+    canMove: (accountId: string, direction: 'up' | 'down') => !!sharedNeighbour(accountId, direction),
+    move: (accountId: string, direction: 'up' | 'down') => {
+      const other = sharedNeighbour(accountId, direction);
+      if (other) moveSharedAccount(accountId, other);
+    },
+  };
+
+  const [sharedDragId, setSharedDragId] = useState<string | null>(null);
+  const [sharedDragOverId, setSharedDragOverId] = useState<string | null>(null);
+  const endSharedAccountDrag = () => { setSharedDragId(null); setSharedDragOverId(null); };
+  const startSharedAccountDrag = (e: React.DragEvent, accountId: string) => {
+    e.dataTransfer.setData(SHARED_ACCOUNT_DRAG_MIME, accountId);
+    // The compact row is also a folder-to-tab drag source ('copy').
+    e.dataTransfer.effectAllowed = 'copyMove';
+    setSharedDragId(accountId);
+  };
+  const carriesSharedAccount = (e: React.DragEvent) =>
+    Array.from(e.dataTransfer?.types ?? []).includes(SHARED_ACCOUNT_DRAG_MIME);
+  // The line goes on the side the account lands on: above when it moves up,
+  // below when it moves down.
+  const sharedAccountDropTarget = (accountId: string, index: number, ids: (string | undefined)[]) => {
+    const fromIndex = sharedDragId ? ids.indexOf(sharedDragId) : -1;
+    const over = sharedDragOverId === accountId && fromIndex >= 0 && sharedDragId !== accountId;
+    return {
+      className: cn(
+        sharedDragId === accountId && "opacity-50",
+        over && (fromIndex < index ? "border-b-2 border-primary" : "border-t-2 border-primary"),
+      ) || undefined,
+      handlers: {
+        onDragOver: (e: React.DragEvent) => {
+          if (!carriesSharedAccount(e) || !sharedDragId || !ids.includes(sharedDragId)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (sharedDragOverId !== accountId) setSharedDragOverId(accountId);
+        },
+        onDragLeave: (e: React.DragEvent) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          if (sharedDragOverId === accountId) setSharedDragOverId(null);
+        },
+        onDrop: (e: React.DragEvent) => {
+          if (!carriesSharedAccount(e)) return;
+          e.preventDefault();
+          const draggedId = e.dataTransfer.getData(SHARED_ACCOUNT_DRAG_MIME);
+          if (draggedId && draggedId !== accountId && ids.includes(draggedId)) moveSharedAccount(draggedId, accountId);
+          endSharedAccountDrag();
+        },
+      },
+    };
+  };
+
   // Muting only takes effect through the server's emailPush filter, so the
   // menu offers it only where that exists, like the "Inbox only" setting.
   const authClient = useAuthStore((s) => s.client);
@@ -2332,6 +2576,14 @@ function SidebarImpl({
     };
   }, [authClient, notificationMutes]);
 
+  // The folder and tag rows are memoised (MailboxTreeItem, TagItem): they get
+  // handlers that keep their identity.
+  const treeHandlers = useStableHandlers({
+    onToggleExpand: handleToggleExpand,
+    onToggleTagExpand: handleToggleTagExpand,
+    onMailboxContextMenu: handleMailboxContextMenu,
+  });
+
   return (
     <div
       ref={rootRef}
@@ -2341,10 +2593,28 @@ function SidebarImpl({
       onMouseLeave={sidebarCollapsed && !isDrawer ? () => {
         if (railHoverTimer.current) clearTimeout(railHoverTimer.current);
         railHoverTimer.current = null;
+        if (!railFocused) railLabelsDismissed.current = false;
         // On the way into its open menu or a submenu: it stays.
-        if (!menuOpenRef.current) setRailHovered(false);
+        if (menuOpenRef.current) return;
+        if (mvShell) { setRailHovered(false); return; }
+        // The names: after a short grace, so a pointer that slips past the
+        // column's edge and comes straight back doesn't fold them.
+        if (railLeaveTimer.current) clearTimeout(railLeaveTimer.current);
+        railLeaveTimer.current = setTimeout(() => {
+          railLeaveTimer.current = null;
+          if (!menuOpenRef.current) setRailHovered(false);
+        }, RAIL_LEAVE_GRACE_MS);
       } : undefined}
-      onKeyDown={railOpen || railHovered ? (e) => {
+      // The keyboard in the folded column shows the names as a hover does;
+      // a click's focus doesn't (the pointer is there already).
+      onFocus={isCollapsed && !mvShell ? (e) => {
+        if (railLabelsDismissed.current || !(e.target instanceof HTMLElement)) return;
+        if (!e.target.closest('[data-folder-nav]')) return;
+        let keyboard = false;
+        try { keyboard = e.target.matches(':focus-visible'); } catch { /* an engine without the selector */ }
+        if (keyboard) setRailFocused(true);
+      } : undefined}
+      onKeyDown={railOpen || railHovered || railFocused ? (e) => {
         // Opened from All folders, the drawer keeps the focus until it closes.
         if (e.key === 'Tab' && railOpen && !mvShell) {
           trapTab(e, rootRef.current);
@@ -2352,15 +2622,29 @@ function SidebarImpl({
         }
         if (e.key !== 'Escape' || e.defaultPrevented) return;
         e.preventDefault();
+        if (railLabels) {
+          // Only the names go; the focus stays on its item.
+          railLabelsDismissed.current = true;
+          closeRailPeek();
+          return;
+        }
         const hadFocus = rootRef.current?.contains(document.activeElement);
         closeRailPeek();
         if (hadFocus) requestAnimationFrame(() => allFoldersRef.current?.focus());
       } : undefined}
-      onBlur={railOpen ? (e) => {
+      onBlur={railOpen || (isCollapsed && !mvShell) ? (e) => {
         const next = e.relatedTarget as Node | null;
         // Into a folder's menu, which sits outside in a portal: it stays.
-        if (next && !e.currentTarget.contains(next) && !menuOpenRef.current) closeRailPeek();
+        if (next && e.currentTarget.contains(next)) return;
+        if (menuOpenRef.current) return;
+        if (railOpen) {
+          if (next) closeRailPeek();
+          return;
+        }
+        setRailFocused(false);
+        if (!railHovered) railLabelsDismissed.current = false;
       } : undefined}
+      data-folder-rail-labels={railLabels ? "" : undefined}
       data-mv-rail-peek={hoverExpanded && mvShell ? "" : undefined}
       data-folder-peek={isFolderDrawer ? "" : undefined}
       data-folder-drawer={isFolderDrawer ? "" : undefined}
@@ -2373,7 +2657,11 @@ function SidebarImpl({
         "max-desk:w-full",
         // Mountain View's collapsed column is 72px (--mv-rail-w), wide enough
         // for its round compose button; the default layout's rail is 48px.
-        isCollapsed && !mvShell ? "desk:w-12" : isFolderDrawer ? "desk:w-72" : "desk:w-full",
+        railLabels ? "desk:w-64" : isCollapsed && !mvShell ? "desk:w-12" : isFolderDrawer ? "desk:w-72" : "desk:w-full",
+        // The names shown: over the list from the column's own start edge,
+        // so the app rail beside it and the list under it don't move.
+        railLabels && "desk:absolute desk:inset-y-0 desk:start-0 desk:z-40 desk:shadow-xl",
+        railSnap && "transition-none",
         // Floats out of the rail's own column rather than widening it, so the
         // message list underneath never moves while the pointer passes over.
         // Width comes from --mv-rail-peek-w, keyed on data-mv-rail-peek.
@@ -2395,7 +2683,8 @@ function SidebarImpl({
         // Border lives on the wrapper (outside the h-14 box) so the bar's total
         // height matches the search/reply toolbars, which border-b their wrapper too.
         <div className="border-b border-border" data-sidebar-head="">
-          <div className={cn("flex items-center h-14", isCollapsed ? "justify-center px-2" : "gap-1 px-2")}>
+          {/* Folded, the buttons keep to the column's folded width, also while it shows its names. */}
+          <div className={cn("flex items-center h-14", isCollapsed ? "justify-center px-2" : "gap-1 px-2", railLabels && "w-[calc(100%-13rem)]")}>
             <Button
               variant="ghost"
               size="icon"
@@ -2434,7 +2723,9 @@ function SidebarImpl({
             {!isCollapsed && !sidebarAccountSwitcher && !isDrawer && onCompose && (
               <Button
                 onClick={onCompose}
-                className="flex-1 min-w-0 h-9 justify-start gap-2 px-3"
+                // Pill corners for the main action, friendlier than the
+                // app-wide 6px. The colour stays the primary token's.
+                className="flex-1 min-w-0 h-9 justify-start gap-2 px-3 rounded-full"
                 data-sidebar-compose=""
                 data-tour="compose-button"
                 title={t("compose_hint")}
@@ -2448,7 +2739,7 @@ function SidebarImpl({
             <div className="px-2 pb-2">
               <Button
                 onClick={onCompose}
-                className="w-full min-w-0 h-9 justify-start gap-2 px-3"
+                className="w-full min-w-0 h-9 justify-start gap-2 px-3 rounded-full"
                 data-sidebar-compose=""
                 data-tour="compose-button"
                 title={t("compose_hint")}
@@ -2459,7 +2750,7 @@ function SidebarImpl({
             </div>
           )}
           {isCollapsed && !isDrawer && onCompose && (
-            <div className="flex justify-center pb-2">
+            <div className={cn("flex justify-center pb-2", railLabels && "w-[calc(100%-13rem)]")}>
               <IconButton
                 onClick={onCompose}
                 variant="default"
@@ -2507,6 +2798,7 @@ function SidebarImpl({
       )}
 
       {/* Mailbox List */}
+      <RailLabelsContext.Provider value={railLabels}>
       <nav
         ref={navRef}
         aria-label={t("folders")}
@@ -2626,10 +2918,10 @@ function SidebarImpl({
                               onMailboxSelect={(mailboxId) =>
                                 onAccountMailboxSelect?.(isActive ? null : account.id, mailboxId)
                               }
-                              onToggleExpand={handleToggleExpand}
+                              onToggleExpand={treeHandlers.onToggleExpand}
                               isCollapsed={isCollapsed}
                               colorful={colorfulSidebarIcons}
-                              onContextMenu={isActive ? handleMailboxContextMenu : undefined}
+                              onContextMenu={isActive ? treeHandlers.onMailboxContextMenu : undefined}
                               dragAccountId={isActive ? null : account.id}
                             />
                             {isActive && node.role === 'drafts' && renderScheduledRow(`scheduled-${account.id}`)}
@@ -2692,10 +2984,10 @@ function SidebarImpl({
                           selectedMailbox={selectedKeyword ? "" : selectedMailbox}
                           expandedFolders={expandedFolders}
                           onMailboxSelect={onMailboxSelect}
-                          onToggleExpand={handleToggleExpand}
+                          onToggleExpand={treeHandlers.onToggleExpand}
                           isCollapsed={isCollapsed}
                           colorful={colorfulSidebarIcons}
-                          onContextMenu={handleMailboxContextMenu}
+                          onContextMenu={treeHandlers.onMailboxContextMenu}
                         />
                         {node.role === 'drafts' && renderScheduledRow('scheduled')}
                         {/* Mountain View lists Starred right under the Inbox. */}
@@ -2734,10 +3026,10 @@ function SidebarImpl({
                         selectedMailbox={selectedKeyword ? "" : selectedMailbox}
                         expandedFolders={expandedFolders}
                         onMailboxSelect={onMailboxSelect}
-                        onToggleExpand={handleToggleExpand}
+                        onToggleExpand={treeHandlers.onToggleExpand}
                         isCollapsed={isCollapsed}
                         colorful={colorfulSidebarIcons}
-                        onContextMenu={handleMailboxContextMenu}
+                        onContextMenu={treeHandlers.onMailboxContextMenu}
                       />
                     ))}
                   </>
@@ -2775,10 +3067,10 @@ function SidebarImpl({
                 selectedMailbox={selectedKeyword ? "" : selectedMailbox}
                 expandedFolders={expandedFolders}
                 onMailboxSelect={onMailboxSelect}
-                onToggleExpand={handleToggleExpand}
+                onToggleExpand={treeHandlers.onToggleExpand}
                 isCollapsed={isCollapsed}
                 colorful={colorfulSidebarIcons}
-                onContextMenu={handleMailboxContextMenu}
+                onContextMenu={treeHandlers.onMailboxContextMenu}
               />
             ))}
           </div>
@@ -2798,18 +3090,21 @@ function SidebarImpl({
         {!isCollapsed && <PluginSidebarSections mailboxId={selectedKeyword ? null : selectedMailbox || null} />}
         {!isCollapsed && <PluginSlot name="sidebar-widget" className="border-t border-border" />}
       </nav>
+      </RailLabelsContext.Provider>
 
       {/* Folded: the whole tree, subfolders included, one click away (p2-9). */}
       {isCollapsed && !mvShell && (
-        <div className="flex justify-center border-t border-border py-2">
-          <IconButton
-            ref={allFoldersRef}
-            label={tP2("all_folders")}
-            data-testid="folded-all-folders"
-            onClick={() => setRailOpen(true)}
-          >
-            <FolderSync />
-          </IconButton>
+        <div className="border-t border-border py-2">
+          <div className={cn("flex justify-center", railLabels && "w-[calc(100%-13rem)]")}>
+            <IconButton
+              ref={allFoldersRef}
+              label={tP2("all_folders")}
+              data-testid="folded-all-folders"
+              onClick={() => setRailOpen(true)}
+            >
+              <FolderSync />
+            </IconButton>
+          </div>
         </div>
       )}
 
@@ -2833,6 +3128,7 @@ function SidebarImpl({
         onImportEmail={onImportEmail}
         onRefresh={onRefreshMailboxes}
         onHideSharedAccount={hideSharedAccount}
+        sharedAccountOrder={activeAccountId ? sharedAccountOrder : undefined}
         notifications={notificationActions}
       />
     </div>

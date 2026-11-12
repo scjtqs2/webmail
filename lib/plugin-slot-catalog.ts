@@ -49,7 +49,7 @@ const S = (
 
 export const SLOT_CATALOG = {
   // ─── App ───────────────────────────────────────────────────
-  'app-top-banner': S('app', 'frame', ['ui:app-top-banner'], { username: 'account:read', serverUrl: 'account:read', impersonated: 'account:read' }, 'a banner across the top of every page; `impersonated` is true when an admin opened the mailbox through an impersonation handoff'),
+  'app-top-banner': S('app', 'frame', ['ui:app-top-banner'], { username: 'account:read', serverUrl: 'account:read', impersonated: 'account:read', canReturn: 'auth:impersonation-return' }, 'a banner across the top of every page; `impersonated` is true when an admin opened the mailbox through an impersonation handoff, `canReturn` when api.user.returnToOwnAccount() can take them back to the account they started from'),
   'plugin-dialog': S('dialog', 'frame', ['ui:observe'], '*', 'inside a dialog the plugin opened with api.ui.openDialog (with `anchor: \'trigger\'` a popover beside what the user clicked)'),
   'command-palette': S('app', 'action', ['ui:commands'], {}, 'entries in the command palette (Ctrl+K)'),
   'app-side-panel': { ...S('app', 'frame', ['ui:side-panel'], { view: null, context: null, focusRequest: null }, 'a side panel next to Calendar, Contacts, Files and Settings (desktop and tablet; phones and Settings below 1024 px have none: the toggle there asks the plugin for a dialog through onAction, surface `app-side-panel`, actionId `open`, context { view, context }); `view` names the view ("calendar" | "contacts" | "files" | "settings"); `context` is what it shows: { event } (calendar:read), { contact, selectedCount } (contacts:read), { files, fileCount, folder } (files:read), { page: { id, label } }; `focusRequest` counts up when the panel opens on request'), fields: { context: APP_SIDE_PANEL_CONTEXT_FIELDS } },
@@ -97,6 +97,7 @@ export const SLOT_CATALOG = {
   'composer-attach-menu': S('composer', 'action', ['ui:composer-toolbar'], { composerId: null }, 'entries in the Attach menu (for example "From Nextcloud"); the click\'s composerId lets api.composer.attach add files'),
   'composer-options-menu': S('composer', 'action', ['ui:composer-toolbar'], { composerId: null }, 'entries in the composer\'s Options menu'),
   'composer-toolbar-actions': S('composer', 'action', ['ui:composer-toolbar'], { composerId: null }, 'buttons in the composer\'s bottom bar, after Attach, Templates and Options; an action\'s shortcut works while the composer has focus', true),
+  'composer-header-actions': S('composer', 'action', ['ui:composer-toolbar'], { composerId: null }, 'icon buttons in the composer\'s top bar, before its own window buttons, in every form of the composer (docked under a message, full, a window of its own, a Pro tab, quick compose); where the bar is narrow they go behind one button that opens them as a menu; the click\'s composerId lets api.composer.* work on the draft (Bulwark 1.21 and later)', true),
   'composer-selection-menu': S('composer', 'action', ['ui:composer-toolbar'], { composerId: null, selection: 'compose:read' }, 'entries in the right-click menu on selected text in the message (without plugin entries the browser\'s own menu stays); the click\'s selection is { text }'),
 
   // ─── Calendar ──────────────────────────────────────────────

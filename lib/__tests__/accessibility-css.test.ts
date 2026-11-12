@@ -175,6 +175,10 @@ describe('large text in narrow panes', () => {
     const rowLabel = el('<div role="option"><span class="truncate">Subject</span></div>').querySelector('.truncate')!;
     document.body.append(rowLabel.parentElement!);
     expect(wrap.some((s) => rowLabel.matches(s))).toBe(false);
+    // With the focus outline off, the focus changes nothing on screen.
+    document.documentElement.dataset.focusRing = 'off';
+    expect(wrap.some((s) => label.matches(s))).toBe(false);
+    delete document.documentElement.dataset.focusRing;
   });
 });
 
@@ -191,5 +195,182 @@ describe('reduced transparency', () => {
     expect(css).toMatch(/:root\[data-transparency="reduce"\] body\[data-theme-skin="builtin-aurora-glass"\] \{\s*--color-sidebar-accent: #e1e2fb;/);
     expect(css).toMatch(/:root\.dark\[data-transparency="reduce"\] body\[data-theme-skin="builtin-aurora-glass"\] \{[^}]*--color-card: #101119;/);
     expect(css).toMatch(/:root\[data-transparency="reduce"\] body\[data-theme-skin="builtin-aurora-glass"\] :is\(\.bg-card, \.bg-popover, \[role="menu"\], \[role="dialog"\], \[role="listbox"\]\) \{\s*background-color: var\(--color-popover\) !important;/);
+  });
+});
+
+describe('focus outline off', () => {
+  /** Selectors and body of the rule whose prelude starts with `start`. */
+  function ruleAt(start: string): { selectors: string[]; body: string } {
+    const at = css.indexOf(start);
+    expect(at).toBeGreaterThan(-1);
+    const open = css.indexOf('{', at);
+    return {
+      selectors: css.slice(at, open).split(/,\s*\n/).map((s) => s.trim()),
+      body: css.slice(open + 1, css.indexOf('}', open)),
+    };
+  }
+
+  it('takes the outline off every focused element, the browser one included', () => {
+    const rule = ruleAt('html:root[data-focus-ring="off"] :focus-visible');
+    expect(rule.body.trim()).toBe('outline: none !important;');
+    expect(rule.selectors).toHaveLength(2);
+    // Padded past the global outline, the inset offset and the writing area.
+    for (const s of rule.selectors) expect(s.match(/:focus(-visible)?/g)!.length).toBeGreaterThanOrEqual(6);
+    const bare = rule.selectors.map((s) => s.replace(/(:focus-visible|:focus)+/g, '*'));
+    document.body.innerHTML = '<input type="text"><button>Send</button><div role="menuitem" tabindex="-1">Reply</div>';
+    const elements = [...document.body.children];
+    document.documentElement.dataset.focusRing = 'off';
+    for (const e of elements) expect(bare.some((s) => e.matches(s))).toBe(true);
+    document.documentElement.dataset.focusRing = 'thick';
+    for (const e of elements) expect(bare.some((s) => e.matches(s))).toBe(false);
+    delete document.documentElement.dataset.focusRing;
+    document.body.innerHTML = '';
+  });
+
+  it('keeps the outline in the accessibility panel, the way back by keyboard', () => {
+    const rule = ruleAt('html:root[data-focus-ring="off"] :focus-visible');
+    const bare = rule.selectors.map((s) => s.replace(/(:focus-visible|:focus)+/g, '*'));
+    document.body.innerHTML = '<div data-keep-focus-outline="true"><button>Normal</button></div><button>Send</button>';
+    const inPanel = document.querySelector('[data-keep-focus-outline] button')!;
+    const outside = document.body.lastElementChild!;
+    document.documentElement.dataset.focusRing = 'off';
+    expect(bare.some((s) => inPanel.matches(s))).toBe(false);
+    expect(bare.some((s) => outside.matches(s))).toBe(true);
+    delete document.documentElement.dataset.focusRing;
+    document.body.innerHTML = '';
+  });
+
+  /**
+   * Every rule that takes an outline off while the focus outline is Off, with
+   * the @media it sits in (null at the top level).
+   */
+  function outlineOffRules(): { media: string | null; selectors: string[] }[] {
+    const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const out: { media: string | null; selectors: string[] }[] = [];
+    const stack: string[] = [];
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '{') {
+        stack.push(text.slice(start, i).trim());
+        start = i + 1;
+      } else if (text[i] === '}') {
+        const prelude = stack.pop()!;
+        const body = text.slice(start, i);
+        start = i + 1;
+        if (prelude.startsWith('@') || !prelude.includes('[data-focus-ring="off"]') || !/outline: none/.test(body)) continue;
+        const media = stack.filter((p) => p.startsWith('@media')).pop() ?? null;
+        out.push({ media, selectors: prelude.split(/,\s*\n/).map((s) => s.trim()) });
+      }
+    }
+    return out;
+  }
+
+  /** Whether some Off rule takes the outline off a focused button. */
+  function outlineRemoved(forcedColors: boolean): boolean {
+    document.body.innerHTML = '<button>Send</button>';
+    const button = document.body.firstElementChild!;
+    const applies = (media: string | null) =>
+      media === null || media === `@media (forced-colors: ${forcedColors ? 'active' : 'none'})`;
+    const removed = outlineOffRules()
+      .filter((r) => applies(r.media))
+      .some((r) => r.selectors.some((s) => button.matches(s.replace(/(:focus-visible|:focus)+/g, '*'))));
+    document.body.innerHTML = '';
+    return removed;
+  }
+
+  it('keeps the outline in a Windows contrast theme unless the user chose Off', () => {
+    const html = document.documentElement;
+    expect(outlineOffRules().length).toBeGreaterThan(0);
+    for (const r of outlineOffRules()) {
+      expect([null, '@media (forced-colors: none)', '@media (forced-colors: active)']).toContain(r.media);
+    }
+    html.dataset.focusRing = 'off';
+    // Off as the default.
+    expect(outlineRemoved(false)).toBe(true);
+    expect(outlineRemoved(true)).toBe(false);
+    // Off the user chose.
+    html.dataset.focusRingChosen = 'on';
+    expect(outlineRemoved(false)).toBe(true);
+    expect(outlineRemoved(true)).toBe(true);
+    delete html.dataset.focusRingChosen;
+    delete html.dataset.focusRing;
+  });
+
+  it("takes the writing area's bar off, its forced-colors outline, and the outline round a recipient field", () => {
+    const rule = ruleAt('html:root[data-focus-ring="off"] [data-composer-writing]');
+    expect(rule.selectors).toEqual([
+      'html:root[data-focus-ring="off"] [data-composer-writing]:has(:is(.tiptap, textarea):focus-visible)',
+      'html:root[data-focus-ring="off"] [data-recipient-field]:has(input:focus-visible)',
+    ]);
+    expect(rule.body).toMatch(/^\s*box-shadow: none;\s*outline: none;\s*$/);
+  });
+});
+
+// The input has no padding: an outline inside it lay on the first letter
+// typed, and one outside it was cut by the field's scroller.
+describe('a recipient field', () => {
+  it('shows the focus round the whole field, not round the input in it', () => {
+    const start = css.indexOf('html:root [data-recipient-field]');
+    expect(start).toBeGreaterThan(-1);
+    const rule = css.slice(start, css.indexOf('}', start));
+    expect(rule).toMatch(/\{\s*outline: none !important;\s*$/);
+    const selectors = rule.slice(0, rule.indexOf('{')).split(/,\s*\n/).map((s) => s.trim());
+    // Padded past the global outline, whose :not() lists count.
+    for (const s of selectors) expect(s.match(/:focus(-visible)?/g)!.length).toBeGreaterThanOrEqual(5);
+    const off = selectors.map((s) => s.replace(/(:focus-visible|:focus)+/g, ''));
+    document.body.innerHTML =
+      '<div data-recipient-field=""><span data-recipient-chip=""><input type="search" class="edit"></span><input type="search" role="combobox" class="main"></div>' +
+      '<input type="text" class="subject">';
+    // The field's own input, and the one a chip is edited in.
+    for (const cls of ['main', 'edit']) expect(off.some((s) => document.querySelector(`.${cls}`)!.matches(s))).toBe(true);
+    // Other inputs keep the outline.
+    expect(off.some((s) => document.querySelector('.subject')!.matches(s))).toBe(false);
+    document.body.innerHTML = '';
+    expect(css).toMatch(/\n\[data-recipient-field\]:has\(input:focus-visible\) \{\s*outline: var\(--focus-ring-width\) solid var\(--focus-ring-color\);\s*\}/);
+    expect(forcedBlock()).toMatch(/\[data-recipient-field\]:has\(input:focus-visible\) \{\s*outline-color: Highlight;/);
+  });
+});
+
+// inline-reply: the editor always matches :focus-visible, and the outline
+// boxed in the typing part alone, with the signature outside it.
+describe("the composer's writing area", () => {
+  it('shows the focus on the whole page, not as a box round the editor', () => {
+    // The rule that takes the outline off, found by its first selector.
+    const start = css.indexOf('html:root [data-composer-writing]');
+    expect(start).toBeGreaterThan(-1);
+    const rule = css.slice(start, css.indexOf('}', start));
+    expect(rule).toMatch(/\{\s*outline: none !important;\s*$/);
+    const off = rule.slice(0, rule.indexOf('{')).split(/,\s*\n/).map((s) => s.trim().replace(/(:focus-visible|:focus)+/g, ''));
+    document.body.innerHTML = '<div data-composer-writing=""><div class="tiptap ProseMirror" contenteditable="true"></div><p>Signature</p></div><div class="tiptap other" contenteditable="true"></div>';
+    const inside = document.querySelector('[data-composer-writing] .tiptap')!;
+    const outside = document.querySelector('.tiptap.other')!;
+    expect(off.some((s) => inside.matches(s))).toBe(true);
+    // Only inside the writing area: other editors keep the outline.
+    expect(off.some((s) => outside.matches(s))).toBe(false);
+    document.body.innerHTML = '';
+    expect(css).toMatch(/\[data-composer-writing\]:has\(:is\(\.tiptap, textarea\):focus-visible\) \{\s*box-shadow: inset var\(--focus-ring-width\) 0 0 0 var\(--focus-ring-color\);/);
+    // Forced colours drop box-shadows: an outline round the page there.
+    expect(forcedBlock()).toMatch(/\[data-composer-writing\]:has\(:is\(\.tiptap, textarea\):focus-visible\) \{\s*outline: var\(--focus-ring-width\) solid CanvasText;/);
+  });
+});
+
+describe('more contrast', () => {
+  const globals = readFileSync(path.join(process.cwd(), 'app', 'globals.css'), 'utf8');
+  const brandVars = [...new Set([...globals.matchAll(/var\((--brand-[\w-]+)/g)].map((m) => m[1]))];
+
+  /** The declarations of the rule whose selector is `selector`. */
+  function body(selector: string): string {
+    const at = css.indexOf(`${selector} {`);
+    expect(at).toBeGreaterThan(-1);
+    return css.slice(css.indexOf('{', at) + 1, css.indexOf('}', at));
+  }
+
+  it.each([
+    ['the system setting', ':root:not([data-contrast="normal"])'],
+    ['the More setting', ':root[data-contrast="more"]'],
+  ])('drops the host palette for %s, so its stock colour pairs apply', (_name, selector) => {
+    expect(brandVars.length).toBeGreaterThanOrEqual(8);
+    const rule = body(selector);
+    for (const name of brandVars) expect(rule).toContain(`${name}: initial;`);
   });
 });

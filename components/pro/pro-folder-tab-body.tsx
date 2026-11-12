@@ -10,14 +10,28 @@ import { EmailViewer } from "@/components/email/email-viewer";
 import { ProEmailView } from "@/components/pro/pro-email-tab-body";
 import { RetentionNotice } from "@/components/email/retention-notice";
 import { useAuthStore } from "@/stores/auth-store";
-import { useEmailStore } from "@/stores/email-store";
+import { bulkDeleteIsPermanent, captureListedMove, emailRestorePoint, ensureArchiveMailbox, findArchiveMailbox, findTrashMailbox, TrashMailboxNotFoundError, useEmailStore, type EmailRestoreBatch } from "@/stores/email-store";
 import { getMessageListOrderFor, useSettingsStore } from "@/stores/settings-store";
 import { useProTabStore, type ProFolderTabData } from "@/stores/pro-tab-store";
 import { useDeviceDetection } from "@/hooks/use-media-query";
 import { usePaneId } from "@/hooks/use-pane-context";
 import type { Email, Mailbox } from "@/lib/jmap/types";
+import { toast } from "@/stores/toast-store";
+import { toastWithUndo, undoLabels, undoMoveAction } from "@/lib/email-action-toast";
+import { rememberTrashOrigins } from "@/lib/trash-origin";
 import { emailHooks } from "@/lib/plugin-hooks";
 import { scheduleAutoMarkAsRead } from "@/lib/mark-as-read-delay";
+import { isArchiveActionEnabled } from "@/lib/archive-gate";
+import { archiveInboxTarget } from "@/lib/archive-inbox";
+import { allowEmailMove, emitEmailMove } from "@/lib/plugin-mail-hooks";
+import { confirmMailRemoval } from "@/lib/mail-removal-confirm";
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
+interface RowReadIntent {
+  email: Email;
+  confirmedThroughFetch: number;
+}
 
 interface ProFolderTabBodyProps {
   tabId: string;
@@ -38,6 +52,9 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
   const t = useTranslations();
   const tList = useTranslations('email_list');
   const tSidebar = useTranslations('sidebar');
+  const tRemove = useTranslations('email_list.confirm_remove');
+  const tNotifications = useTranslations('notifications');
+  const { confirm, dialogProps } = useConfirmDialog();
 
   const activeClient = useAuthStore((s) => s.client);
   const activeAccountId = useAuthStore((s) => s.activeAccountId);
@@ -62,12 +79,15 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
   // The folder's metadata, resolved from whichever account's mailbox list it
   // was dragged from. Shared folders are namespaced in the store, so JMAP
   // calls need originalId + the owner accountId (mirrors fetchEmails).
-  const mailbox: Mailbox | undefined = useMemo(() => {
-    const list = data.accountId ? accountMailboxes[data.accountId] ?? [] : activeMailboxes;
-    return list.find((m) => m.id === data.mailboxId);
-  }, [data.accountId, data.mailboxId, accountMailboxes, activeMailboxes]);
+  const folderMailboxes = useMemo(
+    () => data.accountId ? accountMailboxes[data.accountId] ?? [] : activeMailboxes,
+    [data.accountId, accountMailboxes, activeMailboxes],
+  );
+  const mailbox: Mailbox | undefined = folderMailboxes.find((m) => m.id === data.mailboxId);
   const jmapMailboxId = mailbox?.originalId || data.mailboxId;
   const jmapAccountId = mailbox?.isShared ? mailbox.accountId : undefined;
+  const ordinaryTrash = useSettingsStore((s) => s.deleteAction !== 'permanent'
+    && mailbox?.role !== 'trash' && !(mailbox?.role === 'junk' && s.permanentlyDeleteJunk));
 
   const [emails, setEmails] = useState<Email[]>([]);
   const [total, setTotal] = useState(0);
@@ -76,6 +96,26 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const fetchSeqRef = useRef(0);
+  const cancelRowReadRef = useRef<(() => void) | null>(null);
+  // Reads belong to this client/folder, even if another folder has the same ids.
+  const rowReads = useMemo(() => ({
+    active: false,
+    pending: new Set<string>(),
+    archiving: new Set<string>(),
+    moving: new Set<string>(),
+    trashing: new Set<string>(),
+    selected: null as RowReadIntent | null,
+    // A context change starts a fresh scope even though its values are not stored here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [client, clientLogin, data.accountId, data.mailboxId, jmapMailboxId, jmapAccountId]);
+
+  useEffect(() => {
+    rowReads.active = true;
+    return () => {
+      rowReads.active = false;
+      cancelRowReadRef.current?.();
+    };
+  }, [rowReads]);
 
   const folderLabel = mailbox
     ? localizeMailboxName(mailbox.role, mailbox.name, (k) => tSidebar(`mailboxes.${k}`))
@@ -93,12 +133,27 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
   const loadPage = useCallback(async (position: number) => {
     if (!client) return;
     const seq = ++fetchSeqRef.current;
-    if (position === 0) setIsLoading(true); else setIsLoadingMore(true);
+    if (position === 0) {
+      setIsLoading(true);
+    } else setIsLoadingMore(true);
     try {
       const result = await client.getEmails(jmapMailboxId, jmapAccountId, emailsPerPage, position, undefined, true, undefined, getMessageListOrderFor(mailboxRole));
-      if (seq !== fetchSeqRef.current) return;
-      setEmails((prev) => {
-        if (position === 0) return result.emails;
+      if (seq !== fetchSeqRef.current || !rowReads.active) return;
+      if (position === 0) {
+        // Refresh keeps the selected read intent and its original timer. Let
+        // that intent follow the replacement row, including when the request
+        // succeeded while this (possibly older, unread) response was in flight.
+        // Later refreshes remain authoritative, e.g. after an explicit Unread.
+        const selected = rowReads.selected;
+        setEmails(result.emails.map((email) => {
+          if (!selected || email.id !== selected.email.id) return email;
+          const current = selected.confirmedThroughFetch >= seq
+            ? { ...email, keywords: { ...email.keywords, $seen: true } }
+            : email;
+          selected.email = current;
+          return current;
+        }));
+      } else setEmails((prev) => {
         const known = new Set(prev.map((e) => e.id));
         return [...prev, ...result.emails.filter((e) => !known.has(e.id))];
       });
@@ -112,12 +167,14 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
         if (position === 0) setIsLoading(false); else setIsLoadingMore(false);
       }
     }
-  }, [client, jmapMailboxId, jmapAccountId, emailsPerPage, mailboxRole]);
+  }, [client, jmapMailboxId, jmapAccountId, emailsPerPage, mailboxRole, rowReads]);
 
   useEffect(() => {
+    cancelRowReadRef.current?.();
+    rowReads.selected = null;
     setSelectedEmailId(null);
     void loadPage(0);
-  }, [loadPage]);
+  }, [loadPage, rowReads]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     if (!hasMore || isLoadingMore || isLoading) return;
@@ -127,25 +184,37 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
     }
   }, [hasMore, isLoadingMore, isLoading, loadPage, emails.length]);
 
-  const markRowAsRead = useCallback(async (email: Email) => {
-    if (!client || email.keywords?.$seen) return;
-    // Straight to the client: the store's markAsRead only serves emails in
-    // its own (global) list, which this tab's rows are not part of. So the
-    // plugin hooks the store action fires are fired here.
-    if (emailHooks.onBeforeEmailReadStateChange.size > 0
-      && !(await emailHooks.onBeforeEmailReadStateChange.intercept({ emailIds: [email.id], read: true }))) {
-      return;
-    }
-    setEmails((prev) => prev.map((e) => e.id === email.id
-      ? { ...e, keywords: { ...e.keywords, $seen: true } }
-      : e));
+  const markRowAsRead = useCallback(async (intent: RowReadIntent) => {
+    const email = intent.email;
+    if (!client || email.keywords?.$seen || !rowReads.active || rowReads.pending.has(email.id)) return;
+    // Deduplicate before awaiting plugins too. A refused attempt is released in
+    // finally; only a later row selection retries it, never a render/effect.
+    rowReads.pending.add(email.id);
     try {
+      // This tab owns its rows, so it calls the client and plugin hooks directly.
+      if (emailHooks.onBeforeEmailReadStateChange.size > 0
+        && !(await emailHooks.onBeforeEmailReadStateChange.intercept({ emailIds: [email.id], read: true }))) {
+        return;
+      }
+      // Selection/context/unmount may have cancelled while a plugin was waiting.
+      if (!rowReads.active || rowReads.selected !== intent) return;
       await client.markAsRead(email.id, true, jmapAccountId);
+      if (rowReads.active) {
+        // Only this intent can receive success. Same-context Refresh may have
+        // transferred it to a new row; a different selection owns its own copy.
+        intent.confirmedThroughFetch = fetchSeqRef.current;
+        const current = intent.email;
+        const confirmed = { ...current, keywords: { ...current.keywords, $seen: true } };
+        intent.email = confirmed;
+        setEmails((prev) => prev.map((e) => e === current ? confirmed : e));
+      }
       void emailHooks.onEmailReadStateChange.emit({ emailIds: [email.id], read: true });
     } catch (err) {
       console.error('Mark as read failed:', err);
+    } finally {
+      rowReads.pending.delete(email.id);
     }
-  }, [client, jmapAccountId]);
+  }, [client, jmapAccountId, rowReads]);
 
   const openAsEmailTab = useCallback((email: Email, reuseReader: boolean) => {
     useProTabStore.getState().openEmailTab(
@@ -163,14 +232,15 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
   // Opening a row marks it read on the user's markAsReadDelay, like the
   // reading pane does; a pending delayed mark is dropped when another row is
   // opened or the tab goes away.
-  const cancelRowReadRef = useRef<(() => void) | null>(null);
-  useEffect(() => () => cancelRowReadRef.current?.(), []);
-
   const handleRowClick = useCallback((email: Email) => {
     cancelRowReadRef.current?.();
+    const intent = rowReads.selected?.email === email
+      ? rowReads.selected
+      : { email, confirmedThroughFetch: 0 };
+    rowReads.selected = intent;
     cancelRowReadRef.current = scheduleAutoMarkAsRead(
       useSettingsStore.getState().markAsReadDelay,
-      () => void markRowAsRead(email),
+      () => void markRowAsRead(intent),
     );
     if (isMobile) {
       // No room for a reading pane - promote to a dedicated email tab.
@@ -178,7 +248,7 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
       return;
     }
     setSelectedEmailId(email.id);
-  }, [markRowAsRead, isMobile, openAsEmailTab]);
+  }, [markRowAsRead, isMobile, openAsEmailTab, rowReads]);
 
   // The selected message left the folder (deleted / archived / moved /
   // reopened as a draft): drop its row and clear the reading pane.
@@ -188,6 +258,238 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
       return null;
     });
   }, []);
+
+  // Archive, Move and Delete of one message exclude each other while one is
+  // on its way: the reader stays up until the server answers.
+  const isFiling = useCallback((emailId: string) => rowReads.archiving.has(emailId)
+    || rowReads.moving.has(emailId) || rowReads.trashing.has(emailId), [rowReads]);
+
+  // The batches keep the reaching client and owner for the restore. Only the
+  // global refresh after it follows the login that is active when Undo is
+  // clicked: the folder's own client would write its folders into Mail's
+  // list. The row comes back with a fresh first page.
+  const offerUndo = useCallback((title: string, restore: EmailRestoreBatch[]) => {
+    const labels = undoLabels((key, values) => t(`notifications.${key}`, values));
+    const reload = () => { if (rowReads.active) void loadPage(0); };
+    toastWithUndo(title, {
+      label: labels.undo,
+      hint: labels.hint,
+      onClick: () => undoMoveAction(useAuthStore.getState().client ?? client, restore, labels, undefined, reload)?.onClick(),
+    });
+  }, [client, rowReads, loadPage, t]);
+
+  // The reader's copy can be older than the row's: the row is marked read on
+  // its own, and Undo must not bring a read message back unread.
+  const restorePoint = useCallback((email: Email, intent: RowReadIntent, accountId: string) => {
+    const point = emailRestorePoint(email, accountId);
+    return { ...point, seen: point.seen || !!intent.email.keywords?.$seen };
+  }, []);
+
+  // Delete's list action deliberately refuses unknown rows. This folder owns
+  // an ordinary Trash attempt: its full reader message, reaching login and owner.
+  const handleTrashEmail = useCallback(async (email: Email) => {
+    const intent = rowReads.selected;
+    if (!client || !mailbox || !intent || intent.email.id !== email.id || isFiling(email.id)) return;
+    const accountId = jmapAccountId ?? client.getAccountId();
+    const readFolders = () => {
+      const state = useEmailStore.getState();
+      return (data.accountId ? state.accountMailboxes[data.accountId] ?? [] : state.mailboxes)
+        .filter((m) => m.accountId ? m.accountId === accountId : !m.isShared && accountId === client.getAccountId());
+    };
+    // A tab on another login doesn't depend on which login Mail shows.
+    const isCurrent = () => {
+      const auth = useAuthStore.getState();
+      return rowReads.active && rowReads.selected === intent
+        && (!clientLogin || auth.getClientForAccount(clientLogin) === client)
+        && (!!data.accountId || (auth.client === client && auth.activeAccountId === clientLogin));
+    };
+    const eligible = () => {
+      const source = readFolders().find((m) => m.id === mailbox.id);
+      return !!source && useSettingsStore.getState().deleteAction !== 'permanent'
+        && !bulkDeleteIsPermanent(source) && source.myRights?.mayRemoveItems !== false;
+    };
+    const trashFolder = () => findTrashMailbox(readFolders(), jmapAccountId ? { accountId } : {});
+    if (!isCurrent() || !eligible() || trashFolder()?.myRights?.mayAddItems === false) return;
+    rowReads.trashing.add(email.id);
+    try {
+      if (!(await confirmMailRemoval('delete', 1, confirm, tRemove)) || !isCurrent() || !eligible()) return;
+      const event = { emailIds: [email.id], permanent: false };
+      if (emailHooks.onBeforeEmailDelete.size > 0 && !(await emailHooks.onBeforeEmailDelete.intercept(event))) return;
+      if (!isCurrent() || !eligible()) return;
+      const folders = readFolders();
+      const trash = trashFolder();
+      if (!trash) throw new TrashMailboxNotFoundError();
+      if (trash.myRights?.mayAddItems === false) return;
+      const restore: EmailRestoreBatch[] = [{ client, accountId, points: [restorePoint(email, intent, accountId)] }];
+      // "Move to Trash and mark as read" marks it in the same request.
+      const alsoMarkRead = useSettingsStore.getState().deleteAction === 'trash-and-read'
+        && !email.keywords?.$seen && !intent.email.keywords?.$seen;
+      const completeListedTrash = captureListedMove(email.id, { client, clientAccountId: clientLogin, accountId }, trash.id, alsoMarkRead);
+      rememberTrashOrigins([email], folders);
+      await client.moveToTrash(email.id, trash.originalId || trash.id, accountId, alsoMarkRead);
+      completeListedTrash();
+      if (isCurrent()) {
+        // Revoke a waiting before-read hook as well as its timer. A dispatched
+        // read completes independently, just as it does after Archive.
+        cancelRowReadRef.current?.();
+        rowReads.selected = null;
+        ++fetchSeqRef.current;
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        setEmails((prev) => prev.filter((e) => e.id !== email.id));
+        setSelectedEmailId(null);
+      }
+      void emailHooks.onAfterEmailDelete.emit(event);
+      offerUndo(t('mail_list_extra.moved_to_trash'), restore);
+    } catch (error) {
+      console.error('Delete failed:', error);
+      if (isCurrent()) toast.error(tNotifications('error_deleting'));
+    } finally {
+      rowReads.trashing.delete(email.id);
+    }
+  }, [client, clientLogin, mailbox, jmapAccountId, rowReads, data.accountId, confirm, tRemove, tNotifications, t, isFiling, offerUndo, restorePoint]);
+
+  // The folder owns these rows. The list-based moveToMailbox deliberately
+  // refuses a message absent from the global list, and may name another
+  // login's colliding id there. Keep this Archive bound to the reader and
+  // this folder's client/account, using the same move/archive plugin gates.
+  const handleArchiveEmail = useCallback(async (email: Email) => {
+    const intent = rowReads.selected;
+    if (!client || !mailbox || !intent || intent.email.id !== email.id
+      || isFiling(email.id) || !isArchiveActionEnabled()) return;
+    const existing = findArchiveMailbox(folderMailboxes, mailbox.id, jmapAccountId);
+    if (mailbox.myRights?.mayRemoveItems === false || existing?.myRights?.mayAddItems === false) return;
+    const isCurrent = () => rowReads.active && rowReads.selected === intent
+      && (!data.accountId || useAuthStore.getState().getClientForAccount(data.accountId) === client);
+    const readFolders = () => {
+      const state = useEmailStore.getState();
+      return data.accountId ? state.accountMailboxes[data.accountId] ?? [] : state.mailboxes;
+    };
+    rowReads.archiving.add(email.id);
+    try {
+      if (!(await confirmMailRemoval('archive', 1, confirm, tRemove)) || !isCurrent()) return;
+      // Like Mail, make the Archive when the account has none yet (#578).
+      const archive = existing ?? await ensureArchiveMailbox({
+        client, mailboxes: folderMailboxes, selectedMailboxId: mailbox.id, accountId: jmapAccountId,
+        refresh: async () => {
+          const store = useEmailStore.getState();
+          if (data.accountId) await store.fetchAccountMailboxes(client, data.accountId);
+          else await store.fetchMailboxes(client);
+          return readFolders();
+        },
+      });
+      if (!archive || archive.myRights?.mayAddItems === false || !isCurrent()) return;
+      const mode = useSettingsStore.getState().archiveMode;
+      const accountId = jmapAccountId ?? client.getAccountId();
+      const restore: EmailRestoreBatch[] = [{ client, accountId, points: [restorePoint(email, intent, accountId)] }];
+      const move = { emailIds: [email.id], fromMailboxId: mailbox.id, toMailboxId: archive.id };
+      // A just-made Archive isn't in the folder list this render saw.
+      const hookMailboxes = [...folderMailboxes.filter((m) => m.id !== archive.id), archive];
+      if (!(await allowEmailMove(move, hookMailboxes)) || !isCurrent() || !isArchiveActionEnabled()) return;
+      // A year or month folder isn't known yet, so only the plain Archive's
+      // counter is bumped here; the folder refresh below settles the rest.
+      const completeListedArchive = captureListedMove(email.id, { client, clientAccountId: clientLogin, accountId }, mode === 'single' ? archive.id : '');
+      if (mode === 'single') {
+        await client.moveEmail(email.id, archive.originalId || archive.id, accountId);
+      } else {
+        // archiveMode files into year or year/month folders, made as needed.
+        // batchArchiveEmails finds them by the server's ids, not the store's
+        // namespaced ones (see archiveAggregateSelection).
+        const serverFolders = readFolders().map((m) => (m.originalId && m.accountId ? {
+          ...m, id: m.originalId,
+          parentId: m.parentId?.startsWith(`${m.accountId}:`) ? m.parentId.slice(m.accountId.length + 1) : m.parentId,
+        } : m));
+        await client.batchArchiveEmails([{ id: email.id, receivedAt: email.receivedAt }], archive.originalId || archive.id, mode, serverFolders, accountId);
+        const store = useEmailStore.getState();
+        void (data.accountId ? store.fetchAccountMailboxes(client, data.accountId) : store.fetchMailboxes(client));
+      }
+      completeListedArchive();
+      if (isCurrent()) {
+        // Revoke the intent as well as the timer: a before-read hook may
+        // already be waiting. A read sent to the server is left alone.
+        cancelRowReadRef.current?.();
+        rowReads.selected = null;
+        // An older in-flight Refresh must not reinsert the archived row.
+        ++fetchSeqRef.current;
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        setEmails((prev) => prev.filter((e) => e.id !== email.id));
+        setSelectedEmailId(null);
+      }
+      // A confirmed server change still has its hooks and Undo if the user
+      // selected another row or folder while it was in flight.
+      emitEmailMove(move, hookMailboxes);
+      offerUndo(t('mail_list_extra.archived'), restore);
+    } catch (error) {
+      console.error('Archive failed:', error);
+    } finally {
+      rowReads.archiving.delete(email.id);
+    }
+  }, [client, clientLogin, mailbox, folderMailboxes, jmapAccountId, rowReads, data.accountId, confirm, tRemove, t, isFiling, offerUndo, restorePoint]);
+
+  // Only this login's folders in the message's owning JMAP account. The
+  // reader's default mailbox list belongs to Mail, not necessarily this tab.
+  const moveMailboxes = useMemo(() => folderMailboxes.filter((m) => jmapAccountId
+    ? m.accountId === jmapAccountId
+    : !m.isShared && (!m.accountId || m.accountId === client?.getAccountId())),
+  [folderMailboxes, jmapAccountId, client]);
+
+  const handleMoveEmail = useCallback(async (email: Email, destinationId: string) => {
+    const intent = rowReads.selected;
+    if (!client || !mailbox || !intent || intent.email.id !== email.id || isFiling(email.id)) return;
+    const destination = moveMailboxes.find((m) => m.id === destinationId);
+    if (!destination || destination.id === mailbox.id || !destination.myRights?.mayAddItems
+      || mailbox.myRights?.mayRemoveItems === false) return;
+    const isCurrent = () => {
+      const auth = useAuthStore.getState();
+      return rowReads.active && rowReads.selected === intent
+        && (data.accountId ? auth.getClientForAccount(data.accountId) === client
+          : auth.client === client && auth.activeAccountId === clientLogin);
+    };
+    const canMove = () => {
+      const state = useEmailStore.getState();
+      const boxes = data.accountId ? state.accountMailboxes[data.accountId] ?? [] : state.mailboxes;
+      return boxes.some((m) => m.id === mailbox.id && m.myRights?.mayRemoveItems !== false)
+        && boxes.find((m) => m.id === destination.id)?.myRights?.mayAddItems === true;
+    };
+    rowReads.moving.add(email.id);
+    try {
+      const accountId = jmapAccountId ?? client.getAccountId();
+      // Use the full reader's original memberships, not the folder's list row
+      // or a global namesake. Shared memberships go back as server ids.
+      const restore: EmailRestoreBatch[] = [{ client, accountId, points: [restorePoint(email, intent, accountId)] }];
+      const move = { emailIds: [email.id], fromMailboxId: mailbox.id, toMailboxId: destination.id };
+      if (!(await allowEmailMove(move, moveMailboxes)) || !isCurrent() || !canMove()) return;
+      const completeListedMove = captureListedMove(email.id, { client, clientAccountId: clientLogin, accountId }, destination.id);
+      await client.moveEmail(email.id, destination.originalId || destination.id, accountId);
+      completeListedMove();
+      if (isCurrent()) {
+        // Cancel both the timer and a read waiting in its before hook. An
+        // already-dispatched read keeps its own completion.
+        cancelRowReadRef.current?.();
+        rowReads.selected = null;
+        ++fetchSeqRef.current;
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        setEmails((prev) => prev.filter((e) => e.id !== email.id));
+        setSelectedEmailId(null);
+      }
+      emitEmailMove(move, moveMailboxes);
+      offerUndo(t('notifications.email_moved'), restore);
+    } catch (error) {
+      console.error('Move failed:', error);
+    } finally {
+      rowReads.moving.delete(email.id);
+    }
+  }, [client, clientLogin, mailbox, moveMailboxes, jmapAccountId, rowReads, data.accountId, t, isFiling, offerUndo, restorePoint]);
+
+  // In Archive the filing action brings the message back to the Inbox
+  // (mail-p3-4), from the keyboard and the Message menu too.
+  const archiveInbox = archiveInboxTarget(moveMailboxes, mailbox?.id);
+  const handleMoveToInbox = useCallback(
+    (email: Email) => (archiveInbox ? handleMoveEmail(email, archiveInbox.id) : Promise.resolve()),
+    [archiveInbox, handleMoveEmail],
+  );
 
   // Sent/Drafts show the recipient - the sender is always "me" there.
   const showRecipient = mailbox?.role === 'sent' || mailbox?.role === 'drafts';
@@ -296,6 +598,7 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
   return (
     <div className="flex h-full w-full bg-background">
       {list}
+      <ConfirmDialog {...dialogProps} />
       {selectedEmailId ? (
         <ProEmailView
           key={selectedEmailId}
@@ -304,6 +607,10 @@ export function ProFolderTabBody({ tabId, data }: ProFolderTabBodyProps) {
           clientAccountId={clientLogin}
           accountId={jmapAccountId}
           onClose={handleViewerClose}
+          onMoveEmail={handleMoveEmail}
+          moveMailboxes={moveMailboxes}
+          onTrashEmail={ordinaryTrash ? handleTrashEmail : undefined}
+          onArchiveEmail={archiveInbox ? handleMoveToInbox : handleArchiveEmail}
           className="min-w-0 flex-1"
         />
       ) : (

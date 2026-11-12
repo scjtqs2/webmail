@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type DragEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronUp, Copy, Download, FolderInput, Loader2, Paperclip, Eye, Pencil } from "@/components/icons";
+import { ChevronDown, ChevronUp, CloudUpload, Copy, Download, FolderInput, Loader2, Paperclip, Eye, Pencil } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { useContextMenu } from "@/hooks/use-context-menu";
@@ -11,6 +11,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { getAttachmentDisplayName } from "@/lib/attachment-name";
 import { cn, formatFileSize } from "@/lib/utils";
 import { noMediaSavingProps } from "@/lib/device-frame";
+import { ROW_ITEM_ATTR, ROW_MORE_ATTR, useFirstRowLimit } from "@/hooks/use-first-row-limit";
 import { toast } from "@/stores/toast-store";
 import { attachmentIcon } from "./attachment-chips";
 
@@ -22,9 +23,6 @@ export interface ReaderAttachmentItem {
   blobId?: string;
 }
 
-/** "bar": tiles under the header. "cards": larger previews under the message. */
-export type ReaderAttachmentLayout = "bar" | "cards";
-
 export interface AttachmentDragProps {
   draggable: boolean;
   onPointerEnter: () => void;
@@ -33,9 +31,6 @@ export interface AttachmentDragProps {
   /** The desktop app only. */
   onCopyAsFile?: () => Promise<boolean>;
 }
-
-/** Past this many tiles the bar shows one row less and a "Show N more" tile. */
-export const BAR_COLLAPSE_AT = 6;
 
 /**
  * Splits a file name so the extension can stay visible while the rest is
@@ -50,7 +45,6 @@ export function splitFileName(name: string): [stem: string, ext: string] {
 
 interface ReaderAttachmentsProps<T extends ReaderAttachmentItem> {
   attachments: T[];
-  layout?: ReaderAttachmentLayout;
   /** Object URLs of image attachments, keyed by attachment id. */
   thumbUrls: Record<string, string>;
   /**
@@ -79,6 +73,8 @@ interface ReaderAttachmentsProps<T extends ReaderAttachmentItem> {
   downloadsOff?: boolean;
   /** Set when the Files app can take attachments. */
   onSaveToFiles?: (attachment: T) => void;
+  /** Renames the attachment for saving a copy; left out while downloads are off. */
+  onRename?: (attachment: T) => void;
   /** Plugin actions for one attachment; renders nothing when no plugin offers any. */
   pluginMenu?: (attachment: T) => ReactNode;
   /**
@@ -97,14 +93,15 @@ const NO_DRAG: AttachmentDragProps = {
 };
 
 /**
- * The attachments of an open message: a summary line with "Download all",
- * then either a bar of equal tiles (preview, name, type, size and a download
- * button that is always there) or larger preview cards whose actions show
- * on hover, focus and touch screens.
+ * The attachments of an open message, drawn right under its header: a
+ * summary line with the bulk actions grouped at its end, then one row of
+ * equal tiles (preview with the file type, name, size and a download button
+ * that is always there; the other actions show on hover or focus, and always
+ * on touch screens). Files that don't fit on that row wait behind a
+ * "Show N more" tile, so the first lines of the body stay in view.
  */
 export function ReaderAttachments<T extends ReaderAttachmentItem>({
   attachments,
-  layout = "bar",
   thumbUrls,
   opensPreview,
   onOpen,
@@ -117,6 +114,7 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
   downloadingAll,
   downloadsOff = false,
   onSaveToFiles,
+  onRename,
   pluginMenu,
   renderItem,
   className,
@@ -127,6 +125,7 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
   const tWindows = useTranslations("pwaWindows");
   const tDesktop = useTranslations("desktopUi.attachment");
   const tEdit = useTranslations("desktopEdit");
+  const tRename = useTranslations("attachment_rename");
   const menu = useContextMenu<T>();
   const [desktopMenu, setDesktopMenu] = useState(false);
   useEffect(() => setDesktopMenu(isDesktopApp()), []);
@@ -135,14 +134,19 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
   const locked = (attachment: T) => downloadsOff && !opensPreview(attachment);
   const openLabel = (attachment: T, name: string) =>
     opensPreview(attachment) ? t("preview_named", { name }) : locked(attachment) ? tDevice("download_off_named", { name }) : t("download_named", { name });
-  const [expanded, setExpanded] = useState(false);
+  // One row of tiles; the rest behind "Show N more" until it is clicked,
+  // for this message's files only.
+  const listKey = attachments.map((a) => a.id).join("|");
+  const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const expanded = expandedFor === listKey;
+  const row = useFirstRowLimit(attachments.length, !expanded);
 
   if (attachments.length === 0) return null;
 
   const totalSize = attachments.reduce((sum, a) => sum + (a.size || 0), 0);
-  const collapses = layout === "bar" && attachments.length > BAR_COLLAPSE_AT;
-  const shown = collapses && !expanded ? attachments.slice(0, BAR_COLLAPSE_AT - 1) : attachments;
-  const hidden = collapses && !expanded ? attachments.slice(BAR_COLLAPSE_AT - 1) : [];
+  const limit = expanded ? null : row.limit;
+  const shown = limit === null ? attachments : attachments.slice(0, limit);
+  const hidden = limit === null ? [] : attachments.slice(limit);
 
   const tile = (attachment: T, drag: AttachmentDragProps) => {
     const name = getAttachmentDisplayName(attachment.name, attachment.type);
@@ -158,7 +162,7 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
         onPointerEnter={drag.onPointerEnter}
         onDragStart={drag.onDragStart}
         onDragEnd={drag.onDragEnd}
-        className="group relative flex h-16 min-w-0 items-center gap-3 rounded-lg border border-border bg-card ps-2 pe-1 transition-colors hover:bg-muted/50"
+        className="group relative flex h-14 min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card ps-2 pe-1 transition-colors hover:bg-muted/50"
       >
         <AttachmentThumb attachment={attachment} url={thumbUrls[attachment.id]} label={kind} />
         {/* The button covers the whole tile, so a click on the preview opens the file too. */}
@@ -173,92 +177,34 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
             <span className="truncate">{stem}</span>
             {ext && <span className="shrink-0">{ext}</span>}
           </span>
+          {/* The type is on the preview already. */}
           <span className="truncate text-xs text-muted-foreground">
-            {kind && <>{kind} · </>}
             <bdi>{formatFileSize(attachment.size)}</bdi>
           </span>
         </button>
         <div className="relative z-10 flex shrink-0 items-center">
-          {onSaveToFiles && attachment.blobId && (
-            <IconButton label={t("save_to_files.title")} onClick={() => onSaveToFiles(attachment)}>
-              <FolderInput className="h-4 w-4" />
-            </IconButton>
-          )}
-          {pluginMenu?.(attachment)}
-          {!downloadsOff && drag.onCopyAsFile && <CopyAsFileButton copy={drag.onCopyAsFile} />}
+          {/* The less common actions wait for hover or focus, so a tile reads as one file with one download button. */}
+          <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
+            {onSaveToFiles && attachment.blobId && (
+              <IconButton label={t("save_to_files.title")} className="text-muted-foreground hover:text-foreground" onClick={() => onSaveToFiles(attachment)}>
+                <CloudUpload className="h-4 w-4" />
+              </IconButton>
+            )}
+            {!downloadsOff && onRename && (
+              <IconButton label={tRename("rename_named", { name })} title={tRename("rename")} className="text-muted-foreground hover:text-foreground" onClick={() => onRename(attachment)}>
+                <Pencil className="h-4 w-4" />
+              </IconButton>
+            )}
+            {pluginMenu?.(attachment)}
+            {!downloadsOff && drag.onCopyAsFile && <CopyAsFileButton copy={drag.onCopyAsFile} />}
+          </div>
           {!downloadsOff && (
-          <IconButton
-            label={t("download_named", { name })}
-            title={t("download")}
-            size="icon"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => onDownload(attachment)}
-          >
-            <Download className="h-4 w-4" />
-          </IconButton>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const card = (attachment: T, drag: AttachmentDragProps) => {
-    const name = getAttachmentDisplayName(attachment.name, attachment.type);
-    const [stem, ext] = splitFileName(name);
-    const kind = ext ? ext.slice(1).toUpperCase() : "";
-    const preview = opensPreview(attachment);
-    const url = thumbUrls[attachment.id];
-    const { icon: Icon, className: iconClass } = attachmentIcon(attachment.type, attachment.name);
-    return (
-      <div
-        data-testid="attachment"
-        data-attachment-name={attachment.name ?? undefined}
-        title={locked(attachment) ? tDevice("downloads_off") : `${preview ? tFiles("preview") : t("download")} ${name}`}
-        draggable={drag.draggable}
-        onPointerEnter={drag.onPointerEnter}
-        onDragStart={drag.onDragStart}
-        onDragEnd={drag.onDragEnd}
-        className="group relative flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card transition-colors hover:bg-muted/50"
-      >
-        <div aria-hidden="true" className="h-32 bg-muted/60">
-          {url ? (
-            <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2">
-              <Icon className={cn("h-10 w-10", iconClass)} />
-              {kind && kind.length <= 5 && (
-                <span className={cn("text-xs font-semibold leading-none", iconClass)}>{kind}</span>
-              )}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => { if (!locked(attachment)) onOpen(attachment); }}
-          aria-disabled={locked(attachment) || undefined}
-          aria-label={openLabel(attachment, name)}
-          className="flex min-w-0 flex-col gap-0.5 border-t border-border px-3 py-2.5 text-start outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
-        >
-          <span className="flex min-w-0 text-sm text-foreground" dir="auto">
-            <span className="truncate">{stem}</span>
-            {ext && <span className="shrink-0">{ext}</span>}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {kind && <>{kind} · </>}
-            <bdi>{formatFileSize(attachment.size)}</bdi>
-          </span>
-        </button>
-        {/* Over the preview, never over the name. Always shown where there is no hover. */}
-        <div className="absolute end-2 top-2 z-10 flex items-center gap-0.5 rounded-lg border border-border bg-background/90 p-0.5 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto">
-          {onSaveToFiles && attachment.blobId && (
-            <IconButton label={t("save_to_files.title")} onClick={() => onSaveToFiles(attachment)}>
-              <FolderInput className="h-4 w-4" />
-            </IconButton>
-          )}
-          {pluginMenu?.(attachment)}
-          {!downloadsOff && drag.onCopyAsFile && <CopyAsFileButton copy={drag.onCopyAsFile} />}
-          {!downloadsOff && (
-            <IconButton label={t("download_named", { name })} title={t("download")} onClick={() => onDownload(attachment)}>
+            <IconButton
+              label={t("download_named", { name })}
+              title={t("download")}
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => onDownload(attachment)}
+            >
               <Download className="h-4 w-4" />
             </IconButton>
           )}
@@ -267,12 +213,10 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
     );
   };
 
-  const draw = layout === "cards" ? card : tile;
-
   return (
-    <section aria-label={t("attachments")} className={cn("@container flex flex-col gap-3", className)} data-testid="reader-attachments" data-layout={layout} {...noMediaSavingProps(downloadsOff)}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+    <section aria-label={t("attachments")} className={cn("@container flex flex-col gap-3", className)} data-testid="reader-attachments" {...noMediaSavingProps(downloadsOff)}>
+      <div className="flex min-h-8 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground">
           <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="truncate">
             <span className="font-medium text-foreground">{t("attachments_count", { count: attachments.length })}</span>
@@ -284,6 +228,7 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
           <span className="text-xs text-muted-foreground" data-testid="attachments-downloads-off">{tDevice("downloads_off")}</span>
         )}
         {attachments.length > 1 && !downloadsOff && (
+          <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -295,10 +240,9 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
           >
             {downloadingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             {/* Just the icon in a narrow pane, so the row stays one row. */}
-            <span className={onSaveAllToFolder ? "hidden @xl:inline" : undefined}>{t("download_all")}</span>
+            <span className={onSaveAllToFolder ? "hidden @md:inline" : undefined}>{t("download_all")}</span>
           </Button>
-        )}
-        {attachments.length > 1 && !downloadsOff && onSaveAllToFolder && (
+          {onSaveAllToFolder && (
           <Button
             variant="ghost"
             size="sm"
@@ -310,27 +254,27 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
             data-testid="attachments-save-to-folder"
           >
             <FolderInput className="h-4 w-4" />
-            <span className="hidden @xl:inline">{tWindows("save_all_to_folder")}</span>
+            <span className="hidden @md:inline">{tWindows("save_all_to_folder")}</span>
           </Button>
+          )}
+          </div>
         )}
       </div>
 
-      <div className={cn(
-        "grid",
-        layout === "cards" ? "grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3" : "grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-2",
-      )}>
+      <div ref={row.ref} className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-2" data-testid="reader-attachments-row">
         {shown.map((attachment) => (
-          <div key={attachment.id} className="flex min-w-0 flex-col gap-1" onContextMenu={desktopMenu ? (event) => menu.openContextMenu(event, attachment) : undefined}>
+          <div key={attachment.id} {...{ [ROW_ITEM_ATTR]: "" }} className="flex min-w-0 flex-col gap-1" onContextMenu={desktopMenu ? (event) => menu.openContextMenu(event, attachment) : undefined}>
             {renderItem
-              ? renderItem(attachment, (drag) => draw(attachment, drag))
-              : draw(attachment, NO_DRAG)}
+              ? renderItem(attachment, (drag) => tile(attachment, drag))
+              : tile(attachment, NO_DRAG)}
           </div>
         ))}
         {hidden.length > 0 && (
           <button
             type="button"
-            onClick={() => setExpanded(true)}
-            className="flex h-16 min-w-0 items-center justify-between gap-3 rounded-lg border border-border px-4 text-start transition-colors hover:bg-muted/50"
+            {...{ [ROW_MORE_ATTR]: "" }}
+            onClick={() => setExpandedFor(listKey)}
+            className="flex h-14 min-w-0 items-center justify-between gap-3 rounded-lg border border-border px-4 text-start transition-colors hover:bg-muted/50"
           >
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="text-sm text-foreground">{t("attachments_show_more", { count: hidden.length })}</span>
@@ -341,11 +285,11 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </button>
         )}
-        {collapses && expanded && (
+        {expanded && (
           <button
             type="button"
-            onClick={() => setExpanded(false)}
-            className="flex h-16 min-w-0 items-center justify-between gap-3 rounded-lg border border-border px-4 text-start text-sm text-foreground transition-colors hover:bg-muted/50"
+            onClick={() => setExpandedFor(null)}
+            className="flex h-14 min-w-0 items-center justify-between gap-3 rounded-lg border border-border px-4 text-start text-sm text-foreground transition-colors hover:bg-muted/50"
           >
             {t("attachments_show_fewer")}
             <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -359,6 +303,9 @@ export function ReaderAttachments<T extends ReaderAttachmentItem>({
           )}
           {!downloadsOff && (
             <ContextMenuItem icon={Download} label={tDesktop("save_as")} onClick={() => { menu.closeContextMenu(); onDownload(menuTarget); }} />
+          )}
+          {!downloadsOff && onRename && (
+            <ContextMenuItem icon={Pencil} label={tRename("rename_menu")} onClick={() => { menu.closeContextMenu(); onRename(menuTarget); }} />
           )}
           {!downloadsOff && onEdit && canEdit?.(menuTarget) && (
             <ContextMenuItem icon={Pencil} label={tEdit("edit")} onClick={() => { menu.closeContextMenu(); onEdit(menuTarget); }} />
@@ -397,14 +344,14 @@ function CopyAsFileButton({ copy }: { copy: () => Promise<boolean> }) {
 
 function AttachmentThumb({ attachment, url, label }: { attachment: ReaderAttachmentItem; url?: string; label: string }) {
   if (url) {
-    return <img src={url} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-md bg-muted object-cover" />;
+    return <img src={url} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-md bg-muted object-cover" />;
   }
   const { icon: Icon, className } = attachmentIcon(attachment.type, attachment.name);
   return (
-    <div aria-hidden="true" className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md bg-muted">
-      <Icon className={cn("h-5 w-5", className)} />
+    <div aria-hidden="true" className="flex h-10 w-10 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md bg-muted">
+      <Icon className={cn("h-4 w-4", className)} />
       {label && label.length <= 5 && (
-        <span className={cn("text-[0.625rem] font-semibold leading-none", className)}>{label}</span>
+        <span className={cn("text-[0.5625rem] font-semibold leading-none", className)}>{label}</span>
       )}
     </div>
   );

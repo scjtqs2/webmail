@@ -6,6 +6,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { pruneTraces } from "./scripts/standalone-guard.mjs";
 import { desktopBuildFlag } from "./scripts/desktop-build-flag.mjs";
+import { LITE_INTL_ASSETS_OFF, LITE_INTL_ASSETS_REQUEST } from "./scripts/lite-intl-assets.mjs";
+import { CompileHintsPlugin } from "./scripts/compile-hints.mjs";
 
 // Prefer an explicit build arg (passed in by CI / Docker, where .git is
 // excluded from the build context) and fall back to `git rev-parse` for
@@ -62,8 +64,18 @@ if (basePath && !basePath.startsWith("/")) {
 // Bulwark Lite (see lib/lite.ts and scripts/lite/): the same tree exported as
 // static files. `npm run build:lite` sets the flag; a plain `next build` never
 // sees it, so the standalone/Docker build is unaffected.
+// Locale prefix mode (i18n/routing.ts). Empty is unset, as the Dockerfile
+// passes "" without a build arg; anything but the three modes is a typo
+// that next-intl would quietly run as "always" (#1626).
+const localePrefix = process.env.NEXT_PUBLIC_LOCALE_PREFIX?.trim() || "never";
+if (!["never", "always", "as-needed"].includes(localePrefix)) {
+  throw new Error(
+    `NEXT_PUBLIC_LOCALE_PREFIX must be "never", "always" or "as-needed" (got: ${JSON.stringify(process.env.NEXT_PUBLIC_LOCALE_PREFIX)})`
+  );
+}
+
 const isLite = process.env.NEXT_PUBLIC_BULWARK_LITE === "1";
-if (isLite && (process.env.NEXT_PUBLIC_LOCALE_PREFIX ?? "never") !== "always") {
+if (isLite && localePrefix !== "always") {
   // Without the proxy nothing rewrites /mail to /<locale>/mail.
   throw new Error("Bulwark Lite requires NEXT_PUBLIC_LOCALE_PREFIX=always (use `npm run build:lite`)");
 }
@@ -193,6 +205,22 @@ const nextConfig: NextConfig = {
           },
         },
       }),
+  // Only Lite draws a page before it has a catalog: everywhere else
+  // IntlProvider's Lite-only English and skeletons (half a megabyte of
+  // script) are swapped for an empty module. And the scripts a page starts
+  // with tell Chrome to compile them while they download (scripts/compile-hints.mjs).
+  // Webpack builds only (the Docker image, the desktop app); a Turbopack
+  // build keeps the Lite assets and has no hints, which costs size and start
+  // time, not behaviour.
+  webpack: (config, { webpack, isServer, dev }) => {
+    if (!isLite) {
+      config.plugins.push(new webpack.NormalModuleReplacementPlugin(LITE_INTL_ASSETS_REQUEST, (resource: { request: string }) => {
+        resource.request = LITE_INTL_ASSETS_OFF;
+      }));
+    }
+    if (!isServer && !dev) config.plugins.push(new CompileHintsPlugin(webpack));
+    return config;
+  },
   turbopack: {
     root: process.env.NEXT_TURBOPACK_ROOT || import.meta.dirname,
     ...(sourceMaps ? { debugIds: true } : {}),

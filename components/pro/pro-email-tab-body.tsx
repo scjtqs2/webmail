@@ -18,7 +18,7 @@ import { toast } from "@/stores/toast-store";
 import { useProTabStore, type ProComposeTabData, type ProEmailTabData, type ProReplyContext } from "@/stores/pro-tab-store";
 import { emailHooks } from "@/lib/plugin-hooks";
 import { composeOptionsFor, runBeforeCompose, type ComposePrefill } from "@/lib/plugin-compose-gate";
-import type { Email } from "@/lib/jmap/types";
+import type { Email, Mailbox } from "@/lib/jmap/types";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import { buildReplySubject, buildForwardSubject } from "@/lib/subject-prefix";
 import { getQuoteBodies } from "@/lib/email-composer-utils";
@@ -36,7 +36,8 @@ import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { takeTabReply, useNotificationTabReply } from '@/lib/pwa-notify/tab-reply';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { saveQuickReplyDraft } from '@/lib/outgoing/quick-reply-envelope';
-import { canDownload } from '@/lib/device-policy';
+import { canDownload, canExport } from '@/lib/device-policy';
+import { useEmailExport } from '@/hooks/use-message-file-actions';
 import { phishingMarkedNow } from '@/hooks/use-phishing-report';
 import { useOpenEmailInWindow } from '@/hooks/use-popouts-available';
 import { isFilePreviewable } from '@/lib/file-preview';
@@ -102,6 +103,14 @@ interface ProEmailViewProps {
    * folder tab's selection).
    */
   onClose: () => void;
+  /** A folder host archives its own rows, outside the Mail tab's global list. */
+  onArchiveEmail?: (email: Email) => Promise<void>;
+  /** A folder host moves its own message, outside Mail's global list. */
+  onMoveEmail?: (email: Email, mailboxId: string) => Promise<void>;
+  /** Destinations reachable within that folder message's owning account. */
+  moveMailboxes?: Mailbox[];
+  /** Ordinary Trash is owned by a folder host, independently of the Mail list. */
+  onTrashEmail?: (email: Email) => Promise<void>;
   className?: string;
 }
 
@@ -162,7 +171,7 @@ export function buildReplyContext(email: Email, source: EmailWriteSource): ProRe
  * Hosted by `ProEmailTabBody` (a dedicated email tab) and by the folder tab's
  * reading pane.
  */
-export function ProEmailView({ emailId, client: clientOverride, clientAccountId, accountId, onLoaded, onOpenCompose, liveState, onMailChanged, noAutomaticActions, conversation, onClose, className }: ProEmailViewProps) {
+export function ProEmailView({ emailId, client: clientOverride, clientAccountId, accountId, onLoaded, onOpenCompose, liveState, onMailChanged, noAutomaticActions, conversation, onClose, onArchiveEmail, onMoveEmail, moveMailboxes, onTrashEmail, className }: ProEmailViewProps) {
   const t = useTranslations();
   const tNotifications = useTranslations('notifications');
   const tRemove = useTranslations('email_list.confirm_remove');
@@ -414,6 +423,10 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
 
   const handleDelete = useCallback(async () => {
     if (!client || !email) return;
+    if (onTrashEmail) {
+      await onTrashEmail(email);
+      return;
+    }
     // The folder the message is in: the one browsed when it is there, else
     // its own (a message window has no list, mail-p3-1).
     const { selectedMailbox } = useEmailStore.getState();
@@ -446,10 +459,14 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
       console.error('Delete failed:', err);
       toast.error(tNotifications('error_deleting'));
     }
-  }, [client, email, mailboxes, deleteEmail, onClose, t, tNotifications, tP3, tActions, confirmDialog, tRemove]);
+  }, [client, email, mailboxes, deleteEmail, onClose, onTrashEmail, t, tNotifications, tP3, tActions, confirmDialog, tRemove]);
 
   const handleArchive = useCallback(async () => {
     if (!client || !email) return;
+    if (onArchiveEmail) {
+      await onArchiveEmail(email);
+      return;
+    }
     // In Archive the same action brings it back to the Inbox (mail-p3-4).
     const { selectedMailbox } = useEmailStore.getState();
     const current = mailboxes.find((m) => m.id === selectedMailbox && emailInMailbox(email, m))
@@ -477,7 +494,7 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
     } catch (err) {
       console.error('Archive failed:', err);
     }
-  }, [client, email, mailboxes, moveToMailbox, onClose, t, confirmDialog, tRemove]);
+  }, [client, email, mailboxes, moveToMailbox, onClose, onArchiveEmail, t, confirmDialog, tRemove]);
 
   const handleToggleStar = useCallback(async () => {
     if (!client || !email) return;
@@ -546,7 +563,13 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
   const seen = !!email?.keywords?.$seen;
   // Message > Move to… in a pop-out: the same folder list the command palette opens.
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  // File > Save as…: this message as an .eml, as its ⋮ menu's Save as does.
+  const exportEmail = useEmailExport();
+  const canSave = !!email?.blobId && canExport(email);
   useDesktopCommands({
+    'file.saveAs': () => {
+      if (email && canSave) void exportEmail(email, { onArchive: () => void handleArchive(), onDelete: () => void handleDelete(), archiveEnabled: archiveActionEnabled }, blobSource.client ? blobSource : undefined);
+    },
     'message.reply': () => handleReply(),
     'message.replyAll': handleReplyAll,
     'message.forward': handleForward,
@@ -557,6 +580,7 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
     'message.delete': () => void handleDelete(),
     'message.move': () => { if (email) setMoveDialogOpen(true); },
   }, {
+    'file.saveAs': canSave,
     'message.reply': !!email,
     'message.replyAll': !!email,
     'message.forward': !!email,
@@ -570,6 +594,10 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
 
   const handleMoveToMailbox = useCallback(async (mailboxId: string) => {
     if (!client || !email) return;
+    if (onMoveEmail) {
+      await onMoveEmail(email, mailboxId);
+      return;
+    }
     const restore = restoreBatchesFor([email], client);
     try {
       if (await moveToMailbox(client, email.id, mailboxId, emailKeyFor(email))) {
@@ -579,7 +607,7 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
     } catch (err) {
       console.error('Move failed:', err);
     }
-  }, [client, email, moveToMailbox, onClose, t]);
+  }, [client, email, moveToMailbox, onClose, onMoveEmail, t]);
 
   // This view's message answers the same keys as a message in the mail tab,
   // while its tab is the one in front. c comes from the mail page, as on any tab.
@@ -739,7 +767,7 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
           currentUserEmail={client?.getUsername()}
           currentUserName={client?.getUsername()?.split('@')[0]}
           currentMailboxRole={currentMailboxRole}
-          mailboxes={mailboxes}
+          mailboxes={moveMailboxes ?? mailboxes}
           className="flex-1"
           withListSelection={false}
         />
@@ -749,7 +777,7 @@ export function ProEmailView({ emailId, client: clientOverride, clientAccountId,
       {inOwnWindow && (
         <MoveToDialog
           emails={moveDialogOpen && email ? [email] : []}
-          mailboxes={mailboxes}
+          mailboxes={moveMailboxes ?? mailboxes}
           selectedMailbox=""
           onClose={() => setMoveDialogOpen(false)}
           onMove={(mailboxId) => void handleMoveToMailbox(mailboxId)}

@@ -101,6 +101,8 @@ export const HOOK_CATALOG = {
   onBeforeComposeOpenToForward: H('mail-compose', 'transform', 'email:send', 'Email (the original)', 'before a forward is filled in'),
   onBeforeComposeOpenToForwardAsAttachment: H('mail-compose', 'transform', 'email:send', 'Email (the original)', 'before a forward-as-attachment is filled in'),
   onMailtoIntercept: H('mail-compose', 'intercept', 'email:read', 'MailtoContext', 'when a mailto: link is opened; return false to stop the composer'),
+  // Its own parameters only, from a link anyone can write: the composer id is what makes it useful.
+  onComposeFromLink: { ...H('mail-compose', 'observer', 'compose:read', 'ComposeLinkContext', 'when the composer opened from a mailto: or Bulwark link carrying parameters for this plugin (x-<plugin id>-<name>=<value>); only this plugin hears it, with the prefix gone (Bulwark 1.21 and later)'), alsoPermission: 'compose:write' },
 
   // ─── Mail: sending ─────────────────────────────────────────
   onBeforeEmailSend: H('mail-send', 'intercept', 'email:send', 'OutgoingEmail', 'when Send is pressed; a handler that fails or times out stops the send'),
@@ -142,7 +144,7 @@ export const HOOK_CATALOG = {
   // ─── Mail: search ──────────────────────────────────────────
   onSearch: H('mail-search', 'transform', 'email:read', '{ query, filters: SearchFilters }', 'before a search runs; may change the query and filters'),
   onSearchResults: H('mail-search', 'transform', 'email:read', 'string[], { query, filters, emailIds }', 'after search results arrived; return ids of further messages to add to them (at most 100)'),
-  onProvideSearchResults: H('mail-search', 'transform', 'email:read', 'ExternalSearchResult[], { query, filters }', 'to add results from elsewhere to a search; drawn above its message list; an entry naming a message (email) opens it on a click, any other click comes back as onAction with surface "search-results" and the entry\'s key'),
+  onProvideSearchResults: H('mail-search', 'transform', 'email:read', 'ExternalSearchResult[], { query, filters }', 'to add results from elsewhere to a search; drawn above its message list (title and snippet, or one line of score, title, from and date when the user chooses); an entry naming a message (email) opens it on a click, any other click comes back as onAction with surface "search-results" and the entry\'s key'),
 
   // ─── Mail: attachments ─────────────────────────────────────
   onBeforeAttachmentUpload: H('mail-attachments', 'intercept', 'email:read', 'AttachmentInfo', 'before a file is attached in the composer'),

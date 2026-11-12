@@ -68,18 +68,22 @@ const pages = {
   offline: (await import('@/components/offline/offline-settings')).OfflineSettings,
   privacy: (await import('../privacy-settings')).PrivacySettings,
   about: (await import('../about-data-settings')).AboutSettings,
+  desktop: (await import('../desktop-app-settings')).DesktopAppSettings,
+  troubleshooting: (await import('../about-data-settings')).TroubleshootingSettings,
 };
 
 const OVERRIDES: Record<string, () => unknown> = {
   getAccountId: () => 'acc', getSieveAccountId: () => 'acc', getUsername: () => 'user@example.com',
   getSharedAccounts: () => [], getSieveAccounts: () => [], getSieveCapabilities: () => null,
+  // The calendar page keeps it in its store for the next variant; null broke that page there.
+  getParticipantIdentities: () => [],
   hasAccountCapability: () => false, supportsCalendars: () => true, supportsPrincipals: () => true, supportsFiles: () => true, hasDelayedSend: () => true,
   // Sharing and Recover deleted items read these on open.
   getShareTargets: async () => ({ targets: [], failed: [] }), listPrincipals: async () => ({ principals: [], status: 'ok' }),
   getPrincipals: async () => [], listArchivedEmails: async () => ({ items: [], nextPosition: null }),
 };
 /** Pages with rows of the desktop app's own, or browser rows it hides. */
-const DESKTOP_PAGES = new Set(['general', 'notifications', 'privacy', 'backup', 'files_sync']);
+const DESKTOP_PAGES = new Set(['general', 'notifications', 'privacy', 'backup', 'files_sync', 'desktop', 'troubleshooting', 'about']);
 
 /** The desktop app's bridge, answering as Windows does, with every switch off. */
 const DESKTOP_BRIDGE = {
@@ -91,7 +95,7 @@ const DESKTOP_BRIDGE = {
   os: {
     getStatus: async () => ({
       settings: {
-        closeToTray: false, startAtLogin: false, startMinimized: false, attentionOnNewMail: false,
+        closeToTray: false, startAtLogin: false, startMinimized: false, reopenAfterRestart: false, attentionOnNewMail: false,
         quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00', showShortcut: null,
       },
       pausedUntil: null,
@@ -126,7 +130,7 @@ const TAB_PAGES: Record<string, string[]> = {
   message_list: ['message_list'], reading: ['reading'], composing: ['composing'], vacation: ['vacation'],
   filters: ['filters'], organize: ['organize'], security: ['security'], sharing: ['sharing'], recovery: ['recovery'], calendar: ['calendar', 'calendar2'],
   contacts: ['contacts', 'contacts2'], files: ['files'], files_sync: ['files_sync'], addons: ['addons'], backup: ['backup'],
-  offline: ['offline'], privacy: ['privacy'], about: ['about'],
+  offline: ['offline'], privacy: ['privacy'], about: ['about'], desktop: ['desktop'], troubleshooting: ['troubleshooting'],
 };
 
 /** The stores every page reads, answering as a signed-in account with every feature. */
@@ -232,7 +236,7 @@ describe('settings search index', () => {
         // Rows that name the app show the stock name, as the index does.
         const text = withAppName(getByPath(en, entry.label), 'Bulwark') as string;
         // The desktop app's rows are all drawn in the Windows variant; a Mac row there is the Dock's.
-        const variantName = entry.when?.startsWith('desktop') ? 'desktop' : entry.when === 'browser' ? 'base' : (entry.when ?? 'base');
+        const variantName = entry.when?.startsWith('desktop') ? 'desktop' : entry.when === 'browser' || entry.when === 'notMountainView' ? 'base' : (entry.when ?? 'base');
         if (entry.when === 'desktopMac') continue;
         const variant = out[variantName];
         const parts = TAB_PAGES[tab].map((page) => variant[page]);
@@ -251,6 +255,19 @@ describe('settings search index', () => {
       for (const entry of entries.filter((e) => e.when === 'browser')) {
         const text = withAppName(getByPath(en, entry.label), 'Bulwark') as string;
         if (TAB_PAGES[tab].some((page) => out.desktop[page].on.includes(text))) problems.push(`${tab}: ${entry.label} is drawn in the desktop app`);
+      }
+    }
+    // The search offers a row without a condition in Mountain View too, so
+    // that layout draws it; one it hides says notMountainView instead.
+    for (const [tab, entries] of Object.entries(tabSearchEntries)) {
+      const parts = TAB_PAGES[tab].map((page) => out.mountainView[page]);
+      const errors = parts.filter((part) => part.error).map((part) => part.error);
+      if (errors.length) { problems.push(`${tab} in Mountain View: ${errors.join('; ')}`); continue; }
+      for (const entry of entries.filter((e) => !e.when || e.when === 'notMountainView')) {
+        const text = withAppName(getByPath(en, entry.label), 'Bulwark') as string;
+        const drawn = parts.some((part) => part.on.includes(text));
+        if (!entry.when && !drawn) problems.push(`${tab}: ${entry.label} isn't drawn in Mountain View but has no condition`);
+        if (entry.when === 'notMountainView' && drawn) problems.push(`${tab}: ${entry.label} is drawn in Mountain View`);
       }
     }
     // Every section a page draws has an entry, so searching its name finds it.
@@ -315,6 +332,10 @@ describe('settings search results for advanced rows', () => {
           await act(async () => { await new Promise((resolve) => setTimeout(resolve, 80)); });
           found = document.querySelector(selector);
         }
+        // A row the page loads first (the desktop app's developer tools) can turn up while every
+        // advanced block still draws to look for it: give the page one more look to settle.
+        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 200)); });
+        found = document.querySelector(selector);
         if (before) problems.push(`${tab}: ${entry.label} shows with Advanced off`);
         if (!found) problems.push(`${tab}: ${entry.label} ("${text}") does not show after its result is opened`);
         if (useSettingsStore.getState().showAdvancedSettings) problems.push(`${tab}: ${entry.label} turned the Advanced switch on`);

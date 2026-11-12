@@ -355,6 +355,9 @@
     "no_search_results": "Nekas netika atrasts",
     "no_search_results_description": "Mēģiniet mainīt meklēšanas vaicājumu vai filtrus",
     "more_results_searching": "Meklē vēl rezultātus…",
+    "resize_plugin_results": "Mainīt spraudņu rezultātu izmēru",
+    "compact_plugin_results": "Viena rinda katram rezultātam",
+    "plugin_result_score": "{count} no 5",
     "loading": "Ielādē vēstules...",
     "unread": "nelasītas",
     "to_me": "Man",
@@ -1078,6 +1081,7 @@
     "templates_menu": "Veidnes",
     "insert_template": "Ievietot veidni…",
     "options": "Opcijas",
+    "tags": "Tagi",
     "option_plain_text": "Vienkāršs teksts",
     "option_plain_text_hint": "Sūtīt bez formatējuma",
     "option_read_receipt": "Pieprasīt izlasīšanas apstiprinājumu",
@@ -1280,6 +1284,14 @@
       "plain_text": "[Attēls: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "Pārdēvēt",
+    "rename_named": "Pārdēvēt {name}",
+    "rename_menu": "Pārdēvēt…",
+    "rename_title": "Pārdēvēt pielikumu",
+    "rename_invalid_chars": "Faila nosaukumā nedrīkst būt / vai \\ vai vadības rakstzīmes",
+    "rename_too_long": "Šis nosaukums ir pārāk garš"
+  },
   "compose_ux": {
     "draft_discarded": "Melnraksts atmests",
     "undo": "Atsaukt",
@@ -1294,6 +1306,12 @@
     "shortcut_save_draft": "Saglabāt melnrakstu",
     "shortcut_show_cc": "Rādīt kopiju",
     "shortcut_show_bcc": "Rādīt diskrēto kopiju"
+  },
+  "compose_dock": {
+    "open_draft": "Atvērt",
+    "reply_type": "Atbildes veids: {kind}",
+    "resize_reply": "Mainīt atbildes izmēru",
+    "fields_menu": "Vairāk lauku"
   },
   "confirm_dialog": {
     "confirm": "Apstiprināt",
@@ -1473,6 +1491,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "Jūsu organizācija bloķē attālo saturu visās vēstulēs, tāpēc tas netiek ielādēts arī no uzticamiem sūtītājiem."
+  },
+  "trusted_senders_book": {
+    "unavailable": "Nav pieejams: šis konts nevar glabāt adrešu grāmatas serverī. Saraksts paliek šajā ierīcē."
   },
   "date": {
     "today": "Šodien",
@@ -1672,7 +1693,7 @@
         "label": "Saskarnes izkārtojums",
         "description": "Kur atrodas meklēšana, navigācija un rīkjoslas",
         "default": "Noklusējuma",
-        "mountain_view": "Meklēšana augšā, lietotnes pa kreisi"
+        "mountain_view": "Meklēšana augšā"
       },
       "animations": {
         "label": "Iespējot animācijas",
@@ -1785,12 +1806,17 @@
       "title": "E-pasta tagi",
       "description": "Izveidojiet tagus, lai kārtotu vēstules. Tagi tiek saglabāti kopā ar vēstulēm serverī.",
       "add_keyword": "Pievienot tagu",
+      "empty": "Tagu vēl nav.",
       "label_field": "Redzamais nosaukums",
       "label_placeholder": "piem., Darbs, Personīgi, Steidzami",
       "id_field": "Taga identifikators",
       "id_placeholder": "piem., darbs, personigi",
       "color_field": "Krāsa",
-      "id_exists": "Šāds taga identifikators jau pastāv",
+      "custom_color": "Pielāgota krāsa",
+      "color_code": "Krāsas kods",
+      "pick_custom_color": "Izvēlēties pielāgotu krāsu",
+      "invalid_color": "Izmantojiet krāsas kodu, piemēram, #1a73e8.",
+      "name_exists": "Birka ar šādu nosaukumu jau pastāv",
       "edit": "Rediģēt tagu",
       "delete": "Dzēst tagu",
       "edit_tag": "Rediģēt {name}",
@@ -2062,6 +2088,10 @@
         "label": "Tikai parasts teksts",
         "description": "Izslēgt formatētā teksta redaktoru un sūtīt vēstules tikai kā parastu tekstu"
       },
+      "reply_under_message": {
+        "label": "Atbildes zem ziņas",
+        "description": "Atbilde vai pārsūtīšana atveras zem savas ziņas, kas virs tās paliek salasāma. Ja izslēgts, tā aizņem visu lasīšanas rūti kā jauna ziņa."
+      },
       "quick_reply": {
         "label": "Ātrā atbilde",
         "description": "Rādīt ātrās atbildes lauku zem ziņojumiem."
@@ -2110,17 +2140,15 @@
         "label": "Rādīt verifikācijas kodus",
         "description": "Piedāvāt kodu no pieteikšanās un apstiprinājuma e-pastiem kopēšanai ar vienu klikšķi, sarakstā vienu dienu un ziņojumā"
       },
+      "show_attachment_chips": {
+        "label": "Rādīt pielikumus sarakstā",
+        "description": "Rādīt pievienotos failus zem katras vēstules, lai tos varētu atvērt tieši no saraksta. Saspraudes ikona tiek rādīta jebkurā gadījumā."
+      },
       "attachment_click_action": {
         "label": "Darbība, noklikšķinot uz pielikuma",
         "description": "Izvēlieties priekšskatījumu vai tūlītēju lejupielādi",
         "preview": "Priekšskatīt, ja iespējams",
         "download": "Lejupielādēt nekavējoties"
-      },
-      "attachment_position": {
-        "label": "Pielikumu novietojums",
-        "description": "Kur rādīt pielikumus vēstules galvenē",
-        "below-header": "Zem galvenes",
-        "below-message": "Kartītes zem ziņojuma"
       },
       "emails_per_page": {
         "10": "10 vēstules",
@@ -2279,6 +2307,7 @@
       "auth_method_oauth": "Vienotā pierakstīšanās (OAuth/OIDC)",
       "auth_method_basic": "Parole",
       "auth_method_token": "Piekļuves marķieris",
+      "account_management_link": "Pārvaldīt konta drošību (2FA, lietotņu paroles)",
       "demo_account": "Demo konts",
       "email": {
         "label": "E-pasta adrese",
@@ -2358,6 +2387,57 @@
       }
     },
     "security": {
+      "masked_addresses": {
+        "address": "Adrese",
+        "description_column": "Apraksts",
+        "website_column": "Vietne",
+        "state": "Stāvoklis",
+        "actions": "Darbības",
+        "no_description": "Nav apraksta",
+        "edit": "Rediģēt",
+        "close": "Aizvērt",
+        "pagination": "Maskēto adrešu lapas",
+        "page": "{page}. lapa no {pages}",
+        "previous": "Iepriekšējā",
+        "next": "Nākamā",
+        "delete": "Dzēst",
+        "delete_title": "Neatgriezeniski dzēst maskēto adresi?",
+        "delete_warning": "Dzēst {address}? To nevar atsaukt. Uz šo adresi sūtītās vēstules vairs netiks piegādātas.",
+        "delete_confirm": "Dzēst neatgriezeniski",
+        "cancel": "Atcelt",
+        "deleted": "Adrese ir neatgriezeniski izdzēsta.",
+        "deleted_refresh_failed": "Dzēšana apstiprināta, bet sarakstu neizdevās atsvaidzināt. Atsvaidziniet, lai ielādētu pašreizējo sarakstu.",
+        "delete_forbidden": "Jūsu pašreizējai sesijai nav atļauts dzēst maskētās adreses. Citas atļautās darbības joprojām ir pieejamas.",
+        "delete_failed": "Adrese netika izdzēsta. Pirms mēģināt vēlreiz, atsvaidziniet sarakstu.",
+        "delete_unconfirmed": "Dzēšanu neizdevās apstiprināt. Tā netiks atkārtota. Pirms turpmākas dzēšanas atsvaidziniet sarakstu un pārbaudiet adresi.",
+        "title": "Maskētās adreses",
+        "intro": "Saņemiet vēstules, neizpaužot savu galveno adresi. Atspējota adrese noraida jaunas vēstules. Šīs adreses nevar izmantot vēstuļu sūtīšanai.",
+        "loading": "Ielādē maskētās adreses…",
+        "count": "{count, plural, zero {# adrešu} one {# adrese} other {# adreses}}",
+        "empty": "Vēl nav maskēto adrešu.",
+        "website": "Vietne (neobligāti)",
+        "description": "Apraksts (neobligāti)",
+        "no_website": "Nav norādīta",
+        "enabled": "Iespējota",
+        "disabled": "Atspējota",
+        "enable": "Iespējot",
+        "disable": "Atspējot",
+        "copy": "Kopēt",
+        "copied": "Adrese nokopēta.",
+        "copy_failed": "Neizdevās nokopēt. Atlasiet un nokopējiet adresi augstāk.",
+        "save": "Saglabāt aprakstu",
+        "create": "Izveidot maskēto adresi",
+        "refresh": "Atsvaidzināt",
+        "saved": "Izmaiņas saglabātas.",
+        "forbidden": "Jūsu pašreizējai sesijai nav atļauts skatīt maskēto adrešu sarakstu.",
+        "unavailable": "Maskētās adreses šim kontam vai serverim nav pieejamas.",
+        "load_failed": "Neizdevās ielādēt pilnu adrešu sarakstu. Atsvaidziniet, lai mēģinātu vēlreiz.",
+        "save_failed": "Izmaiņas neizdevās apstiprināt. Pirms mēģināt vēlreiz, atsvaidziniet sarakstu.",
+        "create_forbidden": "Serveris neatļāva ar šo sesiju izveidot maskēto adresi.",
+        "update_forbidden": "Serveris neatļāva ar šo sesiju rediģēt maskētās adreses. Adreses joprojām varat kopēt.",
+        "over_quota": "Sasniegta servera maskēto adrešu kvota. Atspējotās adreses joprojām var tikt ieskaitītas limitā.",
+        "rate_limit": "Sasniegts servera izveides ātruma limits. Mēģiniet vēlāk vēlreiz."
+      },
       "title": "Konta drošība",
       "description": "Pārvaldiet paroli, 2FA un drošības iestatījumus",
       "detecting": "Nosaka servera iespējas...",
@@ -3336,7 +3416,8 @@
         "description": "Apvadījums ap pogu, saiti vai lauku, kurā atrodas tastatūra.",
         "normal": "Parasts",
         "thick": "Biezs",
-        "extra": "Ļoti biezs"
+        "extra": "Ļoti biezs",
+        "off": "Izslēgts"
       },
       "focus_always": {
         "label": "Vienmēr rādīt fokusu",
@@ -3596,6 +3677,10 @@
       "sync_on": "Jūsu citas ierīces izmanto tos pašus iestatījumus, tāpēc mainās arī tās.",
       "sync_off": "Jūsu citas ierīces saglabā savus iestatījumus."
     }
+  },
+  "layout_preview": {
+    "default_description": "Lietotnes un mapes pa kreisi, meklēšana virs saraksta",
+    "mountain_view_description": "Meklēšana augšā visā platumā, ziņojumi atveras pilnā platumā"
   },
   "setup": {
     "title": "Bulwark Webmail iestatīšana",
@@ -3899,6 +3984,8 @@
     "delete_folder": "Dzēst mapi",
     "refresh": "Atjaunināt",
     "hide_shared_account": "Paslēpt no sānjoslas",
+    "move_shared_account_up": "Pārvietot uz augšu",
+    "move_shared_account_down": "Pārvietot uz leju",
     "mute_notifications": "Izslēgt paziņojumus",
     "unmute_notifications": "Ieslēgt paziņojumus",
     "mute_account_notifications": "Izslēgt šī konta paziņojumus",
@@ -5386,10 +5473,10 @@
     "title": "Laipni lūdzam jūsu pastkastē",
     "tip_compose": "Nospiediet c, lai rakstītu jaunu vēstuli",
     "tip_shortcuts": "Nospiediet ?, lai skatītu visus īsinājumtaustiņus",
-    "tip_sidebar": "Kalendārs, Kontakti un Iestatījumi ir joslā kreisajā pusē",
+    "tip_sidebar_apps": "{apps} ir joslā kreisajā pusē",
     "tip_settings": "Pielāgojiet saskarni sadaļā «Iestatījumi»",
     "tip_compose_touch": "Pieskarieties zīmuļa pogai, lai rakstītu jaunu e-pastu",
-    "tip_sidebar_touch": "Kalendārs, Kontakti un Iestatījumi ir apakšējā joslā",
+    "tip_sidebar_apps_touch": "{apps} ir apakšējā joslā",
     "got_it": "Skaidrs",
     "settings": "Iestatījumi",
     "dismiss": "Aizvērt",
@@ -5964,7 +6051,8 @@
     "invited": "{name} uzaicināja jūs uz “{title}”",
     "updated": "{name} atjaunināja “{title}”",
     "cancelled": "{name} atcēla “{title}”",
-    "untitled": "Notikums bez nosaukuma"
+    "untitled": "Notikums bez nosaukuma",
+    "summary": "Izmaiņas notikumos, kuros piedalāties: {count}"
   },
   "calendar_month_select": {
     "selected_range": "Atlasīts no {start} līdz {end}.",
@@ -6108,6 +6196,7 @@
     "shared": "{name} kopīgoja ar jums {kind} “{object}”",
     "changed": "{name} mainīja jūsu piekļuvi {kind} “{object}”",
     "revoked": "{name} noņēma jūsu piekļuvi {kind} “{object}”",
+    "summary": "{name} mainīja jūsu piekļuvi {count, plural, zero {# kopīgotajiem vienumiem} one {# kopīgotajam vienumam} other {# kopīgotajiem vienumiem}}",
     "object": {
       "folder": "mapi",
       "calendar": "kalendāru",
@@ -6232,6 +6321,14 @@
     "from_label": "No",
     "date_label": "Datums",
     "subject_label": "Tēma"
+  },
+  "print_styles": {
+    "title": "Drukāšana",
+    "description": "Kā izskatās izdrukātās vēstules, kontakti un kalendāri.",
+    "style_label": "Drukas stils",
+    "style_description": "Papildinājumi var pievienot stilus, piemēram, veidlapu ar jūsu uzņēmuma adresi.",
+    "standard": "Standarta",
+    "from_plugin": "{name} ({plugin})"
   },
   "pwa_install": {
     "title": "Instalēt {appName}",
@@ -6371,6 +6468,9 @@
     "attachments_description": "Glabāto vēstuļu pielikumi un faili, ko glabājat bezsaistē, kopā līdz {total}. Vecākie tiek noņemti pirmie.",
     "total_locked": "Jūsu organizācija atļauj ne vairāk kā {size} pielikumu un failu.",
     "attachment_cap_label": "Lielākais glabājamais pielikums",
+    "total_cap_label": "Saglabāto pielikumu kopējais izmērs",
+    "total_cap_unlimited": "Bez ierobežojuma",
+    "attachments_description_unlimited": "Saglabāto ziņojumu pielikumi un faili, ko glabājat bezsaistē, bez kopējā izmēra ierobežojuma.",
     "usage_mail": "Vēstules un meklēšanas indekss",
     "usage_attachments": "Pielikumi",
     "usage_calendar": "Kalendārs",
@@ -6712,6 +6812,10 @@
       "auth_emit": {
         "title": "Izrakstīt jūs",
         "body": "Izrakstīt jūs no webmail."
+      },
+      "auth_impersonation_return": {
+        "title": "Atgriezt jūs jūsu kontā",
+        "body": "Kad administrators ir atvēris pastkasti, uzdodoties par lietotāju, beigt šo sesiju un atkal pierakstīties kontā, no kura tā sākās."
       },
       "account_read": {
         "title": "Redzēt jūsu kontus",
@@ -7282,6 +7386,8 @@
       "title": "Lietotnes logi",
       "double_click_label": "Atvērt ziņojumus jaunā logā ar dubultklikšķi",
       "double_click_description": "Viens klikšķis joprojām atver ziņojumu blakus sarakstam.",
+      "compose_window_label": "Vienmēr rakstīt ziņojumus jaunā logā",
+      "compose_window_description": "Jauni ziņojumi, atbildes, pārsūtījumi un melnraksti tiek atvērti atsevišķā logā, nevis galvenajā logā.",
       "restore_label": "Startējot atkal atvērt logus",
       "restore_description": "Ziņojumu un melnrakstu logi, kas bija atvērti izejot, atgriežas."
     },
@@ -7400,6 +7506,18 @@
     "attach_files": "Pievienot failus…",
     "shortcut_apps": "Pāriet uz pastu, kalendāru, kontaktiem vai failiem"
   },
+  "desktopSaveOpen": {
+    "menu_open": "Atvērt…",
+    "menu_save_as": "Saglabāt kā…",
+    "open_filter": "Vēstules, notikumi un kontakti",
+    "save_filter": "E-pasta vēstule",
+    "folder_title": "Izvēlieties mapi vēstulēm",
+    "folder_button": "Saglabāt šeit",
+    "saved_many": "{count, plural, zero {Saglabātas # vēstules.} one {Saglabāta # vēstule.} other {Saglabātas # vēstules.}}",
+    "save_failed": "{count, plural, zero {Neizdevās saglabāt # vēstules.} one {Neizdevās saglabāt # vēstuli.} other {Neizdevās saglabāt # vēstules.}}",
+    "shortcut_open": "Atvērt saglabātu vēstuli, notikumu vai kontaktu",
+    "shortcut_save_as": "Saglabāt vēstuli kā failu"
+  },
   "appLock": {
     "section_title": "Lietotnes bloķēšana",
     "section_desc": "Pēc neizmantošanas laika prasa PIN katrā logā un cilnē. Kamēr ir bloķēts, lietotne nevar lasīt šajā ierīcē glabāto pastu, līdz kāds ievada PIN.",
@@ -7414,7 +7532,8 @@
     "pin_current": "Pašreizējais PIN kods",
     "pin_new": "Jauns PIN kods",
     "pin_repeat": "Atkārtojiet PIN kodu",
-    "pin_hint": "Vismaz 6 rakstzīmes. Der arī burti, un garāku PIN kodu ir grūtāk uzminēt.",
+    "pin_hint": "Vismaz 5 rakstzīmes. Der arī burti, un garāku PIN kodu ir grūtāk uzminēt.",
+    "pin_hint_policy": "Jūsu organizācija pieprasa vismaz {count, plural, zero {# rakstzīmes} one {# rakstzīmi} other {# rakstzīmes}}. Der arī burti.",
     "pin_obvious": "Šo PIN ir pārāk viegli uzminēt. Izvairieties no atkārtojumiem, secībām un biežām izvēlēm.",
     "pin_mismatch": "Abi PIN kodi nesakrīt.",
     "pin_recovery": "Ja to aizmirsīsit, vienīgā iespēja ir noņemt datus šajā ierīcē un pieteikties vēlreiz. Jūsu e-pasts serverī paliek. Ziņojumi, kas šajā ierīcē vēl gaida sūtīšanu, tiek zaudēti.",
@@ -7468,6 +7587,25 @@
     "blocked_seconds": "Pārāk daudz mēģinājumu. Mēģiniet vēlreiz pēc {count, plural, zero {# sekundēm} one {# sekundes} other {# sekundēm}}.",
     "blocked_minutes": "Pārāk daudz mēģinājumu. Mēģiniet vēlreiz pēc {count, plural, zero {# minūtēm} one {# minūtes} other {# minūtēm}}."
   },
+  "appLockHello": {
+    "switch_label": "Atbloķēt ar Windows Hello",
+    "switch_desc": "Izmantojiet seju, pirksta nospiedumu vai Windows PIN kodu. Lietotnes PIN kods joprojām darbojas.",
+    "protects": "Kad Windows Hello ir ieslēgts, Windows glabā šai lietotnei atslēgu, kas darbojas tikai pēc tam, kad Windows Hello ir pārbaudījis, ka tas esat jūs. Ar to ir bloķēta arī lietotnes atslēga, tāpēc atbloķēšanai vajag jūsu seju, pirksta nospiedumu vai Windows PIN kodu, un cita programma šajā datorā nevar izmantot šo atslēgu, Windows vispirms nepajautājot jums. Lietotnes PIN kods joprojām darbojas, un tas būs vajadzīgs, ja Windows Hello tiek atiestatīts vai izslēgts.",
+    "enable_title": "Ieslēgt Windows Hello",
+    "enable_body": "Ievadiet lietotnes PIN kodu. Pēc tam Windows lūgs apstiprināt ar Windows Hello.",
+    "enable_failed": "Windows Hello neizdevās ieslēgt. Mēģiniet vēlreiz.",
+    "cancelled": "Windows Hello tika atcelts.",
+    "unsupported": "Windows Hello šajā datorā nevar aizsargāt atslēgu. Jūsu PIN kods joprojām darbojas.",
+    "unavailable": "Windows Hello šajā datorā nav pieejams.",
+    "busy": "Windows Hello ir aizņemts vai bloķēts. Mēģiniet vēlāk.",
+    "off_after_pin_change": "Windows Hello tagad ir izslēgts, jo pēc PIN koda maiņas tas neapstiprināja. Ieslēdziet to atkal, ja to izmantojat.",
+    "prompt": "Apstipriniet ar Windows Hello, ka tas esat jūs.",
+    "waiting": "Gaida Windows Hello…",
+    "use_hello": "Atbloķēt ar Windows Hello",
+    "use_pin": "Izmantot PIN kodu",
+    "failed": "Windows Hello neatbloķēja lietotni. Ievadiet PIN kodu.",
+    "gone": "Windows Hello šajā datorā vairs neatbloķē lietotni. Ievadiet PIN kodu."
+  },
   "uxs_general": {
     "time_zone_common": "Bieži izmantotās laika joslas",
     "time_zone_all": "Visas laika joslas",
@@ -7479,6 +7617,8 @@
     "app_lock_now_desc_desktop": "Uzreiz bloķē visus logus.",
     "app_lock_protects_toggle": "No kā tas aizsargā?",
     "app_lock_timeout_hours": "{count, plural, zero {# stundu} one {# stunda} other {# stundas}}",
+    "app_lock_until_screen": "Kad ekrāns tiek bloķēts",
+    "app_lock_until_session": "Izrakstoties vai restartējot",
     "desktop_attention_title": "Šajā datorā"
   },
   "uxs2_ident": {
@@ -7566,6 +7706,10 @@
     "trouble_cors": "Jūsu pasta serverim jāatļauj pieteikšanās no šīs vietnes. Ja pieteikties neizdodas, palūdziet pasta servera uzturētājam to atļaut.",
     "provider_unsupported": "{provider} nepiedāvā JMAP, veidu, kā Bulwark sazinās ar pasta serveriem, tāpēc Bulwark tam vēl nevar pieslēgties tieši."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock ir ieslēgts",
+    "language_button": "Valoda: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "Mainīt, kā Bulwark savienojas?",
@@ -7651,6 +7795,8 @@
     "start_at_login_description": "Lietotne sākas pati, kad piesakāties.",
     "start_minimized_label": "Sākt teknē",
     "start_minimized_description": "Piesakoties logs neatveras. Atveriet to ar teknes ikonu.",
+    "reopen_after_restart_label": "Atvērt atkārtoti pēc restartēšanas",
+    "reopen_after_restart_description": "Ja lietotne ir atvērta, kad dators tiek restartēts vai jūs izrakstāties, tā atkal tiek atvērta, kad pierakstāties, tajā pašā mapē, ziņojumā vai lapā.",
     "attention_label": "Mirgot uzdevumjoslā, pienākot pastam",
     "attention_mac_label": "Lēkāt Dock ikonai, pienākot pastam",
     "attention_description": "Tikai tad, ja lietotne nav priekšplānā.",
@@ -7754,6 +7900,45 @@
     "clear_confirm": "Dzēst",
     "signout_changed": "Vēl nav pievienoti vai saglabāti, un tagad izdzēsti: {names}.",
     "signout_held": "Joprojām atvērti citā programmā, tāpēc tiks izdzēsti tikai pēc aizvēršanas: {names}."
+  },
+  "desktopPrint": {
+    "title": "Drukāt",
+    "pages_one": "1 lappuse",
+    "pages_many": "Lappuses: {count}",
+    "preparing": "Gatavo priekšskatījumu…",
+    "preview_failed": "Priekšskatījumu neizdevās izveidot.",
+    "preview_label": "Priekšskatījums",
+    "destination": "Galamērķis",
+    "save_as_pdf": "Saglabāt kā PDF",
+    "pages": "Lappuses",
+    "pages_all": "Visas",
+    "pages_custom": "Pielāgotas",
+    "pages_example": "piem., 1-3, 5",
+    "pages_invalid": "Ievadiet lappuses no 1 līdz {count}, piemēram, 1-3, 5.",
+    "copies": "Kopijas",
+    "layout": "Izkārtojums",
+    "portrait": "Portrets",
+    "landscape": "Ainava",
+    "color": "Krāsa",
+    "color_color": "Krāsains",
+    "color_mono": "Melnbalts",
+    "more": "Vairāk iestatījumu",
+    "paper": "Papīra izmērs",
+    "paper_printer": "Printera noklusējums",
+    "margins": "Piemales",
+    "margins_default": "Noklusējuma",
+    "margins_none": "Nav",
+    "margins_minimum": "Minimālas",
+    "scale": "Mērogs (%)",
+    "options": "Opcijas",
+    "header_footer": "Galvenes un kājenes",
+    "background": "Fona grafika",
+    "print": "Drukāt",
+    "save": "Saglabāt",
+    "cancel": "Atcelt",
+    "system_dialog": "Drukāt ar sistēmas dialoglodziņu…",
+    "failed_title": "Neizdevās izdrukāt",
+    "failed_detail": "Printeris nepieņēma darbu. Pārbaudiet, vai tas ir ieslēgts, un mēģiniet vēlreiz."
   },
   "files_sync": {
     "title": "Faili šajā datorā",
@@ -8049,6 +8234,20 @@
       "app_lock_hello": "Windows Hello Touch ID pirkstu nospiedums seja piekļuves atslēga passkey"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "Privātums un drošība",
+      "security": "Parole un pierakstīšanās",
+      "about_updates": "Par un atjauninājumi",
+      "backup": "Dublēšana un importēšana"
+    },
+    "sections": {
+      "start": "Palaišana un aizvēršana",
+      "shortcuts": "Īsinājumtaustiņi no citām lietotnēm",
+      "mail_links": "Pasta saites un faili"
+    },
+    "privacy_link_description": "Šie iestatījumi ir lapā Privātums un drošība."
+  },
   "desktop_policy": {
     "server_refused": "Jūsu organizācija šajā ierīcē neatļauj šo serveri.",
     "plugin_refused": "Jūsu organizācija šajā ierīcē neatļauj šo spraudni, tāpēc tas nedarbojas. Tā iestatījumi un dati tiek saglabāti.",
@@ -8095,5 +8294,9 @@
   "selectionView": {
     "starred": "Atzīmēts ar zvaigznīti",
     "unstarred": "Zvaigznīte noņemta"
+  },
+  "impersonation": {
+    "return_notice": "Jūs atvērāt {mailbox}, uzdodoties par lietotāju.",
+    "return_button": "Atgriezties manā kontā"
   }
 }

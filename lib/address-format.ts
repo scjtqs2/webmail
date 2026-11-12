@@ -44,7 +44,7 @@ export function styleForCountryCode(code: string | undefined | null): AddressSty
 
 // Country names as people type them: each known code's name in these
 // languages, plus a few short forms.
-const NAME_LOCALES = ["en", "de", "fr", "es", "it", "nl", "pt", "pl", "sv", "da", "nb", "fi", "cs", "sk", "hu", "tr", "ru", "uk", "ro", "el", "hr", "sl", "et", "lv", "lt", "ca"];
+const NAME_LOCALES = ["en", "de", "fr", "es", "it", "nl", "pt", "pl", "sv", "da", "nb", "nn", "fi", "cs", "sk", "hu", "tr", "ru", "uk", "ro", "el", "hr", "sl", "et", "lv", "lt", "ca"];
 const ALIASES: Record<string, string> = {
   usa: "US", "u.s.a.": "US", "u.s.": "US", "united states of america": "US", america: "US",
   uk: "GB", "u.k.": "GB", england: "GB", scotland: "GB", wales: "GB", "great britain": "GB", "northern ireland": "GB",
@@ -93,7 +93,7 @@ export function countryCodeFromName(country: string | undefined | null): string 
 
 // The country a UI language most likely means, for addresses without one.
 const LANGUAGE_COUNTRY: Record<string, string> = {
-  de: "DE", nl: "NL", it: "IT", es: "ES", ca: "ES", pt: "PT", da: "DK", nb: "NO", sv: "SE", fi: "FI",
+  de: "DE", nl: "NL", it: "IT", es: "ES", ca: "ES", pt: "PT", da: "DK", nb: "NO", nn: "NO", sv: "SE", fi: "FI",
   pl: "PL", cs: "CZ", sk: "SK", hu: "HU", ro: "RO", tr: "TR", et: "EE", lv: "LV", lt: "LT", ru: "RU",
   uk: "UA", el: "GR", fr: "FR", en: "US",
 };

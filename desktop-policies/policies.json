@@ -14,6 +14,8 @@
   "OfflineEnabled": true,
   "AppLockRequired": true,
   "AppLockTimeoutMinutes": 10,
+  "AppLockPinMinLength": 8,
+  "AppLockHelloAllowed": true,
   "TelemetryAllowed": false,
   "CrashReportsAllowed": false,
   "QuickComposeShortcut": "CommandOrControl+Alt+N",
@@ -33,6 +35,7 @@
   "FilesDriveEnabled": true,
   "FilesFolderSyncEnabled": true,
   "FilesDriveLetter": "none",
+  "ComposeInNewWindow": true,
   "Recommended": {
     "UpdateChannel": "stable"
   }

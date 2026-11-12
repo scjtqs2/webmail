@@ -70,6 +70,8 @@ export interface PolicyValues {
   OfflineEnabled: boolean;
   AppLockRequired: boolean;
   AppLockTimeoutMinutes: number | null;
+  AppLockPinMinLength: number | null;
+  AppLockHelloAllowed: boolean;
   TelemetryAllowed: boolean;
   CrashReportsAllowed: boolean;
   QuickComposeShortcut: string | null;
@@ -86,6 +88,7 @@ export interface PolicyValues {
   FilesDriveEnabled: boolean;
   FilesFolderSyncEnabled: boolean;
   FilesDriveLetter: string | null;
+  ComposeInNewWindow: boolean;
 }
 
 export type PolicyKey = keyof PolicyValues;
@@ -300,6 +303,39 @@ export const POLICY_SCHEMA: Record<PolicyKey, PolicyDefinition> = {
     description: {
       en: 'How many minutes without use the app stays unlocked. From 1 to 1440.',
       de: 'Wie viele Minuten ohne Nutzung die App entsperrt bleibt. Von 1 bis 1440.',
+    },
+  },
+  AppLockPinMinLength: {
+    category: 'security',
+    // Nobody chooses their own minimum, so a recommendation would act as forced.
+    forcedOnly: true,
+    type: 'integer',
+    default: null,
+    // The app's own minimum: a policy can ask for more, never for less.
+    min: 5,
+    max: 64,
+    // A value nobody can read, 3 among them, gets the app's own minimum. The longest instead
+    // would make everyone who has to set up the lock type 64 characters.
+    onInvalid: 5,
+    unit: { en: 'Characters', de: 'Zeichen' },
+    sample: 8,
+    title: { en: 'Minimum length of the app lock PIN', de: 'Mindestlänge der PIN für die App-Sperre' },
+    description: {
+      en: 'How many characters a new app lock PIN needs at least. From 5 to 64. When not configured, it is 5. A PIN set before keeps working until it is changed.',
+      de: 'Wie viele Zeichen eine neue PIN für die App-Sperre mindestens haben muss. Von 5 bis 64. Wenn nicht konfiguriert, sind es 5. Eine zuvor festgelegte PIN funktioniert weiter, bis sie geändert wird.',
+    },
+  },
+  AppLockHelloAllowed: {
+    category: 'security',
+    forcedOnly: true,
+    type: 'boolean',
+    default: true,
+    onInvalid: false,
+    sample: true,
+    title: { en: 'Allow unlocking the app with Windows Hello', de: 'Entsperren der App mit Windows Hello erlauben' },
+    description: {
+      en: 'When enabled or not configured, people can unlock the app lock with Windows Hello as well as with its PIN. When disabled, the option is hidden, and Windows Hello no longer unlocks the app where it was set up: the PIN is needed. Windows only.',
+      de: 'Wenn aktiviert oder nicht konfiguriert, können Benutzer die App-Sperre außer mit ihrer PIN auch mit Windows Hello aufheben. Wenn deaktiviert, wird die Option ausgeblendet, und Windows Hello entsperrt die App auch dort nicht mehr, wo es eingerichtet war: Dann ist die PIN nötig. Nur unter Windows.',
     },
   },
   TelemetryAllowed: {
@@ -522,6 +558,18 @@ export const POLICY_SCHEMA: Record<PolicyKey, PolicyDefinition> = {
     description: {
       en: 'Windows only. A letter from D to Z gives the Files drive that letter for every user, and they can\'t change it. Enter none to never give it a letter. When not configured, people choose under Settings, and there is no letter until they do. A value the app can\'t read counts as none.',
       de: 'Nur unter Windows. Ein Buchstabe von D bis Z gibt dem Laufwerk Dateien für jeden Benutzer diesen Buchstaben, und Benutzer können ihn nicht ändern. Geben Sie none ein, damit es nie einen Buchstaben bekommt. Wenn nicht konfiguriert, wählen Benutzer in den Einstellungen, und bis dahin gibt es keinen Buchstaben. Ein Wert, den die App nicht lesen kann, gilt als none.',
+    },
+  },
+  ComposeInNewWindow: {
+    category: 'system',
+    type: 'boolean',
+    default: false,
+    onInvalid: false,
+    sample: true,
+    title: { en: 'Write messages in a new window', de: 'Nachrichten in einem neuen Fenster schreiben' },
+    description: {
+      en: 'When enabled, every new message, reply, forward and draft opens in a window of its own instead of inside the main window. When disabled, they open inside the main window, and "Open in new window" still moves one out. Forced, the setting is locked. As a recommendation, it is the starting value of the setting under Settings, which people can change. When not configured, the setting is off until the user turns it on.',
+      de: 'Wenn aktiviert, öffnet sich jede neue Nachricht, Antwort, Weiterleitung und jeder Entwurf in einem eigenen Fenster statt im Hauptfenster. Wenn deaktiviert, öffnen sie sich im Hauptfenster, und „In neuem Fenster öffnen“ verschiebt sie weiterhin in ein eigenes Fenster. Erzwungen ist die Einstellung gesperrt. Als Empfehlung ist es der Anfangswert der Einstellung in den Einstellungen, den Benutzer ändern können. Wenn nicht konfiguriert, ist die Einstellung aus, bis der Benutzer sie einschaltet.',
     },
   },
 };
@@ -987,10 +1035,13 @@ const PAGE_POLICY_KEYS: readonly PolicyKey[] = [
   'OfflineEnabled',
   'AppLockRequired',
   'AppLockTimeoutMinutes',
+  'AppLockPinMinLength',
+  'AppLockHelloAllowed',
   'CrashReportsAllowed',
   'RecentFilesInAttach',
   'FilesDriveEnabled',
   'FilesFolderSyncEnabled',
+  'ComposeInNewWindow',
 ];
 
 /**
@@ -1031,6 +1082,9 @@ export const POLICY_CONSUMERS: Record<PolicyKey, PolicyConsumer> = {
   UpdateChannel: { repo: 'shell', file: 'src/main/update-rules.ts' },
   AppLockRequired: { repo: 'webmail', file: 'lib/app-lock/policy.ts' },
   AppLockTimeoutMinutes: { repo: 'webmail', file: 'lib/app-lock/policy.ts' },
+  AppLockPinMinLength: { repo: 'webmail', file: 'lib/app-lock/policy.ts' },
+  // The page hides the switch and drops its wrap; main refuses and deletes the key credential.
+  AppLockHelloAllowed: { repo: 'shell', file: 'src/main/features/app-lock.ts' },
   TelemetryAllowed: { repo: 'shell', file: 'src/main/features/privacy.ts' },
   CrashReportsAllowed: { repo: 'shell', file: 'src/main/features/privacy.ts' },
   QuickComposeShortcut: { repo: 'shell', file: 'src/main/features/os-quick-compose.ts' },
@@ -1044,6 +1098,7 @@ export const POLICY_CONSUMERS: Record<PolicyKey, PolicyConsumer> = {
   FilesDriveEnabled: { repo: 'shell', file: 'src/main/features/files-drive.ts' },
   FilesFolderSyncEnabled: { repo: 'shell', file: 'src/main/features/files-folders.ts' },
   FilesDriveLetter: { repo: 'shell', file: 'src/main/features/files-drive.ts' },
+  ComposeInNewWindow: { repo: 'webmail', file: 'lib/desktop/preferences.ts' },
 };
 
 /** The part the embedded server enforces. Sent to it by message. */

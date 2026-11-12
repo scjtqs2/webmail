@@ -155,9 +155,11 @@ export interface DesktopMenuBridge {
   onCommand?: (listener: (id: string) => void) => () => void;
   /**
    * File > Change connection…, once the page asked: restarts on the first screen. False
-   * where a policy forces the connection. An older shell has none.
+   * where a policy forces the connection. An older shell has none. `page` 'org': the first
+   * screen opens on the organisation's web address (desktop#5); a shell before that ignores
+   * it and opens on the email address.
    */
-  changeConnection?: () => Promise<boolean>;
+  changeConnection?: (page?: 'org') => Promise<boolean>;
   /** Shows a native menu. At the pointer when `at` is left out. Answers with the id picked, or null. */
   popup?: (items: DesktopNativeMenuItem[], at?: { x: number; y: number }) => Promise<string | null>;
   /** The strip that stands in for a menu bar in a window with no native bar. */
@@ -209,6 +211,36 @@ export interface DesktopDialogsBridge {
   show?: (request: DesktopDialogWindowRequest) => Promise<DesktopDialogWindowAnswer>;
   /** Takes back a question asked with `show`, showing or waiting. */
   cancel?: (id: string) => void;
+  /**
+   * Shows the window this page opened with `window.open('', name)`, a name starting
+   * `bulwark-dialog-`: main made it a frameless, transparent modal child the size of this
+   * page, and the page has drawn one of its dialogs into it (lib/desktop/dialog-surface.ts).
+   * False when there is no such window. Absent on older shells.
+   */
+  showWindow?: (name: string) => Promise<boolean>;
+}
+
+/**
+ * The shell's print preview (src/main/print-preview.ts in the desktop repo): this page as
+ * its print CSS lays it out, a print window it opened as `window.open('', name)` with a
+ * name `bulwark-print-…` (main keeps it hidden), or a PDF's bytes.
+ */
+export type DesktopPrintPreviewRequest = (
+  | { source: 'page' }
+  | { source: 'window'; name: string }
+  | { source: 'pdf'; data: Uint8Array }
+) & {
+  title?: string;
+  theme?: DesktopDialogWindowTheme;
+};
+
+export type DesktopPrintPreviewOutcome = 'printed' | 'saved' | 'system' | 'cancelled' | 'refused' | 'busy' | 'failed';
+
+export interface DesktopPrintBridge {
+  /** Opens the preview over this window. Resolves when it closes. */
+  preview: (request: DesktopPrintPreviewRequest) => Promise<DesktopPrintPreviewOutcome>;
+  /** File > Print and Ctrl+P ask the page to run its own Print. Returns the unsubscribe. */
+  onRequest: (listener: () => void) => () => void;
 }
 
 /** Plain text throughout: the shell sets textContent only. */
@@ -333,6 +365,12 @@ export interface DesktopBrowserSignInControls {
   nextPassword: (flowId: string) => Promise<DesktopPasswordSignInAttempt>;
   answerPassword: (flowId: string, answer: DesktopPasswordSignInAnswer) => void;
   outcome: (flowId: string) => Promise<DesktopBrowserSignInResult>;
+  /**
+   * Instance mode: a plugin's OAuth request whose redirect_uri is this instance's plugin
+   * callback, in an app window on the app's session. Only from a click. False: open it as a
+   * link. Absent on older shells.
+   */
+  pluginSignIn?: (url: string) => Promise<boolean>;
 }
 
 export interface DesktopAuthBridge {
@@ -495,6 +533,21 @@ export type DesktopOsUnlockKind = 'hello' | 'touchid';
 
 export type DesktopOsUnlockAnswer = { ok: true; key: Uint8Array } | { ok: false; reason: 'unavailable' | 'denied' | 'not-locked' | 'failed' };
 
+/** A signature from the lock's Windows Hello key credential, or why there's none. */
+export type DesktopHelloAnswer =
+  | { ok: true; signature: Uint8Array }
+  | { ok: false; reason: 'cancelled' | 'busy' | 'unavailable' | 'missing' | 'unsupported' | 'policy' | 'not-locked' | 'failed' };
+
+/** Windows Hello for the lock. Absent off Windows and on an older shell. */
+export interface DesktopHelloStatus {
+  /** Windows can show the prompt here. */
+  available: boolean;
+  /** The AppLockHelloAllowed policy. */
+  allowed: boolean;
+  /** This profile has a key credential for the lock. */
+  enrolled: boolean;
+}
+
 /**
  * App lock in the desktop app. Main holds whether it's locked, and nothing a page says can
  * lift that: `prove` needs what only a real unlock gives, Windows Hello and Touch ID run in
@@ -515,6 +568,19 @@ export interface DesktopAppLockControls {
   pinStep?: (data: Uint8Array) => Promise<DesktopPinStepAnswer>;
   /** Ends this page's renderer and loads the page in a new one. Only while main says locked. */
   replaceRenderer?: () => void;
+  /** Whether the screen locking locks the app. Only while unlocked. Absent on an older shell. */
+  setScreenLock?: (on: boolean) => Promise<boolean>;
+  /**
+   * Windows Hello: a new key credential and its signature for this salt. Unlocked, with the proof.
+   * Absent on an older shell.
+   */
+  helloEnroll?: (proof: Uint8Array, salt: Uint8Array) => Promise<DesktopHelloAnswer>;
+  /** The signature for this salt, behind a Hello prompt. Locked it needs nothing, unlocked the proof. */
+  helloSign?: (salt: Uint8Array, proof?: Uint8Array) => Promise<DesktopHelloAnswer>;
+  /** Ends a Hello prompt that's waiting. */
+  helloCancel?: () => void;
+  /** Deletes the key credential. */
+  helloRemove?: () => Promise<void>;
   /**
    * What only main can delete. `account` null: everything on this device, and then `finishLocalWipe`.
    * `failed` names what didn't go, and the wipe isn't reported as done. Absent on an older shell.
@@ -525,7 +591,7 @@ export interface DesktopAppLockControls {
 }
 
 export interface DesktopAppLockBridge {
-  status: () => Promise<{ locked: boolean; enrolled: boolean; os: DesktopOsUnlockKind | null; osEnrolled: boolean; wrap?: boolean }>;
+  status: () => Promise<{ locked: boolean; enrolled: boolean; os: DesktopOsUnlockKind | null; osEnrolled: boolean; wrap?: boolean; hello?: DesktopHelloStatus }>;
   /** Once per document: the calls only the page itself may make. Null for whoever comes second. */
   claim: () => DesktopAppLockControls | null;
   /** Sets up the proof. False when one exists. */
@@ -633,6 +699,11 @@ export interface DesktopOsSettings {
   startAtLogin: boolean;
   /** At login: no window, only the tray. */
   startMinimized: boolean;
+  /**
+   * Running when the computer restarts or the user signs out: the app starts again at the
+   * next sign-in, on the page the main window showed. Unset: a shell without it.
+   */
+  reopenAfterRestart?: boolean;
   /** Taskbar flash or dock bounce on new mail. */
   attentionOnNewMail: boolean;
   quietHoursEnabled: boolean;
@@ -671,7 +742,8 @@ export interface DesktopOsFile {
 
 /** What the OS asks the app to do: a tray item, a jump list entry, a toast, a double-clicked file. */
 export type DesktopOsCommand =
-  | { type: 'new-message' }
+  /** `params`: a bulwark://new link's x-<plugin id>-<name> parameters (lib/plugin-link-params.ts). */
+  | { type: 'new-message'; params?: Record<string, string> }
   /** `settings/files_sync`: Settings > Files on this computer, from the drive's status in Explorer. */
   | { type: 'navigate'; target: 'inbox' | 'calendar' | 'contacts' | 'settings/files_sync' }
   | { type: 'open-message'; emailId: string; accountId?: string; context?: string }
@@ -1227,6 +1299,22 @@ export interface FilesRescued {
   failed: number;
 }
 
+/**
+ * Saves messages through the OS's dialogs (lib/desktop/save-as.ts): `begin` asks where at
+ * once, the Save dialog for one file and a folder for several, starting in the folder used
+ * last; then each file's bytes go over with `write`, and `end` says how many were saved.
+ * The shell wants a click or a menu pick just before `begin`, writes each as an .eml with a
+ * safe name, never overwrites a file in a picked folder (it numbers the name), and refuses
+ * under the organisation's "no downloads" and the app lock.
+ */
+export interface DesktopSaveAsBridge {
+  begin: (request: { kind: 'message'; names: string[] }) => Promise<
+    { id: string } | { cancelled: true } | { refused: 'gesture' | 'policy' | 'locked' | 'invalid' }
+  >;
+  write: (id: string, index: number, data: Uint8Array) => Promise<boolean>;
+  end: (id: string) => Promise<{ saved: number; failed: number }>;
+}
+
 export interface BulwarkDesktopBridge {
   version: number;
   platform: 'win32' | 'darwin' | 'linux';
@@ -1236,6 +1324,8 @@ export interface BulwarkDesktopBridge {
   menu?: DesktopMenuBridge;
   shell?: DesktopShellBridge;
   dialogs?: DesktopDialogsBridge;
+  /** Absent on older shells. */
+  print?: DesktopPrintBridge;
   spellcheck?: DesktopSpellcheckBridge;
   clipboard?: DesktopClipboardBridge;
   lifecycle?: DesktopLifecycleBridge;
@@ -1260,6 +1350,8 @@ export interface BulwarkDesktopBridge {
   files?: FilesBridge;
   /** Absent on older shells. */
   recentFiles?: DesktopRecentFilesBridge;
+  /** File > Save as… and the message's own Save as: native dialogs. Absent on older shells. */
+  saveAs?: DesktopSaveAsBridge;
 }
 
 declare global {

@@ -59,6 +59,7 @@ const configValidators = {
   loginShowTokenLogin: isBoolean,
   desktopBrowserSignIn: isBoolean,
   loginShowRememberMe: isBoolean,
+  browserSessionSignIn: isBoolean,
   loginShowVersion: isBoolean,
   demoMode: isBoolean,
   autoSsoEnabled: isBoolean,
@@ -73,6 +74,8 @@ const configValidators = {
   helpUrl: isString,
   easyReadUrl: isString,
   signLanguageUrl: isString,
+  accountManagementUrl: isString,
+  accountManagementLabel: isString,
   noThirdPartyTraffic: isBoolean,
   // Lite only (lib/lite-config.ts); the server's response leaves it out.
   oauthRevokeOnSignOut: (value): value is boolean | undefined => value === undefined || typeof value === 'boolean',
@@ -102,6 +105,18 @@ export function httpUrlOrEmpty(value: unknown): string {
 }
 
 const EMAIL_RE = /^[^\s@<>()"',;:\\/?#]+@[^\s@<>()"',;:\\/?#]+\.[^\s@<>()"',;:\\/?#]+$/;
+
+/**
+ * {@link httpUrlOrEmpty}, or a path on the page's own host (`/account/`), so
+ * one config serves every host it runs on. `//host` and backslashes, which
+ * browsers read as another host, are refused.
+ */
+export function httpUrlOrPathOrEmpty(value: unknown): string {
+  const url = httpUrlOrEmpty(value);
+  if (url || typeof value !== 'string') return url;
+  const trimmed = value.trim();
+  return /^\/(?![/\\])[^\\\s]*$/.test(trimmed) ? trimmed : '';
+}
 
 /**
  * An absolute http(s) URL, a mailto: link, or an email address made into

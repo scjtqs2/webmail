@@ -6,6 +6,7 @@ import { Mail, CalendarEvent, Users, Folder, Settings, Keyboard, Plus, Shield, L
 import { openAccessibilityPanel } from "@/components/accessibility/accessibility-quick-panel";
 import { AccountSwitcher } from "./account-switcher";
 import { iconForName } from "@/components/icons";
+import { SidebarAppIcon } from "@/components/layout/sidebar-app-icon";
 import { useConfig } from "@/hooks/use-config";
 import { useThemeStore } from "@/stores/theme-store";
 import { useShallow } from "zustand/react/shallow";
@@ -26,7 +27,7 @@ import { useContextMenu } from "@/hooks/use-context-menu";
 import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { useStalwartAdmin } from "@/hooks/use-stalwart-admin";
-import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
+import { LazyKeyboardShortcutsModal } from "@/components/lazy-keyboard-shortcuts-modal";
 import { getPathPrefix, withBasePath } from "@/lib/browser-navigation";
 import { interceptLeave } from "@/lib/leave-guard";
 import { Avatar } from "@/components/ui/avatar";
@@ -36,6 +37,7 @@ import { NotificationBell } from "@/components/notifications/notification-center
 import { useBottomControls } from "@/hooks/use-bottom-controls";
 import { useAllInboxesUnread } from "@/hooks/use-all-inboxes-unread";
 import { writeRailHints, type RailHint } from "@/lib/boot-skeleton/hints";
+import { usePrefetchAfterStart } from "@/hooks/use-prefetch-after-start";
 
 interface NavItem {
   id: string;
@@ -243,6 +245,8 @@ export function NavigationRail({
   // The phone tab bar: toasts sit above it.
   const tabBarRef = useBottomControls(orientation === "horizontal");
   const pathname = usePathname();
+  // Not while the page starts on "/" (see the hook).
+  const prefetchLinks = usePrefetchAfterStart(pathname) ? undefined : false;
   // Each app draws its own tab bar, so its scroll position starts over: bring
   // the current entry back into view when it lies past the edge of a full bar.
   const tabBarScrollRef = useRef<HTMLDivElement>(null);
@@ -405,6 +409,7 @@ export function NavigationRail({
           const Icon = item.icon;
           return (
             <Link
+              prefetch={prefetchLinks}
               key={item.id}
               href={item.href}
               onClick={handleNavClick(item.id as 'mail' | 'calendar' | 'contacts' | 'files' | 'settings')}
@@ -446,6 +451,7 @@ export function NavigationRail({
           const PageIcon = iconForName(page.icon) ?? Puzzle;
           return (
             <Link
+              prefetch={prefetchLinks}
               key={`plugin-page:${page.pluginId}:${page.id}`}
               href={pluginPageHref(page)}
               onClick={(e) => { if (interceptLeave(e)) return; if (activeAppId) onCloseInlineApp?.(); }}
@@ -476,7 +482,6 @@ export function NavigationRail({
 
         {/* Custom sidebar apps (per-app mobile visibility) */}
         {visibleSidebarApps.filter((app) => app.showOnMobile).map((app) => {
-          const AppIcon = iconForName(app.icon);
           const isActive = activeAppId === app.id;
           return (
             <button
@@ -499,7 +504,7 @@ export function NavigationRail({
               )}
             >
               <div className="relative">
-                {AppIcon ? <AppIcon className="w-5 h-5" /> : null}
+                <SidebarAppIcon app={app} className="w-5 h-5" />
                 {isActive && (
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
                 )}
@@ -544,6 +549,7 @@ export function NavigationRail({
 
         {/* Settings */}
         <Link
+          prefetch={prefetchLinks}
           href="/settings"
           onClick={handleNavClick('settings')}
           data-tour="nav-settings"
@@ -572,6 +578,9 @@ export function NavigationRail({
 
   return (
     <div
+      // The whole column, logo included: on macOS it makes room for the traffic
+      // lights at its top (app/globals.css).
+      data-window-rail=""
       className={cn(
         // On a short window (a phone on its side) the whole rail scrolls: the
         // pinned group at the bottom left the apps room for two icons.
@@ -594,7 +603,6 @@ export function NavigationRail({
       })()}
 
       <nav
-        data-window-rail=""
         className={cn(
           "flex flex-col flex-1 min-h-0 overflow-y-auto scroll-hidden [@media(max-height:32rem)]:flex-none [@media(max-height:32rem)]:overflow-visible",
           collapsed ? "items-center gap-1 py-3 px-1" : "gap-0.5 py-2 px-2",
@@ -625,6 +633,7 @@ export function NavigationRail({
           const Icon = item.icon;
           return (
             <Link
+              prefetch={prefetchLinks}
               key={item.id}
               href={item.href}
               onClick={handleNavClick(item.id as 'mail' | 'calendar' | 'contacts' | 'files' | 'settings')}
@@ -669,6 +678,7 @@ export function NavigationRail({
           const PageIcon = iconForName(page.icon) ?? Puzzle;
           return (
             <Link
+              prefetch={prefetchLinks}
               key={`plugin-page:${page.pluginId}:${page.id}`}
               href={pluginPageHref(page)}
               onClick={(e) => { if (interceptLeave(e)) return; if (activeAppId) onCloseInlineApp?.(); }}
@@ -705,7 +715,6 @@ export function NavigationRail({
           />
         )}
         {visibleSidebarApps.map((app) => {
-          const AppIcon = iconForName(app.icon);
           const isActive = activeAppId === app.id;
           return (
             <button
@@ -732,7 +741,7 @@ export function NavigationRail({
               title={collapsed ? app.name : undefined}
               style={collapsed ? undefined : { paddingBlock: 'var(--density-sidebar-py)' }}
             >
-              {AppIcon ? <AppIcon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-primary")} /> : null}
+              <SidebarAppIcon app={app} className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-primary")} />
               {!collapsed && <span className="truncate">{app.name}</span>}
             </button>
           );
@@ -804,6 +813,8 @@ export function NavigationRail({
         )}
 
         <Link
+
+          prefetch={prefetchLinks}
           href="/settings"
           onClick={handleNavClick('settings')}
           data-tour="nav-settings"
@@ -841,7 +852,7 @@ export function NavigationRail({
             >
               <Keyboard className="w-[18px] h-[18px]" />
             </button>
-            <KeyboardShortcutsModal
+            <LazyKeyboardShortcutsModal
               isOpen={showShortcutsModal}
               onClose={() => setShowShortcutsModal(false)}
             />

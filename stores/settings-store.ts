@@ -33,6 +33,17 @@ import {
   DEFAULT_SUB_ADDRESS_DELIMITER,
   isValidSubAddressDelimiter,
 } from '@/lib/sub-addressing';
+import {
+  SETTINGS_STAMPS_FIELD,
+  emptyLocalStamps,
+  localChangeWins,
+  parseLocalStamps,
+  readStamps,
+  type LocalSettingStamps,
+} from '@/lib/settings-sync-stamps';
+import { getDesktopBridge } from '@/lib/desktop/bridge';
+import { forgetSignedOutChoices, signedOutChoices } from '@/lib/signed-out-choices';
+import { isValidKeywordDefinitionId, MAX_KEYWORD_LABEL_LENGTH } from '@/lib/keyword-nesting';
 
 // Use console directly to avoid circular dependency with lib/debug.ts
 // (debug.ts imports useSettingsStore for debugMode check)
@@ -53,9 +64,12 @@ let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingSync: SettingsSyncJob | null = null;
 let isLoadingFromServer = false;
 // Set by loadFromServer when this browser holds templates (or deletions) the
-// server blob lacks; enableSync then pushes once instead of waiting for the
-// next unrelated settings change.
-let pushTemplatesAfterLoad = false;
+// server blob lacks, or setting changes the server never got; enableSync then
+// pushes once instead of waiting for the next unrelated settings change.
+let pushAfterLoad = false;
+// Writes the user didn't make (an admin policy's defaults, a server copy
+// being applied): they get no change stamp.
+let unstampedWrites = 0;
 // Wired up in the window-only init block below; null during SSR.
 let requestSync: (() => void) | null = null;
 // Account whose settings could not be loaded while this browser still held
@@ -106,12 +120,108 @@ function writeSettingsOwner(accountId: string | null): void {
   }
 }
 
+// When each setting changed here, and which changes the server hasn't taken
+// yet (lib/settings-sync-stamps). Kept next to settings-storage, so a change
+// whose push a reload, a closed window or a lost connection cut off is kept
+// on the next load instead of being overwritten by the older server copy.
+// Read fresh each time: tabs of one browser share it, like settings-storage.
+const SETTINGS_STAMPS_KEY = 'settings-sync-stamps';
+
+function getLocalStamps(): LocalSettingStamps {
+  try {
+    if (typeof window === 'undefined') return emptyLocalStamps();
+    return parseLocalStamps(window.localStorage.getItem(SETTINGS_STAMPS_KEY));
+  } catch {
+    return emptyLocalStamps();
+  }
+}
+
+function saveLocalStamps(local: LocalSettingStamps): void {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(SETTINGS_STAMPS_KEY, JSON.stringify(local));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function markLocalChange(keys: string[]): void {
+  const local = getLocalStamps();
+  const now = Date.now();
+  for (const key of keys) {
+    local.stamps[key] = now;
+    local.dirty[key] = now;
+  }
+  saveLocalStamps(local);
+}
+
+function hasUnsyncedChanges(): boolean {
+  return Object.keys(getLocalStamps().dirty).length > 0;
+}
+
+/** The server took a push: its changes are no longer only here. */
+function acknowledgeChanges(sent: Record<string, number>): void {
+  const local = getLocalStamps();
+  let changed = false;
+  for (const [key, at] of Object.entries(sent)) {
+    if (local.dirty[key] === at) {
+      delete local.dirty[key];
+      changed = true;
+    }
+  }
+  if (changed) saveLocalStamps(local);
+}
+
+function clearLocalStamps(): void {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(SETTINGS_STAMPS_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 const SYNC_DEBOUNCE_MS = 2000;
+// Browsers refuse a keepalive request body over 64 KiB.
+const KEEPALIVE_MAX_BYTES = 60 * 1024;
 
 interface SettingsSyncJob {
   username: string;
   serverUrl: string;
   settings: Record<string, unknown>;
+  /** The unsynced changes this push carries, to clear once the server has them. */
+  dirty: Record<string, number>;
+}
+
+// In the desktop app a closing window or quitting app waits for the pending
+// push, through the shell's lifecycle bridge; only while one is pending, so
+// a window with nothing to send closes at once.
+let stopDesktopFlush: (() => void) | null = null;
+
+function syncDesktopFlush(): void {
+  if (!pendingSync) {
+    stopDesktopFlush?.();
+    stopDesktopFlush = null;
+    return;
+  }
+  if (stopDesktopFlush) return;
+  const lifecycle = getDesktopBridge()?.lifecycle;
+  if (lifecycle) {
+    stopDesktopFlush = lifecycle.onFlushRequest(async () => {
+      await useSettingsStore.getState().flushSync();
+      return {};
+    });
+  }
+}
+
+/** Takes the pending push off the debounce timer. */
+function takePendingSync(): SettingsSyncJob | null {
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
+  const job = pendingSync;
+  pendingSync = null;
+  syncDesktopFlush();
+  return job;
 }
 
 // --- Template sync bridge ---------------------------------------------------
@@ -205,13 +315,28 @@ export function registerCalendarSubscriptionSyncBridge(
   subscribe(() => onCalendarSubscriptionStoreChange?.());
 }
 
-async function syncSettingsJob(job: SettingsSyncJob, retries = 1): Promise<void> {
+/**
+ * Pushes one snapshot. `keepalive` lets it finish after the page is gone
+ * (when it is small enough). A push that can't reach the server leaves its
+ * changes marked unsynced: they go out when the connection is back, and the
+ * next load keeps them.
+ */
+async function syncSettingsJob(job: SettingsSyncJob, retries = 1, opts?: { keepalive?: boolean }): Promise<void> {
   syncLog('Syncing settings to server for', job.username);
-  const res = await apiFetch('/api/settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(job),
-  });
+  const body = JSON.stringify({ username: job.username, serverUrl: job.serverUrl, settings: job.settings });
+  const keepalive = opts?.keepalive === true && new TextEncoder().encode(body).length <= KEEPALIVE_MAX_BYTES;
+  let res: Response;
+  try {
+    res = await apiFetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      ...(keepalive ? { keepalive: true } : {}),
+    });
+  } catch (error) {
+    syncWarn('Settings sync could not reach the server; the changes stay marked to send:', error);
+    return;
+  }
   if (res.status === 404) {
     syncWarn('Settings sync endpoint returned 404, disabling sync');
     syncEnabled = false;
@@ -227,6 +352,7 @@ async function syncSettingsJob(job: SettingsSyncJob, retries = 1): Promise<void>
     const body = await res.json().catch(() => ({}));
     syncError('Settings sync failed:', body.error || `status ${res.status}`);
   } else {
+    acknowledgeChanges(job.dirty);
     syncLog('Settings synced to server successfully');
     void settingsHooks.onSettingsSync.emit({ direction: 'pushed' });
   }
@@ -246,7 +372,7 @@ async function syncSettingsJob(job: SettingsSyncJob, retries = 1): Promise<void>
  * Imports, resets and server loads have their own hooks (onSettingsImport,
  * onSettingsReset, onSettingsSync) and do not fire per-key ones.
  */
-const BOOKKEEPING_SETTING_KEYS = new Set<string>(['onboardingCompleted', 'tourCompleted']);
+const BOOKKEEPING_SETTING_KEYS = new Set<string>(['onboardingCompleted', 'tourCompleted', 'emailKeywordsChoiceTracked']);
 
 /**
  * Runs a user's change to one preference through the plugin hooks: asks
@@ -279,6 +405,7 @@ function changePreference(key: string, value: unknown, previous: unknown, apply:
   });
 }
 
+// The colour goes out as stored: a palette key, or a custom #rrggbb picked in settings.
 function toKeywordViews(keywords: KeywordDefinition[]): { id: string; name: string; color: string }[] {
   return keywords.map((k) => ({ id: k.id, name: k.label, color: k.color }));
 }
@@ -316,8 +443,6 @@ export type FirstDayOfWeek = 0 | 1 | 6; // 0 = Sunday, 1 = Monday, 6 = Saturday
 export type TimeZoneSetting = 'auto' | (string & {});
 export type ExternalContentPolicy = 'ask' | 'block' | 'allow';
 export type MailAttachmentAction = 'preview' | 'download';
-/** 'below-header': a bar of tiles under the header. 'below-message': preview cards after the body. */
-export type AttachmentPosition = 'below-header' | 'below-message';
 export type ToolbarPosition = 'top' | 'below-subject';
 export type ArchiveMode = 'single' | 'year' | 'month';
 export type MailLayout = 'split' | 'focus' | 'horizontal';
@@ -380,6 +505,12 @@ export type ProtocolOpenMode = 'active-session' | 'new-tab';
  * import.
  */
 const DEVICE_LOCAL_SETTING_KEYS = new Set<string>(['proInterface']);
+
+/**
+ * Maps keyed by account id. Every account's server copy carries one, and a
+ * server load takes only the loading account's entry.
+ */
+const PER_ACCOUNT_MAP_KEYS = new Set<string>(['preferredIdentityIds', 'allMailFolderIds', 'hiddenSharedMailAccounts', 'sharedMailAccountOrder']);
 
 /** A map of plugin id → boolean, whatever came in (sync, import, storage). */
 function booleanRecord(value: unknown): Record<string, boolean> {
@@ -446,7 +577,7 @@ export type KeywordVisibility = 'show' | 'hide' | 'unread';
 export interface KeywordDefinition {
   id: string;     // Used as JMAP keyword suffix: $label:<id>
   label: string;  // Display name
-  color: string;  // Key from KEYWORD_PALETTE
+  color: string;  // Key from KEYWORD_PALETTE, or a custom lowercase #rrggbb (lib/tag-hex-color.ts)
   visibility?: KeywordVisibility; // Absent on tags stored before this was configurable
   addedBy?: string; // Id of the plugin that added it with keywords.add; only that plugin may update or remove it
 }
@@ -549,6 +680,11 @@ export const KEYWORD_PALETTE_ROWS: string[][] = [
 /** The colour a tag falls back to when its definition is gone. */
 export const FALLBACK_KEYWORD_COLOR = 'gray';
 
+/**
+ * The seven colour tags a new account starts with, unless the admin sets
+ * `defaults.emailKeywords` (#1612). The admin console offers them as
+ * ready-made tags.
+ */
 export const DEFAULT_KEYWORDS: KeywordDefinition[] = [
   { id: 'red', label: 'Red', color: 'red' },
   { id: 'orange', label: 'Orange', color: 'orange' },
@@ -601,14 +737,15 @@ interface SettingsState extends AccessibilitySettings {
   searchDefaultScope: SearchDefaultScope; // Where a new search looks: all folders, or only the open one (#1485)
   showPreview: boolean;
   showVerificationCodes: boolean; // Offer the one-time code of a sign-in mail as a copy chip in the list and the reader
+  showAttachmentChips: boolean; // Show attachment chips in the message list
   mailLayout: MailLayout;
   listColumns: boolean; // One-line list rows as a table: From, Subject, Date and Size columns under a header (#262)
   emailsPerPage: number;
   externalContentPolicy: ExternalContentPolicy;
   messageSpacing: MessageSpacing; // Gutter around the message body in the reader
   plainTextFont: PlainTextFont; // Font for text/plain email bodies in the reader
+  printTheme: string; // A plugin print style ('<pluginId>/<id>') or 'standard' (Settings > Appearance > Printing)
   mailAttachmentAction: MailAttachmentAction;
-  attachmentPosition: AttachmentPosition;
   emailAlwaysLightMode: boolean; // Always render email content in light mode
   archiveMode: ArchiveMode; // How to organize archived emails: single folder, by year, or by year+month
   hoverActions: HoverAction[]; // Quick actions shown on hover in mail list
@@ -620,6 +757,7 @@ interface SettingsState extends AccessibilitySettings {
   // Composer
   sendConfirmation: boolean;
   quickReplyEnabled: boolean;
+  replyUnderMessage: boolean; // A reply or forward docks under its message; off, it takes the reading pane like a new message
   defaultReplyMode: ReplyMode;
   autoSelectReplyIdentity: boolean;
   replyIdentityMatch: ReplyIdentityMatch; // With autoSelectReplyIdentity on: 'exact' = configured identities only, 'domain' = also same-domain catch-all addresses (rewrites From) #1000
@@ -651,10 +789,9 @@ interface SettingsState extends AccessibilitySettings {
   sessionTimeout: number; // minutes (0 = never)
   trustedSenders: string[]; // Email addresses that can load external content
   // Store trusted senders in a dedicated JMAP address book so they sync across
-  // devices. `null` means "not yet decided": resolved on first connect to
-  // `true` when the server supports contacts, otherwise left off. Once the user
-  // toggles it, it holds a concrete boolean and is never auto-changed again.
-  trustedSendersAddressBook: boolean | null;
+  // devices. On by default; a server without address books keeps the list on
+  // the device (contact store: trustedSendersBookUnavailable).
+  trustedSendersAddressBook: boolean;
 
   // Filters
   expandedFilterView: boolean;
@@ -800,6 +937,9 @@ interface SettingsState extends AccessibilitySettings {
   // Shared accounts whose mail folders are hidden one by one, keyed by
   // AccountEntry.id -> JMAP accountIds, since those ids are per server.
   hiddenSharedMailAccounts: Record<string, string[]>;
+  // The shared accounts' order in the sidebar, keyed by AccountEntry.id ->
+  // JMAP accountIds in display order. Accounts not listed follow, by name.
+  sharedMailAccountOrder: Record<string, string[]>;
 
   // Folders
   folderIcons: Record<string, string>; // mailboxId -> icon name
@@ -808,6 +948,11 @@ interface SettingsState extends AccessibilitySettings {
   // Keywords (labels/tags)
   emailKeywords: KeywordDefinition[];
   nestedTags: boolean; // Treat "/" in a tag id as a parent/child separator
+  /**
+   * Written by a build that records a tag edit in explicitSettings (#1612).
+   * A stored tag list without it predates that, and counts as chosen.
+   */
+  emailKeywordsChoiceTracked: boolean;
 
   // Attachment Reminder
   attachmentReminderEnabled: boolean;
@@ -964,14 +1109,15 @@ const DEFAULT_SETTINGS = {
   searchDefaultScope: 'all' as SearchDefaultScope,
   showPreview: true,
   showVerificationCodes: true,
+  showAttachmentChips: true,
   mailLayout: 'split' as MailLayout,
   listColumns: false,
   emailsPerPage: 50,
   externalContentPolicy: 'ask' as ExternalContentPolicy,
   messageSpacing: 'auto' as MessageSpacing,
   plainTextFont: 'sans' as PlainTextFont,
+  printTheme: 'standard',
   mailAttachmentAction: 'preview' as MailAttachmentAction,
-  attachmentPosition: 'below-header' as AttachmentPosition,
   emailAlwaysLightMode: false,
   archiveMode: 'single' as ArchiveMode,
   hoverActions: ['delete', 'star', 'markRead', 'archive'] as HoverAction[],
@@ -983,6 +1129,7 @@ const DEFAULT_SETTINGS = {
   // Composer
   sendConfirmation: false,
   quickReplyEnabled: true,
+  replyUnderMessage: true,
   defaultReplyMode: 'reply' as ReplyMode,
   autoSelectReplyIdentity: false,
   replyIdentityMatch: 'domain' as ReplyIdentityMatch,
@@ -1008,7 +1155,7 @@ const DEFAULT_SETTINGS = {
   // Privacy & Security
   sessionTimeout: 0, // Never
   trustedSenders: [] as string[],
-  trustedSendersAddressBook: null as boolean | null,
+  trustedSendersAddressBook: true,
 
   // Filters
   expandedFilterView: false,
@@ -1105,14 +1252,18 @@ const DEFAULT_SETTINGS = {
   showSharedMailAccounts: true,
   compactSharedMailboxes: false,
   hiddenSharedMailAccounts: {} as Record<string, string[]>,
+  sharedMailAccountOrder: {} as Record<string, string[]>,
 
   // Folders
   folderIcons: {} as Record<string, string>,
   folderCountModes: {} as Record<string, FolderCountMode>,
 
   // Keywords
+  // The admin's defaults.emailKeywords replaces these for users who haven't
+  // chosen their tags (#1612).
   emailKeywords: USING_MOCK_SERVER ? DEV_KEYWORDS : DEFAULT_KEYWORDS,
   nestedTags: USING_MOCK_SERVER,
+  emailKeywordsChoiceTracked: true,
 
   // Attachment Reminder
   attachmentReminderEnabled: true,
@@ -1191,12 +1342,66 @@ const hasOwn = (obj: object, key: string) => Object.prototype.hasOwnProperty.cal
 const builtInDefault = (key: string) => (DEFAULT_SETTINGS as Record<string, unknown>)[key];
 
 /**
+ * The list settings a policy may set too (#1564), with the entries each may
+ * hold. The tag list has its own check (policyKeywordList). Other lists and
+ * maps (folder icons, per-account maps) stay the user's own.
+ */
+const POLICY_LIST_SETTINGS: Record<string, readonly string[]> = {
+  hoverActions: ALL_HOVER_ACTIONS.map((action) => action.id),
+};
+
+/** Settings a policy may give a default but never lock (#1612). */
+const POLICY_DEFAULT_ONLY_KEYS = new Set<string>(['emailKeywords']);
+
+/** The most tags a `defaults.emailKeywords` list may hold. */
+const MAX_POLICY_KEYWORDS = 50;
+
+/**
+ * A `defaults.emailKeywords` value (#1612), reduced to the id, label and
+ * colour of each tag, or null when it isn't one: at most 50 tags, each with
+ * a valid label id (unique without case, as servers fold keywords), a name
+ * and a palette colour. An empty list is valid.
+ */
+function policyKeywordList(value: unknown): KeywordDefinition[] | null {
+  if (!Array.isArray(value) || value.length > MAX_POLICY_KEYWORDS) return null;
+  const seen = new Set<string>();
+  const out: KeywordDefinition[] = [];
+  for (const entry of value) {
+    if (!isPlainRecord(entry)) return null;
+    const { id, label, color } = entry;
+    if (typeof id !== 'string' || !isValidKeywordDefinitionId(id) || seen.has(id.toLowerCase())) return null;
+    if (typeof label !== 'string' || label.trim().length === 0 || label.length > MAX_KEYWORD_LABEL_LENGTH) return null;
+    if (typeof color !== 'string' || !hasOwn(KEYWORD_PALETTE, color)) return null;
+    seen.add(id.toLowerCase());
+    out.push({ id, label: label.trim(), color });
+  }
+  return out;
+}
+
+/** A policy value as it is applied: a tag list without the fields it can't set. */
+function policyValueFor(key: string, value: unknown): unknown {
+  return key === 'emailKeywords' ? policyKeywordList(value) ?? value : value;
+}
+
+/** Same tag: id, name and colour. */
+function sameKeywordEntry(a: unknown, b: unknown): boolean {
+  return isPlainRecord(a) && isPlainRecord(b) && a.id === b.id && a.label === b.label && a.color === b.color;
+}
+
+/** Equal values, lists compared entry by entry (tags by id, name and colour). */
+export function sameSettingValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  return Array.isArray(a) && Array.isArray(b) && a.length === b.length
+    && a.every((entry, i) => entry === b[i] || sameKeywordEntry(entry, b[i]));
+}
+
+/**
  * Settings an admin policy may set (#1248): plain values (boolean, number,
- * string). Lists and maps (tags, folder icons, per-account maps) stay the
- * user's own.
+ * string), the lists in POLICY_LIST_SETTINGS, and the tag list.
  */
 function isPolicySettingKey(key: string): boolean {
-  if (key === 'explicitSettings' || !hasOwn(DEFAULT_SETTINGS, key)) return false;
+  if (key === 'explicitSettings' || key === 'emailKeywordsChoiceTracked' || !hasOwn(DEFAULT_SETTINGS, key)) return false;
+  if (hasOwn(POLICY_LIST_SETTINGS, key) || key === 'emailKeywords') return true;
   const type = typeof builtInDefault(key);
   return type === 'boolean' || type === 'number' || type === 'string';
 }
@@ -1207,7 +1412,14 @@ function isPolicySettingKey(key: string): boolean {
  * the restriction's allowed values and bounds.
  */
 function isAllowedPolicyValue(key: string, value: unknown, restriction?: SettingRestriction): boolean {
-  if (!isPolicySettingKey(key) || typeof value !== typeof builtInDefault(key)) return false;
+  if (!isPolicySettingKey(key)) return false;
+  if (key === 'emailKeywords') return policyKeywordList(value) !== null;
+  if (hasOwn(POLICY_LIST_SETTINGS, key)) {
+    // Known entries only, each once; an empty list is a choice too.
+    const known = POLICY_LIST_SETTINGS[key];
+    return Array.isArray(value) && value.every((entry) => known.includes(entry)) && new Set(value).size === value.length;
+  }
+  if (typeof value !== typeof builtInDefault(key)) return false;
   if (typeof value === 'number' && !Number.isFinite(value)) return false;
   if (key === 'sendDelaySeconds' && !isSendDelaySeconds(value)) return false;
   if (key === 'subAddressDelimiter' && !isValidSubAddressDelimiter(value as string)) return false;
@@ -1251,8 +1463,20 @@ function withLegacyPolicyKeys<T>(record: Record<string, T>): Record<string, T> {
  */
 export function legacyExplicitSettings(source: Record<string, unknown>): string[] {
   return Object.keys(source).filter(
-    (key) => isPolicySettingKey(key) && source[key] !== builtInDefault(key),
+    (key) => isPolicySettingKey(key) && !sameSettingValue(source[key], builtInDefault(key)),
   );
+}
+
+const warnedDefaults = new Set<string>();
+
+/**
+ * Say once per key why a policy default had no effect (#1564): policy.json
+ * is written by hand, and a skipped key otherwise just looks ignored.
+ */
+function warnSkippedDefault(key: string): void {
+  if (warnedDefaults.has(key)) return;
+  warnedDefaults.add(key);
+  console.warn(`[policy] defaults.${key} skipped: not a setting a policy may set, or a value it can't take`);
 }
 
 /**
@@ -1268,20 +1492,27 @@ export function adminPolicyPatch(
   const explicit = new Set(Array.isArray(state.explicitSettings) ? (state.explicitSettings as string[]) : []);
   const defaults = withLegacyPolicyKeys(isPlainRecord(policy.defaults) ? policy.defaults : {});
   const restrictions = withLegacyPolicyKeys<SettingRestriction>(isPlainRecord(policy.restrictions) ? policy.restrictions : {});
-  const restrictionFor = (key: string) => (hasOwn(restrictions, key) ? restrictions[key] : undefined);
+  const restrictionFor = (key: string) =>
+    (hasOwn(restrictions, key) && !POLICY_DEFAULT_ONLY_KEYS.has(key) ? restrictions[key] : undefined);
   const patch: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(defaults)) {
-    if (explicit.has(key) || !isAllowedPolicyValue(key, value, restrictionFor(key))) continue;
-    if (state[key] !== value) patch[key] = value;
+  for (const [key, raw] of Object.entries(defaults)) {
+    if (explicit.has(key)) continue;
+    if (!isAllowedPolicyValue(key, raw, restrictionFor(key))) {
+      warnSkippedDefault(key);
+      continue;
+    }
+    const value = policyValueFor(key, raw);
+    if (!sameSettingValue(state[key], value)) patch[key] = value;
   }
   for (const [key, restriction] of Object.entries(restrictions)) {
     if (!isPlainRecord(restriction) || restriction.locked !== true) continue;
+    if (POLICY_DEFAULT_ONLY_KEYS.has(key)) continue;
     const value = hasOwn(restriction, 'value') ? restriction.value : hasOwn(defaults, key) ? defaults[key] : undefined;
     if (!isAllowedPolicyValue(key, value, restriction)) continue;
     // Text size, contrast, motion and the other reading aids can't be
     // locked: a lock on one of them works as a default the user may change.
     if (UNLOCKABLE_SETTING_KEYS.has(key) && explicit.has(key)) continue;
-    if (state[key] !== value) patch[key] = value;
+    if (!sameSettingValue(state[key], value)) patch[key] = value;
     else delete patch[key];
   }
   return patch;
@@ -1304,9 +1535,9 @@ export function adminPolicyReleasePatch(
     const out = new Map<string, unknown>();
     const defaults = isPlainRecord(policy.defaults) ? policy.defaults : {};
     const restrictions = isPlainRecord(policy.restrictions) ? (policy.restrictions as Record<string, SettingRestriction>) : {};
-    for (const [key, value] of Object.entries(defaults)) out.set(key, value);
+    for (const [key, value] of Object.entries(defaults)) out.set(key, policyValueFor(key, value));
     for (const [key, restriction] of Object.entries(restrictions)) {
-      if (!isPlainRecord(restriction) || restriction.locked !== true) continue;
+      if (!isPlainRecord(restriction) || restriction.locked !== true || POLICY_DEFAULT_ONLY_KEYS.has(key)) continue;
       out.set(key, hasOwn(restriction, 'value') ? restriction.value : hasOwn(defaults, key) ? defaults[key] : undefined);
     }
     return out;
@@ -1316,9 +1547,19 @@ export function adminPolicyReleasePatch(
   const patch: Record<string, unknown> = {};
   for (const [key, value] of before) {
     if (after.has(key) || explicit.has(key) || !isPolicySettingKey(key)) continue;
-    if (state[key] === value && value !== builtInDefault(key)) patch[key] = builtInDefault(key);
+    if (sameSettingValue(state[key], value) && !sameSettingValue(value, builtInDefault(key))) patch[key] = builtInDefault(key);
   }
   return patch;
+}
+
+/**
+ * What marks the tag list as the user's choice (#1612), to go into the same
+ * write as the change to it. Plugins' keywords.* writes use it too.
+ */
+export function emailKeywordsChosenPatch(state: Pick<SettingsState, 'explicitSettings'>): Partial<SettingsState> {
+  return state.explicitSettings.includes('emailKeywords')
+    ? {}
+    : { explicitSettings: [...state.explicitSettings, 'emailKeywords'] };
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -1333,6 +1574,10 @@ export const useSettingsStore = create<SettingsState>()(
         const defaults: Record<string, unknown> = { ...DEFAULT_SETTINGS };
         for (const key of DEVICE_LOCAL_SETTING_KEYS) delete defaults[key];
         if (opts?.keepCrossAccountViews) for (const key of CROSS_ACCOUNT_VIEW_KEYS) delete defaults[key];
+        // What the visitor set on the sign-in page stays, and counts as a
+        // change made here, newer than the server copy (lib/signed-out-choices.ts).
+        const keptChoices = signedOutChoices();
+        for (const key of keptChoices) delete defaults[key];
         // Settings left as they are keep their "chosen by the user" mark.
         defaults.explicitSettings = get().explicitSettings.filter((key) => !hasOwn(defaults, key));
         const wasLoading = isLoadingFromServer;
@@ -1345,6 +1590,9 @@ export const useSettingsStore = create<SettingsState>()(
         } finally {
           isLoadingFromServer = wasLoading;
         }
+        // The change times were this state's; the next one starts without any.
+        clearLocalStamps();
+        if (keptChoices.length > 0) markLocalChange(keptChoices);
         applyVisualSettings();
       };
 
@@ -1362,7 +1610,12 @@ export const useSettingsStore = create<SettingsState>()(
           usePolicyStore.getState().policy,
         );
         if (Object.keys(patch).length === 0) return false;
-        set(patch as Partial<SettingsState>);
+        unstampedWrites++;
+        try {
+          set(patch as Partial<SettingsState>);
+        } finally {
+          unstampedWrites--;
+        }
         return true;
       };
 
@@ -1422,14 +1675,15 @@ export const useSettingsStore = create<SettingsState>()(
           searchDefaultScope: state.searchDefaultScope,
           showPreview: state.showPreview,
           showVerificationCodes: state.showVerificationCodes,
+          showAttachmentChips: state.showAttachmentChips,
           mailLayout: state.mailLayout,
           listColumns: state.listColumns,
           emailsPerPage: state.emailsPerPage,
           externalContentPolicy: state.externalContentPolicy,
           messageSpacing: state.messageSpacing,
           plainTextFont: state.plainTextFont,
+          printTheme: state.printTheme,
           mailAttachmentAction: state.mailAttachmentAction,
-          attachmentPosition: state.attachmentPosition,
           archiveMode: state.archiveMode,
           hoverActions: state.hoverActions,
           hoverActionsMode: state.hoverActionsMode,
@@ -1440,6 +1694,7 @@ export const useSettingsStore = create<SettingsState>()(
           trustedSenders: state.trustedSenders,
           sendConfirmation: state.sendConfirmation,
           quickReplyEnabled: state.quickReplyEnabled,
+          replyUnderMessage: state.replyUnderMessage,
           defaultReplyMode: state.defaultReplyMode,
           autoSelectReplyIdentity: state.autoSelectReplyIdentity,
           replyIdentityMatch: state.replyIdentityMatch,
@@ -1521,10 +1776,12 @@ export const useSettingsStore = create<SettingsState>()(
           showSharedMailAccounts: state.showSharedMailAccounts,
           compactSharedMailboxes: state.compactSharedMailboxes,
           hiddenSharedMailAccounts: state.hiddenSharedMailAccounts,
+          sharedMailAccountOrder: state.sharedMailAccountOrder,
           folderIcons: state.folderIcons,
           folderCountModes: state.folderCountModes,
           emailKeywords: state.emailKeywords,
           nestedTags: state.nestedTags,
+          emailKeywordsChoiceTracked: state.emailKeywordsChoiceTracked,
           attachmentReminderEnabled: state.attachmentReminderEnabled,
           attachmentReminderKeywords: state.attachmentReminderKeywords,
           emptySubjectWarningEnabled: state.emptySubjectWarningEnabled,
@@ -1542,6 +1799,9 @@ export const useSettingsStore = create<SettingsState>()(
           debugCategories: state.debugCategories,
           settingsSyncDisabled: state.settingsSyncDisabled,
           explicitSettings: state.explicitSettings,
+          // When each setting last changed, so the server keeps whichever
+          // device changed it last (lib/settings-sync-stamps).
+          ...(opts?.forSync ? { [SETTINGS_STAMPS_FIELD]: { ...getLocalStamps().stamps } } : {}),
           emailAlwaysLightMode: state.emailAlwaysLightMode,
           showToolbarLabels: state.showToolbarLabels,
           ...Object.fromEntries(ACCESSIBILITY_KEYS.map((key) => [key, state[key]])),
@@ -1594,6 +1854,8 @@ export const useSettingsStore = create<SettingsState>()(
           const { explicitSettings } = get();
           if (hasOwn(DEFAULT_SETTINGS, key) && key !== 'explicitSettings' && !explicitSettings.includes(key)) {
             set({ explicitSettings: [...explicitSettings, key] });
+            // Whether the focus outline was chosen shows on <html> too.
+            if (ACCESSIBILITY_DOM_KEYS.has(key)) applyAccessibility(get());
           }
         });
       },
@@ -1602,7 +1864,14 @@ export const useSettingsStore = create<SettingsState>()(
         const released = previous
           ? adminPolicyReleasePatch(get() as unknown as Record<string, unknown>, previous, usePolicyStore.getState().policy)
           : {};
-        if (Object.keys(released).length > 0) set(released as Partial<SettingsState>);
+        if (Object.keys(released).length > 0) {
+          unstampedWrites++;
+          try {
+            set(released as Partial<SettingsState>);
+          } finally {
+            unstampedWrites--;
+          }
+        }
         if (applyAdminPolicyPatch() || Object.keys(released).length > 0) applyVisualSettings();
       },
 
@@ -1646,6 +1915,9 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       importSettings: (json: string, opts?: { serverAccountId?: string; keepCrossAccountViews?: boolean; subscriptionOwner?: string }) => {
+        // A server copy is not a change made here: it gets no change stamp.
+        const fromServer = Boolean(opts?.serverAccountId);
+        if (fromServer) unstampedWrites++;
         try {
           const settings = JSON.parse(json);
 
@@ -1662,7 +1934,24 @@ export const useSettingsStore = create<SettingsState>()(
           migrateTintListRowsDefault(settings);
           migrateCalendarTasksDefault(settings);
           migrateUndoSendDefault(settings);
-          migrateAttachmentPosition(settings);
+          migrateTrustedSendersBookDefault(settings);
+          migrateFocusOutlineDefault(settings);
+          dropAttachmentPosition(settings);
+          migrateUntrackedKeywords(settings);
+
+          // A server copy doesn't replace a setting changed here after that
+          // copy was written, whose push never got through (a reload inside
+          // the debounce, a closed window, no connection). A later change on
+          // another device still wins for that setting.
+          const serverStamps = fromServer ? readStamps(settings[SETTINGS_STAMPS_FIELD]) : null;
+          const local = serverStamps ? getLocalStamps() : null;
+          const keepsLocal = (key: string) => serverStamps !== null && local !== null && localChangeWins(local, serverStamps, key);
+          const takeOverStamp = (key: string) => {
+            if (!serverStamps || !local) return;
+            if (serverStamps[key]) local.stamps[key] = serverStamps[key];
+            else delete local.stamps[key];
+            delete local.dirty[key];
+          };
 
           // Apply settings, noting which keys were taken over for the
           // onSettingsImport hook.
@@ -1675,6 +1964,10 @@ export const useSettingsStore = create<SettingsState>()(
             if (key in DEFAULT_SETTINGS) {
               // Merged below, once it is known which settings were taken over.
               if (key === 'explicitSettings') {
+                return;
+              }
+              const perAccountMap = Boolean(opts?.serverAccountId) && PER_ACCOUNT_MAP_KEYS.has(key);
+              if (keepsLocal(key) && !perAccountMap) {
                 return;
               }
               if (key === 'subAddressDelimiter' && !isValidSubAddressDelimiter(settings[key])) {
@@ -1712,7 +2005,7 @@ export const useSettingsStore = create<SettingsState>()(
               if (key === 'writingLanguage' && !isWritingLanguage(settings[key])) {
                 return;
               }
-              if (key === 'hiddenSharedMailAccounts' && !isPlainRecord(settings[key])) {
+              if ((key === 'hiddenSharedMailAccounts' || key === 'sharedMailAccountOrder') && !isPlainRecord(settings[key])) {
                 return;
               }
               if (key === 'signatureDetails') {
@@ -1758,14 +2051,19 @@ export const useSettingsStore = create<SettingsState>()(
               // the map and the composer picks another account's default sender
               // (login-order dependent). File imports (no serverAccountId)
               // still replace wholesale.
-              if (opts?.serverAccountId && (key === 'preferredIdentityIds' || key === 'allMailFolderIds' || key === 'hiddenSharedMailAccounts')) {
+              if (perAccountMap && opts?.serverAccountId) {
                 const existing = (get() as unknown as Record<string, unknown>)[key];
                 const merged: Record<string, unknown> = isPlainRecord(existing) ? { ...existing } : {};
                 const incoming = settings[key] as Record<string, unknown>;
-                if (Object.prototype.hasOwnProperty.call(incoming, opts.serverAccountId)) {
+                // A map changed here that the server never got keeps this
+                // device's entry, and only fills one it lacks.
+                const localWins = keepsLocal(key);
+                if (Object.prototype.hasOwnProperty.call(incoming, opts.serverAccountId) &&
+                    !(localWins && Object.prototype.hasOwnProperty.call(merged, opts.serverAccountId))) {
                   merged[opts.serverAccountId] = incoming[opts.serverAccountId];
                 }
-                put(key, { [key]: merged });
+                if (localWins) set({ [key]: merged } as Partial<SettingsState>);
+                else put(key, { [key]: merged });
                 return;
               }
               put(key, { [key]: settings[key] });
@@ -1777,6 +2075,7 @@ export const useSettingsStore = create<SettingsState>()(
           // device knew. A blob from before explicitSettings existed counts a
           // value that differs from the build default as chosen.
           const takenOver = new Set(imported);
+          for (const key of takenOver) takeOverStamp(key);
           const blobExplicit: string[] = Array.isArray(settings.explicitSettings)
             ? settings.explicitSettings.filter((key: unknown): key is string => typeof key === 'string')
             : legacyExplicitSettings(settings);
@@ -1795,16 +2094,20 @@ export const useSettingsStore = create<SettingsState>()(
           applyVisualSettings();
 
           // Apply cross-store settings
-          if (settings.theme) {
+          if (settings.theme && !keepsLocal('theme')) {
             // A mode the user never chose leaves room for the operator's
             // default (#1280). Blobs from before themeChosen count any mode
             // but the built-in default as chosen.
             const themeChosen = typeof settings.themeChosen === 'boolean' ? settings.themeChosen : settings.theme !== 'system';
             useThemeStore.getState().setTheme(settings.theme, { chosen: themeChosen });
+            takeOverStamp('theme');
+            takeOverStamp('themeChosen');
           }
-          if (settings.locale) {
+          if (settings.locale && !keepsLocal('locale')) {
             useLocaleStore.getState().setLocale(settings.locale);
+            takeOverStamp('locale');
           }
+          if (local) saveLocalStamps(local);
           // Templates live in their own store but ride along in the synced
           // settings blob (#825). Server loads merge, because every account's
           // blob carries the full (account-agnostic) template list and a stale
@@ -1835,6 +2138,8 @@ export const useSettingsStore = create<SettingsState>()(
         } catch (error) {
           console.error('Failed to import settings:', error);
           return false;
+        } finally {
+          if (fromServer) unstampedWrites--;
         }
       },
 
@@ -1892,35 +2197,38 @@ export const useSettingsStore = create<SettingsState>()(
         return get().trustedSenders.includes(emailAddress);
       },
 
-      // Keyword methods
+      // Keyword methods. Each edit makes the list the user's own, so an
+      // admin default no longer replaces it (#1612).
       addKeyword: (keyword: KeywordDefinition) => {
         const current = get().emailKeywords;
         if (current.some(k => k.id === keyword.id)) return;
-        set({ emailKeywords: [...current, keyword] });
+        set((state) => ({ emailKeywords: [...current, keyword], ...emailKeywordsChosenPatch(state) }));
       },
 
       updateKeyword: (id: string, updates: Partial<Omit<KeywordDefinition, 'id'>>) => {
-        set({
-          emailKeywords: get().emailKeywords.map(k =>
+        set((state) => ({
+          emailKeywords: state.emailKeywords.map(k =>
             k.id === id ? { ...k, ...updates } : k
           ),
-        });
+          ...emailKeywordsChosenPatch(state),
+        }));
       },
 
       renameKeyword: (oldId: string, newKeyword: KeywordDefinition) => {
-        set({
-          emailKeywords: get().emailKeywords.map(k =>
+        set((state) => ({
+          emailKeywords: state.emailKeywords.map(k =>
             k.id === oldId ? newKeyword : k
           ),
-        });
+          ...emailKeywordsChosenPatch(state),
+        }));
       },
 
       removeKeyword: (id: string) => {
-        set({ emailKeywords: get().emailKeywords.filter(k => k.id !== id) });
+        set((state) => ({ emailKeywords: state.emailKeywords.filter(k => k.id !== id), ...emailKeywordsChosenPatch(state) }));
       },
 
       reorderKeywords: (keywords: KeywordDefinition[]) => {
-        set({ emailKeywords: keywords });
+        set((state) => ({ emailKeywords: keywords, ...emailKeywordsChosenPatch(state) }));
       },
 
       getKeywordById: (id: string) => {
@@ -1960,19 +2268,14 @@ export const useSettingsStore = create<SettingsState>()(
         syncServerUrl = serverUrl;
         syncEnabled = true;
         syncLog('Settings sync enabled for', username);
-        if (pushTemplatesAfterLoad) {
-          pushTemplatesAfterLoad = false;
+        if (pushAfterLoad) {
+          pushAfterLoad = false;
           if (!get().settingsSyncDisabled) requestSync?.();
         }
       },
 
       flushSync: async () => {
-        if (syncTimeout) {
-          clearTimeout(syncTimeout);
-          syncTimeout = null;
-        }
-        const job = pendingSync;
-        pendingSync = null;
+        const job = takePendingSync();
         if (job) await syncSettingsJob(job);
       },
 
@@ -1980,11 +2283,7 @@ export const useSettingsStore = create<SettingsState>()(
         syncEnabled = false;
         syncUsername = null;
         syncServerUrl = null;
-        if (syncTimeout) {
-          clearTimeout(syncTimeout);
-          syncTimeout = null;
-        }
-        pendingSync = null;
+        takePendingSync();
         syncLog('Settings sync disabled');
       },
 
@@ -2001,12 +2300,13 @@ export const useSettingsStore = create<SettingsState>()(
             writeSettingsOwner(null);
             blockedSyncAccountId = accountId;
           }
+          forgetSignedOutChoices();
           return false;
         };
         blockedSyncAccountId = null;
         try {
           syncLog('Loading settings from server for', username);
-          pushTemplatesAfterLoad = false;
+          pushAfterLoad = false;
           const res = await apiFetch('/api/settings', {
             headers: {
               'x-settings-username': username,
@@ -2029,7 +2329,8 @@ export const useSettingsStore = create<SettingsState>()(
             // previous account left in this browser (#1185).
             if (heldByOther) resetSyncedState({ keepCrossAccountViews });
             writeSettingsOwner(accountId);
-            pushTemplatesAfterLoad = localTemplatesAhead(null, accountId);
+            forgetSignedOutChoices();
+            pushAfterLoad = localTemplatesAhead(null, accountId) || hasUnsyncedChanges();
             return false;
           }
           if (settings && typeof settings === 'object') {
@@ -2047,7 +2348,9 @@ export const useSettingsStore = create<SettingsState>()(
             });
             isLoadingFromServer = false;
             writeSettingsOwner(accountId);
-            pushTemplatesAfterLoad = localTemplatesAhead(settings, accountId);
+            forgetSignedOutChoices();
+            // Changes kept over the server copy go up now.
+            pushAfterLoad = localTemplatesAhead(settings, accountId) || hasUnsyncedChanges();
             syncLog('Settings loaded from server successfully');
             void settingsHooks.onSettingsSync.emit({ direction: 'pulled' });
             // The per-account preferred sender identity (#507) is re-applied by
@@ -2078,7 +2381,7 @@ export const useSettingsStore = create<SettingsState>()(
     },
     {
       name: 'settings-storage',
-      version: 13,
+      version: 17,
       migrate: migrateSettings,
       onRehydrateStorage: () => {
         return (state) => {
@@ -2097,6 +2400,9 @@ export const useSettingsStore = create<SettingsState>()(
             if (!isWritingLanguage(state.writingLanguage)) state.writingLanguage = 'auto';
             if (!isPlainRecord(state.hiddenSharedMailAccounts)) {
               state.hiddenSharedMailAccounts = {};
+            }
+            if (!isPlainRecord(state.sharedMailAccountOrder)) {
+              state.sharedMailAccountOrder = {};
             }
             if (!Array.isArray(state.explicitSettings)) {
               state.explicitSettings = [];
@@ -2195,27 +2501,55 @@ export function migrateSettings(persisted: unknown, version: number): SettingsSt
         migrateTintListRowsDefault(state);
         migrateCalendarTasksDefault(state);
         migrateUndoSendDefault(state);
-        // The old default must not be taken as chosen below either.
-        migrateAttachmentPosition(state);
+        migrateTrustedSendersBookDefault(state);
+        migrateFocusOutlineDefault(state);
+        // v15: attachments always sit under the header; the setting is gone.
+        dropAttachmentPosition(state);
         // v8: admin policy defaults (#1248) skip settings the user chose.
         // Earlier builds did not record that, so a setting that differs from
         // the build default is taken as chosen.
         if (version < 8 || !Array.isArray(state.explicitSettings)) {
           state.explicitSettings = legacyExplicitSettings(state);
         }
+        // v17: an admin may set the tags new users start with (#1612). A tag
+        // list stored before is the user's, even the untouched seven.
+        if (version < 17) {
+          if (Array.isArray(state.emailKeywords)) {
+            state.explicitSettings = [...new Set([...(state.explicitSettings as string[]), 'emailKeywords'])];
+          }
+          state.emailKeywordsChoiceTracked = true;
+        }
         migrateAnimationsSetting(state);
         return state as unknown as SettingsState;
 }
 
 /**
- * v12: the attachments next to the sender ('beside-sender', the old default)
- * gave way to the bar under the header. Imports and server copies from older
- * builds still carry the old value and go through this too.
+ * An admin may set the tags new users start with (#1612). A server copy or
+ * export from an earlier build holds the tags that account had, even the
+ * untouched seven, so its list counts as chosen and no admin default
+ * replaces it. A copy from before explicitSettings existed gets the list the
+ * import would work out for it, plus the tags.
  */
-export function migrateAttachmentPosition(state: Record<string, unknown>): void {
-  if (state.attachmentPosition === undefined) return;
-  if (state.attachmentPosition !== 'below-header' && state.attachmentPosition !== 'below-message') {
-    state.attachmentPosition = 'below-header';
+export function migrateUntrackedKeywords(state: Record<string, unknown>): void {
+  if (!Array.isArray(state.emailKeywords) || state.emailKeywordsChoiceTracked === true) return;
+  const explicit = Array.isArray(state.explicitSettings)
+    ? (state.explicitSettings as unknown[])
+    : legacyExplicitSettings(state);
+  state.explicitSettings = [...new Set([...explicit, 'emailKeywords'])];
+  state.emailKeywordsChoiceTracked = true;
+}
+
+/**
+ * v15: attachments always show under the message header, so the Attachment
+ * position setting is gone. A stored value ('below-message', or the older
+ * 'beside-sender') and its "chosen" mark are dropped, so nothing keeps it
+ * around and writes it back. Imports and server copies from older builds
+ * still carry it and go through this too.
+ */
+export function dropAttachmentPosition(state: Record<string, unknown>): void {
+  delete state.attachmentPosition;
+  if (Array.isArray(state.explicitSettings)) {
+    state.explicitSettings = (state.explicitSettings as unknown[]).filter((key) => key !== 'attachmentPosition');
   }
 }
 
@@ -2272,6 +2606,19 @@ export function migrateUndoSendDefault(state: Record<string, unknown>): void {
 }
 
 /**
+ * v16: the focus outline is off by default. Normal that the user never
+ * picked was only the old default and turns off; Normal they picked stays,
+ * and so do Thick and Extra thick. Someone who switched on Always show focus
+ * wants an outline, so theirs stays too. Imports and server copies from
+ * older builds still carry the old default and go through this too.
+ */
+export function migrateFocusOutlineDefault(state: Record<string, unknown>): void {
+  if (state.focusRing !== 'normal' || state.focusAlwaysVisible === true) return;
+  const chosen = Array.isArray(state.explicitSettings) && state.explicitSettings.includes('focusRing');
+  if (!chosen) state.focusRing = 'off';
+}
+
+/**
  * Tasks are on by default (pim-8). Off that the user never chose was only
  * the old default and turns on; off they chose stays off. Imports and
  * server copies from older builds still carry the old default and go
@@ -2283,6 +2630,21 @@ export function migrateCalendarTasksDefault(state: Record<string, unknown>): voi
   if (!chosen) state.enableCalendarTasks = true;
 }
 
+/**
+ * v14: trusted senders are kept in their own address book by default. Off
+ * (false, the default before 2026-07) or "not decided yet" (null, the
+ * default since) that the user never picked turns on; off they picked
+ * stays. A choice made before explicitSettings existed (v8) was never
+ * recorded for this key, so it turns on too. Imports and server copies
+ * from older builds go through this as well, so an older device's copy
+ * doesn't switch it back off.
+ */
+export function migrateTrustedSendersBookDefault(state: Record<string, unknown>): void {
+  if (!('trustedSendersAddressBook' in state) || state.trustedSendersAddressBook === true) return;
+  const chosen = Array.isArray(state.explicitSettings) && state.explicitSettings.includes('trustedSendersAddressBook');
+  if (!chosen || typeof state.trustedSendersAddressBook !== 'boolean') state.trustedSendersAddressBook = true;
+}
+
 // Helper functions to apply settings to DOM
 
 /** The settings applyAccessibilityTo() writes onto <html>. */
@@ -2292,7 +2654,7 @@ const ACCESSIBILITY_DOM_KEYS: ReadonlySet<string> = new Set([
   'largeCursor', 'nativeScrollbars', 'simpleMode', 'unreadCountStyle', 'colorBlindPalette', 'showColorNames',
 ]);
 
-function applyAccessibility(state: { fontSize: FontSize } & AccessibilitySettings) {
+function applyAccessibility(state: { fontSize: FontSize; explicitSettings: readonly string[] } & AccessibilitySettings) {
   if (typeof document === 'undefined') return;
   applyAccessibilityTo(document.documentElement, state);
 }
@@ -2360,6 +2722,28 @@ if (typeof window !== 'undefined') {
     useSettingsStore.getState().applyAdminPolicy(prev.policy);
   });
 
+  // Each change the user makes gets a change time, before the push below
+  // reads them. Server loads, policy defaults and the store's own hydration
+  // aren't changes made here.
+  const STAMPED_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
+    (key) => key !== 'explicitSettings' && !DEVICE_LOCAL_SETTING_KEYS.has(key),
+  ) as (keyof SettingsState)[];
+  const stampsPaused = () => isLoadingFromServer || unstampedWrites > 0;
+  useSettingsStore.subscribe((state, prev) => {
+    if (stampsPaused() || !useSettingsStore.persist.hasHydrated()) return;
+    const changed = STAMPED_KEYS.filter((key) => state[key] !== prev[key]);
+    if (changed.length > 0) markLocalChange(changed as string[]);
+  });
+  // A mode the user didn't choose is the operator's default, not a change.
+  useThemeStore.subscribe((state, prev) => {
+    if (stampsPaused() || !state.themeChosen) return;
+    if (state.theme !== prev.theme || state.themeChosen !== prev.themeChosen) markLocalChange(['theme', 'themeChosen']);
+  });
+  useLocaleStore.subscribe((state, prev) => {
+    if (stampsPaused() || state.locale === prev.locale) return;
+    markLocalChange(['locale']);
+  });
+
   const triggerSync = () => {
     if (!syncEnabled || !syncUsername || !syncServerUrl || isLoadingFromServer) return;
     pendingSync = {
@@ -2369,12 +2753,13 @@ if (typeof window !== 'undefined') {
         forSync: true,
         subscriptionOwner: subscriptionOwnerFor(syncServerUrl, syncUsername),
       })),
+      dirty: { ...getLocalStamps().dirty },
     };
+    syncDesktopFlush();
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(async () => {
       syncTimeout = null;
-      const job = pendingSync;
-      pendingSync = null;
+      const job = takePendingSync();
       if (!job) return;
       try {
         await syncSettingsJob(job);
@@ -2385,6 +2770,24 @@ if (typeof window !== 'undefined') {
   };
 
   requestSync = triggerSync;
+
+  // A reload, a closed tab or a tab sent to the background (where mobile
+  // browsers may end it) sends the pending push now instead of after the
+  // debounce. What still doesn't arrive stays marked and the next load keeps it.
+  const sendPendingNow = () => {
+    const job = takePendingSync();
+    if (job) void syncSettingsJob(job, 0, { keepalive: true });
+  };
+  window.addEventListener('pagehide', sendPendingNow);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') sendPendingNow();
+  });
+  // Changes made without a connection go up when it's back.
+  window.addEventListener('online', () => {
+    if (useSettingsStore.getState().settingsSyncDisabled || !hasUnsyncedChanges()) return;
+    triggerSync();
+    void useSettingsStore.getState().flushSync();
+  });
 
   // Auto-sync settings to server on any state change
   let prevSyncDisabled = useSettingsStore.getState().settingsSyncDisabled;

@@ -455,7 +455,7 @@ export interface IJMAPClient {
      * `classification`: the label choice (an id, null for none) kept in
      * X-Bulwark-Label.
      */
-    options?: { priority?: MessagePriority; accountId?: string; previousDraftAccountId?: string; classification?: string | null },
+    options?: { priority?: MessagePriority; accountId?: string; previousDraftAccountId?: string; classification?: string | null; keywords?: string[] },
   ): Promise<string>;
 
   /**
@@ -491,7 +491,7 @@ export interface IJMAPClient {
     // `draftAccountId`: the account `draftId` lives in, so the sent draft is
     // destroyed there (default: the primary account). `noSentCopy`: no copy
     // stays in Sent (a phishing report).
-    options?: { requestReadReceipt?: boolean; requestDsn?: boolean; requireTls?: boolean; priority?: MessagePriority; headers?: Record<string, string>; draftAccountId?: string; noSentCopy?: boolean; labelHeaders?: Record<string, string> },
+    options?: { requestReadReceipt?: boolean; requestDsn?: boolean; requireTls?: boolean; priority?: MessagePriority; headers?: Record<string, string>; draftAccountId?: string; noSentCopy?: boolean; labelHeaders?: Record<string, string>; keywords?: string[] },
   ): Promise<SendEmailResult>;
   /** Whether the submission account advertises an SMTP extension ("DSN", "REQUIRETLS", …). */
   supportsSubmissionExtension?(extension: string, accountId?: string): boolean;

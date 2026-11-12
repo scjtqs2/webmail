@@ -42,7 +42,7 @@ vi.mock('@/lib/desktop/browser-sign-in', () => ({
   runInstanceBrowserSignIn: vi.fn(),
 }));
 
-const changeConnection = vi.hoisted(() => ({ available: true, ask: vi.fn(async (_text: object) => false) }));
+const changeConnection = vi.hoisted(() => ({ available: true, ask: vi.fn(async (_text: object, _page?: string) => false) }));
 vi.mock('@/lib/desktop/change-connection', () => ({
   changeConnectionAvailable: () => changeConnection.available,
   askAndChangeConnection: changeConnection.ask,
@@ -78,6 +78,15 @@ const email = () => document.getElementById('username') as HTMLInputElement;
 const serverField = () => document.getElementById('jmap-endpoint') as HTMLInputElement | null;
 
 describe('the desktop app, with a server of one\'s own', () => {
+  it('names the window as the sign-in page, not the mail view it came from', async () => {
+    // A fresh profile opens the mail view first, which names the window, and it then
+    // sends the page here. No server is set up yet, and the title must still change.
+    document.title = 'Mail - Bulwark';
+    render(<LoginPage />);
+    await browserButton();
+    expect(document.title).toBe('sign_in - Bulwark');
+  }, 30_000);
+
   it('puts the email address before the browser button', async () => {
     render(<LoginPage />);
     const button = await browserButton();
@@ -145,7 +154,8 @@ describe('the organisation link', () => {
     const link = await screen.findByTestId('login-use-organisation', {}, { timeout: 10000 });
     expect(link).toHaveTextContent('connection.org_link');
     fireEvent.click(link);
-    expect(changeConnection.ask).toHaveBeenCalledWith(expect.objectContaining({ title: 'connection.title', confirm: 'connection.confirm' }));
+    // The restart opens on the organisation's web address, not the email address (desktop#5).
+    expect(changeConnection.ask).toHaveBeenCalledWith(expect.objectContaining({ title: 'connection.title', confirm: 'connection.confirm' }), 'org');
   }, 30_000);
 
   it('is not there when the shell cannot change the connection (a policy forces it, an older shell)', async () => {

@@ -4,7 +4,7 @@ import { configManager } from '@/lib/admin/config-manager';
 import { parseJmapServers, redactJmapServers } from '@/lib/admin/jmap-servers';
 import { hasSessionSecret } from '@/lib/auth/session-secret';
 import { getOauthResource, getOauthScopes } from '@/lib/oauth/tokens';
-import { httpOrMailtoOrEmpty, httpUrlOrEmpty } from '@/lib/config-validation';
+import { httpOrMailtoOrEmpty, httpUrlOrEmpty, httpUrlOrPathOrEmpty } from '@/lib/config-validation';
 import {
   matchDomainBranding,
   parseDomainBranding,
@@ -94,6 +94,8 @@ export async function GET(request: NextRequest) {
       loginShowTokenLogin: configManager.get<boolean>('loginShowTokenLogin', false),
       desktopBrowserSignIn: configManager.get<boolean>('desktopBrowserSignIn', true),
       loginShowRememberMe: configManager.get<boolean>('loginShowRememberMe', false),
+      // Session cookies hold the unticked sign-in, sealed like a remembered one.
+      browserSessionSignIn: configManager.get<boolean>('browserSessionSignIn', false) && hasSessionSecret(),
       loginShowVersion: configManager.get<boolean>('loginShowVersion', true),
       demoMode: configManager.get<boolean>('demoMode', false),
       allowCustomJmapEndpoint: configManager.get<boolean>('allowCustomJmapEndpoint', false),
@@ -112,6 +114,8 @@ export async function GET(request: NextRequest) {
       helpUrl: httpUrlOrEmpty(branded<string>('helpUrl', '')),
       easyReadUrl: httpUrlOrEmpty(branded<string>('easyReadUrl', '')),
       signLanguageUrl: httpUrlOrEmpty(branded<string>('signLanguageUrl', '')),
+      accountManagementUrl: httpUrlOrPathOrEmpty(configManager.get<string>('accountManagementUrl', '')),
+      accountManagementLabel: configManager.get<string>('accountManagementLabel', ''),
       // Browser-side switches of lib/outgoing-hosts.ts read this (#903).
       noThirdPartyTraffic: await isNoThirdPartyTrafficOn(),
       // Error reporting (lib/error-reporting/client.ts): off unless a DSN is

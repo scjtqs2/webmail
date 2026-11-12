@@ -355,6 +355,9 @@
     "no_search_results": "Không tìm thấy kết quả nào",
     "no_search_results_description": "Hãy thử điều chỉnh tìm kiếm hoặc bộ lọc của bạn",
     "more_results_searching": "Đang tìm kiếm thêm kết quả…",
+    "resize_plugin_results": "Thay đổi kích thước kết quả từ plugin",
+    "compact_plugin_results": "Một dòng cho mỗi kết quả",
+    "plugin_result_score": "{count}/5",
     "loading": "Đang tải email...",
     "unread": "Chưa đọc",
     "to_me": "Gửi cho tôi",
@@ -1082,6 +1085,7 @@
     "templates_menu": "Mẫu",
     "insert_template": "Chèn mẫu…",
     "options": "Tùy chọn",
+    "tags": "Thẻ",
     "option_plain_text": "Văn bản thuần",
     "option_plain_text_hint": "Gửi không kèm định dạng",
     "option_read_receipt": "Yêu cầu xác nhận đã đọc",
@@ -1292,6 +1296,14 @@
       "plain_text": "[Hình ảnh: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "Đổi tên",
+    "rename_named": "Đổi tên {name}",
+    "rename_menu": "Đổi tên…",
+    "rename_title": "Đổi tên tệp đính kèm",
+    "rename_invalid_chars": "Tên tệp không được chứa / hoặc \\ hoặc ký tự điều khiển",
+    "rename_too_long": "Tên này quá dài"
+  },
   "compose_ux": {
     "draft_discarded": "Đã hủy bản nháp",
     "undo": "Hoàn tác",
@@ -1306,6 +1318,12 @@
     "shortcut_save_draft": "Lưu bản nháp",
     "shortcut_show_cc": "Hiện Cc",
     "shortcut_show_bcc": "Hiện Bcc"
+  },
+  "compose_dock": {
+    "open_draft": "Mở",
+    "reply_type": "Kiểu trả lời: {kind}",
+    "resize_reply": "Đổi kích thước thư trả lời",
+    "fields_menu": "Thêm trường"
   },
   "confirm_dialog": {
     "confirm": "Xác nhận",
@@ -1485,6 +1503,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "Tổ chức của bạn chặn nội dung từ xa trong mọi thư, nên nội dung đó cũng không tải từ người gửi tin cậy."
+  },
+  "trusted_senders_book": {
+    "unavailable": "Không khả dụng: tài khoản này không thể lưu sổ địa chỉ trên máy chủ. Danh sách vẫn ở trên thiết bị này."
   },
   "date": {
     "today": "Hôm nay",
@@ -1687,7 +1708,7 @@
         "label": "Bố cục giao diện",
         "description": "Vị trí của tìm kiếm, điều hướng và thanh công cụ",
         "default": "Mặc định",
-        "mountain_view": "Thanh tìm kiếm ở trên, ứng dụng bên trái"
+        "mountain_view": "Thanh tìm kiếm ở trên"
       },
       "animations": {
         "label": "Bật hiệu ứng chuyển động",
@@ -1800,12 +1821,17 @@
       "title": "Nhãn thư",
       "description": "Tạo thẻ để sắp xếp thư. Các thẻ được lưu cùng thư trên máy chủ.",
       "add_keyword": "Nhãn mới",
+      "empty": "Chưa có nhãn nào.",
       "label_field": "Tên hiển thị",
       "label_placeholder": "Ví dụ: Công việc, Cá nhân, Khẩn cấp",
       "id_field": "Mã nhãn",
       "id_placeholder": "Ví dụ: cong-viec, ca-nhan",
       "color_field": "Màu",
-      "id_exists": "Mã nhãn này đã tồn tại",
+      "custom_color": "Màu tùy chỉnh",
+      "color_code": "Mã màu",
+      "pick_custom_color": "Chọn màu tùy chỉnh",
+      "invalid_color": "Hãy dùng mã màu như #1a73e8.",
+      "name_exists": "Thẻ có tên này đã tồn tại",
       "edit": "Sửa nhãn",
       "delete": "Xóa nhãn",
       "edit_tag": "Sửa {name}",
@@ -2082,9 +2108,17 @@
         "label": "Hiển thị mã xác minh",
         "description": "Cho phép sao chép mã trong thư đăng nhập và xác nhận chỉ bằng một lần nhấn; mã hiển thị trong danh sách một ngày và cả trong thư"
       },
+      "show_attachment_chips": {
+        "label": "Hiện tệp đính kèm trong danh sách",
+        "description": "Hiện các tệp đính kèm bên dưới mỗi thư để mở ngay từ danh sách. Biểu tượng kẹp giấy vẫn hiển thị trong mọi trường hợp."
+      },
       "plain_text_mode": {
         "label": "Chỉ dùng văn bản thuần",
         "description": "Tắt trình soạn thảo văn bản đa dạng thức và chỉ gửi thư dưới dạng văn bản thuần, kể cả thư trả lời và chuyển tiếp"
+      },
+      "reply_under_message": {
+        "label": "Mở thư trả lời bên dưới thư",
+        "description": "Thư trả lời hoặc chuyển tiếp mở bên dưới thư gốc, thư gốc vẫn đọc được ở phía trên. Khi tắt, nó chiếm toàn bộ ngăn đọc, giống như thư mới."
       },
       "quick_reply": {
         "label": "Trả lời nhanh",
@@ -2130,12 +2164,6 @@
         "description": "Chọn xem khi nhấn vào tệp đính kèm thì xem trước hay tải xuống ngay",
         "preview": "Xem trước nếu có thể",
         "download": "Tải xuống ngay"
-      },
-      "attachment_position": {
-        "label": "Vị trí tệp đính kèm",
-        "description": "Vị trí hiển thị tệp đính kèm trong phần đầu thư",
-        "below-header": "Bên dưới phần đầu thư",
-        "below-message": "Thẻ bên dưới thư"
       },
       "emails_per_page": {
         "10": "10 thư",
@@ -2294,6 +2322,7 @@
       "auth_method_oauth": "Đăng nhập một lần (OAuth/OIDC)",
       "auth_method_basic": "Mật khẩu",
       "auth_method_token": "Mã truy cập",
+      "account_management_link": "Quản lý bảo mật tài khoản (2FA, mật khẩu ứng dụng)",
       "demo_account": "Tài khoản dùng thử",
       "email": {
         "label": "Địa chỉ email",
@@ -2377,6 +2406,57 @@
       "managing": "Quản lý: {name}"
     },
     "security": {
+      "masked_addresses": {
+        "address": "Địa chỉ",
+        "description_column": "Mô tả",
+        "website_column": "Trang web",
+        "state": "Trạng thái",
+        "actions": "Thao tác",
+        "no_description": "Không có mô tả",
+        "edit": "Sửa",
+        "close": "Đóng",
+        "pagination": "Các trang địa chỉ ẩn danh",
+        "page": "Trang {page}/{pages}",
+        "previous": "Trước",
+        "next": "Tiếp",
+        "delete": "Xóa",
+        "delete_title": "Xóa vĩnh viễn địa chỉ ẩn danh?",
+        "delete_warning": "Xóa {address}? Không thể hoàn tác thao tác này. Thư gửi đến địa chỉ này sẽ không được chuyển nữa.",
+        "delete_confirm": "Xóa vĩnh viễn",
+        "cancel": "Hủy",
+        "deleted": "Đã xóa vĩnh viễn địa chỉ.",
+        "deleted_refresh_failed": "Đã xác nhận xóa, nhưng không thể làm mới danh sách. Hãy làm mới để tải danh sách hiện tại.",
+        "delete_forbidden": "Phiên hiện tại của bạn không được phép xóa địa chỉ ẩn danh. Các thao tác được phép khác vẫn khả dụng.",
+        "delete_failed": "Địa chỉ chưa bị xóa. Hãy làm mới danh sách trước khi thử lại.",
+        "delete_unconfirmed": "Không thể xác nhận việc xóa và sẽ không thử lại. Hãy làm mới danh sách để kiểm tra địa chỉ trước khi xóa thêm.",
+        "title": "Địa chỉ ẩn danh",
+        "intro": "Nhận thư mà không cần chia sẻ địa chỉ chính của bạn. Khi tắt một địa chỉ, thư mới gửi đến địa chỉ đó sẽ bị từ chối. Không thể dùng các địa chỉ này để gửi thư.",
+        "loading": "Đang tải địa chỉ ẩn danh…",
+        "count": "{count, plural, other {# địa chỉ}}",
+        "empty": "Chưa có địa chỉ ẩn danh nào.",
+        "website": "Trang web (tùy chọn)",
+        "description": "Mô tả (tùy chọn)",
+        "no_website": "Chưa chỉ định",
+        "enabled": "Đã bật",
+        "disabled": "Đã tắt",
+        "enable": "Bật",
+        "disable": "Tắt",
+        "copy": "Sao chép",
+        "copied": "Đã sao chép địa chỉ.",
+        "copy_failed": "Không thể sao chép. Hãy chọn và sao chép địa chỉ ở trên.",
+        "save": "Lưu mô tả",
+        "create": "Tạo địa chỉ ẩn danh",
+        "refresh": "Làm mới",
+        "saved": "Đã lưu thay đổi.",
+        "forbidden": "Phiên hiện tại của bạn không được phép liệt kê địa chỉ ẩn danh.",
+        "unavailable": "Địa chỉ ẩn danh không khả dụng cho tài khoản hoặc máy chủ này.",
+        "load_failed": "Không thể tải toàn bộ danh sách địa chỉ. Hãy làm mới để thử lại.",
+        "save_failed": "Không thể xác nhận thay đổi. Hãy làm mới danh sách trước khi thử lại.",
+        "create_forbidden": "Máy chủ không cho phép tạo địa chỉ ẩn danh bằng phiên này.",
+        "update_forbidden": "Máy chủ không cho phép sửa địa chỉ ẩn danh bằng phiên này. Bạn vẫn có thể sao chép địa chỉ.",
+        "over_quota": "Đã đạt hạn mức địa chỉ ẩn danh của máy chủ. Các địa chỉ đã tắt có thể vẫn được tính vào giới hạn.",
+        "rate_limit": "Đã đạt giới hạn tốc độ tạo của máy chủ. Hãy thử lại sau."
+      },
       "title": "Bảo mật tài khoản",
       "description": "Quản lý mật khẩu, xác thực hai yếu tố và cài đặt bảo mật của bạn",
       "detecting": "Đang phát hiện khả năng của máy chủ...",
@@ -3348,7 +3428,8 @@
         "description": "Đường viền quanh nút, liên kết hoặc trường đang nhận thao tác bàn phím.",
         "normal": "Bình thường",
         "thick": "Dày",
-        "extra": "Cực dày"
+        "extra": "Cực dày",
+        "off": "Tắt"
       },
       "focus_always": {
         "label": "Luôn hiển thị tiêu điểm",
@@ -3608,6 +3689,10 @@
       "sync_on": "Các thiết bị khác của bạn dùng cùng cài đặt, nên cũng thay đổi theo.",
       "sync_off": "Các thiết bị khác của bạn giữ nguyên cài đặt."
     }
+  },
+  "layout_preview": {
+    "default_description": "Ứng dụng và thư mục ở bên trái, tìm kiếm phía trên danh sách",
+    "mountain_view_description": "Tìm kiếm ở trên cùng, thư mở rộng toàn màn hình"
   },
   "setup": {
     "title": "Thiết lập webmail Bulwark",
@@ -3911,6 +3996,8 @@
     "delete_folder": "Xóa thư mục",
     "refresh": "Làm mới",
     "hide_shared_account": "Ẩn khỏi thanh bên",
+    "move_shared_account_up": "Di chuyển lên",
+    "move_shared_account_down": "Di chuyển xuống",
     "mute_notifications": "Tắt tiếng thông báo",
     "unmute_notifications": "Bật tiếng thông báo",
     "mute_account_notifications": "Ẩn thông báo cho tài khoản này",
@@ -5344,7 +5431,8 @@
     "invited": "{name} đã mời bạn tham gia \"{title}\"",
     "updated": "{name} đã cập nhật \"{title}\"",
     "cancelled": "{name} đã hủy \"{title}\"",
-    "untitled": "Sự kiện không có tiêu đề"
+    "untitled": "Sự kiện không có tiêu đề",
+    "summary": "Thay đổi trong các sự kiện bạn tham gia: {count}"
   },
   "calendar_month_select": {
     "selected_range": "Đã chọn từ {start} đến {end}.",
@@ -5488,6 +5576,7 @@
     "shared": "{name} đã chia sẻ {kind} \"{object}\" với bạn",
     "changed": "{name} đã thay đổi quyền truy cập của bạn vào {kind} \"{object}\"",
     "revoked": "{name} đã xóa quyền truy cập của bạn vào {kind} \"{object}\"",
+    "summary": "{name} đã thay đổi quyền truy cập của bạn vào {count, plural, other {# mục được chia sẻ}}",
     "object": {
       "folder": "Thư mục",
       "calendar": "Lịch",
@@ -5665,10 +5754,10 @@
     "title": "Chào mừng đến với hộp thư của bạn",
     "tip_compose": "Nhấn c để soạn email mới",
     "tip_shortcuts": "Nhấn ? để xem tất cả phím tắt",
-    "tip_sidebar": "Lịch, Danh bạ và Cài đặt nằm ở thanh bên trái",
+    "tip_sidebar_apps": "{apps} nằm ở thanh bên trái",
     "tip_settings": "Tùy chỉnh trải nghiệm của bạn trong Cài đặt",
     "tip_compose_touch": "Nhấn vào nút bút chì để viết email mới",
-    "tip_sidebar_touch": "Tìm Lịch, Danh bạ và Cài đặt ở thanh phía dưới",
+    "tip_sidebar_apps_touch": "Tìm {apps} ở thanh phía dưới",
     "got_it": "Hiểu rồi",
     "settings": "Cài đặt",
     "dismiss": "Đóng",
@@ -6245,6 +6334,14 @@
     "date_label": "Ngày",
     "subject_label": "Tiêu đề"
   },
+  "print_styles": {
+    "title": "In",
+    "description": "Cách thư, danh bạ và lịch trông như thế nào khi in.",
+    "style_label": "Kiểu in",
+    "style_description": "Tiện ích bổ sung có thể thêm kiểu, ví dụ giấy tiêu đề có địa chỉ công ty của bạn.",
+    "standard": "Tiêu chuẩn",
+    "from_plugin": "{name} ({plugin})"
+  },
   "pwa_install": {
     "title": "Cài đặt {appName}",
     "description": "Cài đặt ứng dụng của chúng tôi để truy cập nhanh.",
@@ -6383,6 +6480,9 @@
     "attachments_description": "Tệp đính kèm của các thư được giữ và các tệp bạn giữ ngoại tuyến, tối đa {total} tổng cộng. Tệp cũ nhất sẽ bị xóa trước.",
     "total_locked": "Tổ chức của bạn chỉ cho phép tối đa {size} tệp đính kèm và tệp.",
     "attachment_cap_label": "Tệp đính kèm lớn nhất được giữ",
+    "total_cap_label": "Tổng dung lượng tệp đính kèm được giữ",
+    "total_cap_unlimited": "Không giới hạn",
+    "attachments_description_unlimited": "Tệp đính kèm của thư được giữ và các tệp bạn giữ ngoại tuyến, không giới hạn tổng dung lượng.",
     "usage_mail": "Thư và chỉ mục tìm kiếm",
     "usage_attachments": "Tệp đính kèm",
     "usage_calendar": "Lịch",
@@ -6724,6 +6824,10 @@
       "auth_emit": {
         "title": "Đăng xuất bạn",
         "body": "Đăng xuất bạn khỏi webmail."
+      },
+      "auth_impersonation_return": {
+        "title": "Đưa bạn về tài khoản của mình",
+        "body": "Sau khi quản trị viên mở một hộp thư bằng cách mạo danh, kết thúc phiên đó và đăng nhập lại vào tài khoản đã bắt đầu nó."
       },
       "account_read": {
         "title": "Xem tài khoản của bạn",
@@ -7294,6 +7398,8 @@
       "title": "Cửa sổ ứng dụng",
       "double_click_label": "Mở thư trong cửa sổ mới khi nhấp đúp",
       "double_click_description": "Nhấp một lần vẫn mở thư bên cạnh danh sách.",
+      "compose_window_label": "Luôn soạn thư trong cửa sổ mới",
+      "compose_window_description": "Thư mới, thư trả lời, thư chuyển tiếp và bản nháp mở trong cửa sổ riêng thay vì trong cửa sổ chính.",
       "restore_label": "Mở lại cửa sổ khi khởi động",
       "restore_description": "Các cửa sổ thư và bản nháp đang mở khi thoát sẽ trở lại."
     },
@@ -7412,6 +7518,18 @@
     "attach_files": "Đính kèm tệp…",
     "shortcut_apps": "Đi tới Thư, Lịch, Danh bạ hoặc Tệp"
   },
+  "desktopSaveOpen": {
+    "menu_open": "Mở…",
+    "menu_save_as": "Lưu thành…",
+    "open_filter": "Thư, sự kiện và danh bạ",
+    "save_filter": "Thư email",
+    "folder_title": "Chọn thư mục để lưu thư",
+    "folder_button": "Lưu tại đây",
+    "saved_many": "Đã lưu {count} thư.",
+    "save_failed": "Không lưu được {count} thư.",
+    "shortcut_open": "Mở thư, sự kiện hoặc liên hệ đã lưu",
+    "shortcut_save_as": "Lưu thư thành tệp"
+  },
   "appLock": {
     "section_title": "Khóa ứng dụng",
     "section_desc": "Yêu cầu mã PIN sau một thời gian không dùng, trong mọi cửa sổ và tab. Khi đang khóa, ứng dụng không thể đọc thư lưu trên thiết bị này cho đến khi có người nhập mã PIN.",
@@ -7426,7 +7544,8 @@
     "pin_current": "Mã PIN hiện tại",
     "pin_new": "Mã PIN mới",
     "pin_repeat": "Nhập lại mã PIN",
-    "pin_hint": "Ít nhất 6 ký tự. Có thể dùng cả chữ cái, và mã dài hơn sẽ khó đoán hơn.",
+    "pin_hint": "Ít nhất 5 ký tự. Có thể dùng cả chữ cái, và mã dài hơn sẽ khó đoán hơn.",
+    "pin_hint_policy": "Tổ chức của bạn yêu cầu ít nhất {count, plural, other {# ký tự}}. Có thể dùng cả chữ cái.",
     "pin_obvious": "Mã PIN này quá dễ đoán. Hãy tránh lặp lại, dãy số và các lựa chọn phổ biến.",
     "pin_mismatch": "Hai mã PIN không giống nhau.",
     "pin_recovery": "Nếu quên, cách duy nhất là xóa dữ liệu trên thiết bị này và đăng nhập lại. Thư của bạn trên máy chủ vẫn còn. Các thư đang chờ gửi trên thiết bị này sẽ bị mất.",
@@ -7480,6 +7599,25 @@
     "blocked_seconds": "Quá nhiều lần thử. Hãy thử lại sau {count, plural, other {# giây}}.",
     "blocked_minutes": "Quá nhiều lần thử. Hãy thử lại sau {count, plural, other {# phút}}."
   },
+  "appLockHello": {
+    "switch_label": "Mở khóa bằng Windows Hello",
+    "switch_desc": "Dùng khuôn mặt, vân tay hoặc mã PIN Windows. Mã PIN của ứng dụng vẫn dùng được.",
+    "protects": "Khi bật Windows Hello, Windows giữ cho ứng dụng này một khóa chỉ hoạt động sau khi Windows Hello đã xác nhận đúng là bạn. Khóa của ứng dụng cũng được khóa bằng nó, nên muốn mở khóa cần khuôn mặt, vân tay hoặc mã PIN Windows của bạn, và chương trình khác trên máy tính này không thể dùng khóa đó nếu Windows chưa hỏi bạn trước. Mã PIN của ứng dụng vẫn dùng được, và bạn cần nó nếu Windows Hello bị đặt lại hoặc bị tắt.",
+    "enable_title": "Bật Windows Hello",
+    "enable_body": "Hãy nhập mã PIN của ứng dụng. Sau đó Windows sẽ yêu cầu bạn xác nhận bằng Windows Hello.",
+    "enable_failed": "Không bật được Windows Hello. Hãy thử lại.",
+    "cancelled": "Đã hủy Windows Hello.",
+    "unsupported": "Windows Hello trên máy tính này không bảo vệ được khóa. Mã PIN của bạn vẫn dùng được.",
+    "unavailable": "Máy tính này không có Windows Hello.",
+    "busy": "Windows Hello đang bận hoặc bị khóa. Hãy thử lại sau.",
+    "off_after_pin_change": "Windows Hello hiện đã tắt vì không xác nhận sau khi đổi mã PIN. Hãy bật lại nếu bạn dùng nó.",
+    "prompt": "Hãy xác nhận đúng là bạn bằng Windows Hello.",
+    "waiting": "Đang chờ Windows Hello…",
+    "use_hello": "Mở khóa bằng Windows Hello",
+    "use_pin": "Dùng mã PIN",
+    "failed": "Windows Hello không mở khóa được ứng dụng. Hãy nhập mã PIN.",
+    "gone": "Windows Hello không còn mở khóa ứng dụng trên máy tính này. Hãy nhập mã PIN."
+  },
   "uxs_general": {
     "time_zone_common": "Múi giờ phổ biến",
     "time_zone_all": "Tất cả múi giờ",
@@ -7491,6 +7629,8 @@
     "app_lock_now_desc_desktop": "Khóa ngay mọi cửa sổ.",
     "app_lock_protects_toggle": "Điều này bảo vệ khỏi gì?",
     "app_lock_timeout_hours": "{count, plural, other {# giờ}}",
+    "app_lock_until_screen": "Khi màn hình khóa",
+    "app_lock_until_session": "Khi tôi đăng xuất hoặc khởi động lại",
     "desktop_attention_title": "Trên máy tính này"
   },
   "uxs2_ident": {
@@ -7578,6 +7718,10 @@
     "trouble_cors": "Máy chủ thư của bạn phải cho phép đăng nhập từ trang web này. Nếu đăng nhập không được, hãy nhờ người quản lý máy chủ thư cho phép.",
     "provider_unsupported": "{provider} không hỗ trợ JMAP, cách Bulwark trao đổi với máy chủ thư, nên Bulwark chưa thể kết nối trực tiếp."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock đang bật",
+    "language_button": "Ngôn ngữ: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "Thay đổi cách Bulwark kết nối?",
@@ -7663,6 +7807,8 @@
     "start_at_login_description": "Ứng dụng tự khởi động khi bạn đăng nhập.",
     "start_minimized_label": "Khởi động ở khay hệ thống",
     "start_minimized_description": "Không có cửa sổ nào mở khi đăng nhập. Mở bằng biểu tượng ở khay hệ thống.",
+    "reopen_after_restart_label": "Mở lại sau khi khởi động lại",
+    "reopen_after_restart_description": "Nếu ứng dụng đang mở khi máy tính khởi động lại hoặc bạn đăng xuất, ứng dụng sẽ mở lại khi bạn đăng nhập, tại cùng thư mục, thư hoặc trang.",
     "attention_label": "Nhấp nháy thanh tác vụ khi có thư mới",
     "attention_mac_label": "Làm biểu tượng Dock nảy khi có thư mới",
     "attention_description": "Chỉ khi ứng dụng không ở phía trước.",
@@ -7766,6 +7912,45 @@
     "clear_confirm": "Xóa",
     "signout_changed": "Chưa đính kèm hoặc lưu, và bị xóa ngay: {names}.",
     "signout_held": "Vẫn đang mở trong chương trình khác nên chỉ bị xóa sau khi bạn đóng ở đó: {names}."
+  },
+  "desktopPrint": {
+    "title": "In",
+    "pages_one": "1 trang",
+    "pages_many": "{count} trang",
+    "preparing": "Đang chuẩn bị bản xem trước…",
+    "preview_failed": "Không tạo được bản xem trước.",
+    "preview_label": "Xem trước",
+    "destination": "Đích",
+    "save_as_pdf": "Lưu dưới dạng PDF",
+    "pages": "Trang",
+    "pages_all": "Tất cả",
+    "pages_custom": "Tùy chỉnh",
+    "pages_example": "ví dụ 1-3, 5",
+    "pages_invalid": "Nhập các trang từ 1 đến {count}, ví dụ 1-3, 5.",
+    "copies": "Số bản",
+    "layout": "Bố cục",
+    "portrait": "Dọc",
+    "landscape": "Ngang",
+    "color": "Màu",
+    "color_color": "Màu",
+    "color_mono": "Đen trắng",
+    "more": "Cài đặt khác",
+    "paper": "Khổ giấy",
+    "paper_printer": "Mặc định của máy in",
+    "margins": "Lề",
+    "margins_default": "Mặc định",
+    "margins_none": "Không có",
+    "margins_minimum": "Tối thiểu",
+    "scale": "Tỷ lệ (%)",
+    "options": "Tùy chọn",
+    "header_footer": "Đầu trang và chân trang",
+    "background": "Đồ họa nền",
+    "print": "In",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "system_dialog": "In bằng hộp thoại hệ thống…",
+    "failed_title": "Không in được",
+    "failed_detail": "Máy in không nhận lệnh in. Hãy kiểm tra máy in đã bật chưa rồi thử lại."
   },
   "files_sync": {
     "title": "Tệp trên máy tính này",
@@ -8061,6 +8246,20 @@
       "app_lock_hello": "Windows Hello Touch ID vân tay khuôn mặt khóa truy cập passkey"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "Quyền riêng tư và bảo mật",
+      "security": "Mật khẩu và đăng nhập",
+      "about_updates": "Giới thiệu và cập nhật",
+      "backup": "Sao lưu và nhập"
+    },
+    "sections": {
+      "start": "Khởi động và đóng",
+      "shortcuts": "Phím tắt từ ứng dụng khác",
+      "mail_links": "Liên kết và tệp thư"
+    },
+    "privacy_link_description": "Các cài đặt này nằm trên trang Quyền riêng tư và bảo mật."
+  },
   "desktop_policy": {
     "server_refused": "Tổ chức của bạn không cho phép máy chủ này trên thiết bị này.",
     "plugin_refused": "Tổ chức của bạn không cho phép tiện ích này trên thiết bị này nên tiện ích không chạy. Cài đặt và dữ liệu của tiện ích vẫn được giữ lại.",
@@ -8107,5 +8306,9 @@
   "selectionView": {
     "starred": "Đã gắn dấu sao",
     "unstarred": "Đã bỏ dấu sao"
+  },
+  "impersonation": {
+    "return_notice": "Bạn đã mở {mailbox} bằng cách mạo danh.",
+    "return_button": "Quay lại tài khoản của tôi"
   }
 }

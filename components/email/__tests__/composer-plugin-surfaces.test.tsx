@@ -2,6 +2,7 @@ import { act, createEvent, fireEvent, render, screen, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { EmailComposer } from '../email-composer';
+import { MvComposeWindow } from '../mv-compose-window';
 import { useAuthStore } from '@/stores/auth-store';
 import { checkActions, resetActions, setActionDispatcher, setPluginActions } from '@/lib/plugin-sandbox/actions';
 import { clearOffers, lastSlotProps, offerSlots, slotProps } from '@/components/plugins/__tests__/fake-plugin-offer';
@@ -429,6 +430,65 @@ describe('composer-options-menu and composer-toolbar-actions', () => {
   });
 });
 
+describe('composer-header-actions', () => {
+  // A docked reply has no title row: its top bar's buttons end the To row (inline-reply).
+  const head = () => document.querySelector('[data-composer-header], [data-mv-compose-titlebar], [data-mv-compose-inline-bar], [data-dock-window-buttons]') as HTMLElement;
+
+  it('draws plugin icons in the top bar, before the window buttons, and hands the click the composer', async () => {
+    act(() => setPluginActions('akte', 'Akte', 'composer-header-actions', [{ id: 'case', label: 'Assign a case', icon: 'folder' }]));
+    render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} />);
+    const bar = head();
+    expect(bar.classList.contains('@container/composer-head')).toBe(true);
+    const button = within(bar).getByRole('button', { name: 'Assign a case' });
+    // An icon, the label as tooltip; shown while the bar is wide enough.
+    expect(button.textContent).toBe('');
+    expect(button.closest('[data-plugin-actions]')!.className).toContain('@[34rem]/composer-head:inline-flex');
+    expect(follows(button, screen.getByTestId('composer-close'))).toBe(true);
+    await act(async () => { fireEvent.click(button); });
+    expect(dispatch).toHaveBeenCalledWith('akte', 'composer-header-actions', 'case', { composerId: expect.any(String) });
+  });
+
+  it('puts them behind one button that opens a menu where the bar is narrow', async () => {
+    act(() => setPluginActions('akte', 'Akte', 'composer-header-actions', [{ id: 'case', label: 'Assign a case', icon: 'folder' }, { id: 'print', label: 'Print the case', icon: 'printer' }]));
+    render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} />);
+    const more = head().querySelector('[data-plugin-actions-overflow]') as HTMLElement;
+    expect(more.className).toContain('@[34rem]/composer-head:hidden');
+    fireEvent.click(within(more).getByRole('button', { name: 'more_actions' }));
+    const entry = screen.getByRole('menuitem', { name: 'Print the case' });
+    await act(async () => { fireEvent.click(entry); });
+    expect(dispatch).toHaveBeenCalledWith('akte', 'composer-header-actions', 'print', { composerId: expect.any(String) });
+  });
+
+  it('hands the same composer id as the bottom bar', async () => {
+    act(() => {
+      setPluginActions('akte', 'Akte', 'composer-header-actions', [{ id: 'case', label: 'Assign a case' }]);
+      setPluginActions('akte', 'Akte', 'composer-toolbar-actions', [{ id: 'bottom', label: 'Bottom' }]);
+    });
+    render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} />);
+    await act(async () => { fireEvent.click(within(head()).getByRole('button', { name: 'Assign a case' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Bottom' })); });
+    const [top, bottom] = dispatch.mock.calls.map((call) => (call[3] as { composerId: string }).composerId);
+    expect(top).toBe(bottom);
+  });
+
+  it('shows in the docked reply, in a window of its own and in the Mountain View window', () => {
+    act(() => setPluginActions('akte', 'Akte', 'composer-header-actions', [{ id: 'case', label: 'Assign a case' }]));
+    const docked = render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} docked />);
+    expect(within(head()).getByRole('button', { name: 'Assign a case' })).toBeTruthy();
+    docked.unmount();
+    const own = render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} ownWindow={{}} />);
+    expect(within(head()).getByRole('button', { name: 'Assign a case' })).toBeTruthy();
+    own.unmount();
+    render(<MvComposeWindow><EmailComposer initialData={DRAFT} onClose={vi.fn()} /></MvComposeWindow>);
+    expect(within(head()).getByRole('button', { name: 'Assign a case' })).toBeTruthy();
+  });
+
+  it('draws nothing without a plugin', () => {
+    render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} />);
+    expect(head().querySelector('[data-plugin-actions]')).toBeNull();
+  });
+});
+
 describe('composer-attach-menu', () => {
   it('turns Attach into a menu for plugin entries', async () => {
     act(() => setPluginActions('p', 'Cloud', 'composer-attach-menu', [{ id: 'cloud', label: 'From the cloud' }]));
@@ -739,6 +799,33 @@ describe('composer-sidebar and composer-sidebar-right', () => {
     expect(panel('right').dataset.composerSidebarMode).toBe('docked');
     fireEvent.click(screen.getByRole('button', { name: 'hide_panel' }));
     expect(panel('right').dataset.composerSidebarMode).toBe('folded');
+  });
+
+  // inline-reply: opened once in a full composer, the assistant opened in
+  // every reply under its message too, and left the reply a sliver to type in.
+  it('start folded in a reply under its message, and keep what the user does there to that reply', async () => {
+    const { ReplyDock } = await import('@/components/mail/reply-dock');
+    stubWidth(1400);
+    offerSlots('p1', ['composer-sidebar-right']);
+    localStorage.setItem('composerPluginSidebarCollapsed:right', '0');
+    const { container, unmount } = render(<ReplyDock><EmailComposer initialData={DRAFT} onClose={vi.fn()} docked /></ReplyDock>);
+    expect(panel('right').dataset.composerSidebarMode).toBe('folded');
+    const dock = container.querySelector('[data-reply-dock]') as HTMLElement;
+    expect(dock.dataset.dockMode).toBe('share');
+
+    // Opened there, the reply takes the reading pane, and the choice stays with it.
+    fireEvent.click(screen.getByRole('button', { name: 'show_panel' }));
+    expect(panel('right').dataset.composerSidebarMode).toBe('docked');
+    expect(dock.dataset.dockMode).toBe('takeover');
+    fireEvent.click(screen.getByRole('button', { name: 'hide_panel' }));
+    expect(panel('right').dataset.composerSidebarMode).toBe('folded');
+    expect(dock.dataset.dockMode).toBe('share');
+    expect(localStorage.getItem('composerPluginSidebarCollapsed:right')).toBe('0');
+    unmount();
+
+    // A full composer still opens it as the user left it.
+    render(<EmailComposer initialData={DRAFT} onClose={vi.fn()} />);
+    expect(panel('right').dataset.composerSidebarMode).toBe('docked');
   });
 
   it('answer no request on a phone, where the panels are not shown', () => {

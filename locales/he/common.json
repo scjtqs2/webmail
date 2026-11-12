@@ -299,6 +299,9 @@
     "no_search_results": "לא נמצאו תוצאות",
     "no_search_results_description": "נסה להתאים את החיפוש או המסננים שלך",
     "more_results_searching": "מחפש תוצאות נוספות…",
+    "resize_plugin_results": "שינוי גודל התוצאות מתוספים",
+    "compact_plugin_results": "שורה אחת לכל תוצאה",
+    "plugin_result_score": "{count} מתוך 5",
     "loading": "טוען אימיילים...",
     "unread": "לא נקרא",
     "to_me": "לִי",
@@ -1004,6 +1007,7 @@
     "templates_menu": "תבניות",
     "insert_template": "הוספת תבנית…",
     "options": "אפשרויות",
+    "tags": "תגים",
     "option_plain_text": "טקסט פשוט",
     "option_plain_text_hint": "שליחה ללא עיצוב",
     "option_read_receipt": "בקשת אישור קריאה",
@@ -1224,6 +1228,14 @@
       "plain_text": "[תמונה: {alt}]"
     }
   },
+  "attachment_rename": {
+    "rename": "שנה שם",
+    "rename_named": "שנה את השם של {name}",
+    "rename_menu": "שנה שם…",
+    "rename_title": "שנה את שם הקובץ המצורף",
+    "rename_invalid_chars": "שמות קבצים לא יכולים להכיל / או \\ או תווי בקרה",
+    "rename_too_long": "השם הזה ארוך מדי"
+  },
   "compose_ux": {
     "draft_discarded": "הטיוטה נמחקה",
     "undo": "ביטול",
@@ -1238,6 +1250,12 @@
     "shortcut_save_draft": "שמירת טיוטה",
     "shortcut_show_cc": "הצגת עותק",
     "shortcut_show_bcc": "הצגת עותק מוסתר"
+  },
+  "compose_dock": {
+    "open_draft": "פתיחה",
+    "reply_type": "סוג התשובה: {kind}",
+    "resize_reply": "שינוי גודל התשובה",
+    "fields_menu": "שדות נוספים"
   },
   "confirm_dialog": {
     "confirm": "אשר",
@@ -1417,6 +1435,9 @@
   },
   "remote_content_lock": {
     "trusted_senders_note": "הארגון שלך חוסם תוכן מרוחק בכל הדואר, ולכן הוא לא נטען גם משולחים מהימנים."
+  },
+  "trusted_senders_book": {
+    "unavailable": "לא זמין: החשבון הזה לא יכול לשמור פנקסי כתובות בשרת. הרשימה נשארת במכשיר הזה."
   },
   "date": {
     "today": "היום",
@@ -1616,7 +1637,7 @@
         "label": "פריסת הממשק",
         "description": "היכן ממוקמים החיפוש, הניווט וסרגלי הכלים",
         "default": "ברירת מחדל",
-        "mountain_view": "שורת חיפוש למעלה, אפליקציות משמאל"
+        "mountain_view": "שורת חיפוש למעלה"
       },
       "animations": {
         "label": "הפעל אנימציות",
@@ -1729,12 +1750,17 @@
       "title": "מילות מפתח בדוא\"ל",
       "description": "צרו תגים כדי למיין את ההודעות. התגים נשמרים עם ההודעות בשרת.",
       "add_keyword": "הוסף מילת מפתח",
+      "empty": "אין עדיין תגיות.",
       "label_field": "שם תצוגה",
       "label_placeholder": "למשל עבודה, אישי, דחוף",
       "id_field": "מזהה מילת מפתח",
       "id_placeholder": "למשל עבודה, אישית",
       "color_field": "צבע",
-      "id_exists": "מזהה מילת מפתח זה כבר קיים",
+      "custom_color": "צבע מותאם אישית",
+      "color_code": "קוד צבע",
+      "pick_custom_color": "בחירת צבע מותאם אישית",
+      "invalid_color": "יש להשתמש בקוד צבע כמו ‎#1a73e8.",
+      "name_exists": "כבר קיימת תגית בשם הזה",
       "edit": "ערוך מילת מפתח",
       "delete": "מחק מילת מפתח",
       "edit_tag": "עריכת {name}",
@@ -2000,9 +2026,17 @@
         "label": "הצגת קודי אימות",
         "description": "הצעת הקוד מהודעות כניסה ואישור להעתקה בלחיצה אחת, ברשימה למשך יום ובהודעה"
       },
+      "show_attachment_chips": {
+        "label": "הצגת קבצים מצורפים ברשימה",
+        "description": "הצגת הקבצים המצורפים מתחת לכל הודעה, כדי לפתוח אותם ישירות מהרשימה. סמל האטב מוצג בכל מקרה."
+      },
       "plain_text_mode": {
         "label": "טקסט רגיל בלבד",
         "description": "השבת את עורך הטקסט העשיר ושלח את כל המיילים כטקסט רגיל בלבד, כולל תשובות והעברה"
+      },
+      "reply_under_message": {
+        "label": "תשובות מתחת להודעה",
+        "description": "תשובה או העברה נפתחות מתחת להודעה שלהן, שנשארת קריאה מעליהן. כשהאפשרות כבויה, הן תופסות את כל חלונית הקריאה, כמו הודעה חדשה."
       },
       "quick_reply": {
         "label": "תשובה מהירה",
@@ -2023,12 +2057,6 @@
         "description": "בחר אם לחיצה על קובץ מצורף תציג אותו בתצוגה מקדימה או תוריד אותו מיד",
         "preview": "תצוגה מקדימה כשאפשר",
         "download": "הורד מיד"
-      },
-      "attachment_position": {
-        "label": "עמדת התקשרות",
-        "description": "היכן להציג קבצים מצורפים בכותרת הדוא\"ל",
-        "below-header": "מתחת לכותרת",
-        "below-message": "כרטיסים מתחת להודעה"
       },
       "emails_per_page": {
         "10": "10 מיילים",
@@ -2223,6 +2251,7 @@
       "auth_method_oauth": "כניסה יחידה (OAuth/OIDC)",
       "auth_method_basic": "סִיסמָה",
       "auth_method_token": "אסימון גישה",
+      "account_management_link": "ניהול אבטחת החשבון (2FA, סיסמאות לאפליקציות)",
       "demo_account": "חשבון הדגמה",
       "email": {
         "label": "כתובת אימייל",
@@ -2302,6 +2331,57 @@
       }
     },
     "security": {
+      "masked_addresses": {
+        "address": "כתובת",
+        "description_column": "תיאור",
+        "website_column": "אתר",
+        "state": "מצב",
+        "actions": "פעולות",
+        "no_description": "אין תיאור",
+        "edit": "עריכה",
+        "close": "סגירה",
+        "pagination": "עמודי כתובות מוסוות",
+        "page": "עמוד {page} מתוך {pages}",
+        "previous": "הקודם",
+        "next": "הבא",
+        "delete": "מחיקה",
+        "delete_title": "למחוק את הכתובת המוסווית לצמיתות?",
+        "delete_warning": "למחוק את {address}? לא ניתן לבטל פעולה זו. דואר שיישלח לכתובת הזו לא יימסר עוד.",
+        "delete_confirm": "מחיקה לצמיתות",
+        "cancel": "ביטול",
+        "deleted": "הכתובת נמחקה לצמיתות.",
+        "deleted_refresh_failed": "המחיקה אושרה, אבל לא ניתן היה לרענן את הרשימה. רענן כדי לטעון את הרשימה העדכנית.",
+        "delete_forbidden": "להפעלה הנוכחית שלך אין הרשאה למחוק כתובות מוסוות. שאר הפעולות המותרות עדיין זמינות.",
+        "delete_failed": "הכתובת לא נמחקה. רענן את הרשימה לפני שתנסה שוב.",
+        "delete_unconfirmed": "לא ניתן היה לאשר את המחיקה, והיא לא תנוסה שוב. רענן את הרשימה ובדוק את הכתובת לפני כל מחיקה נוספת.",
+        "title": "כתובות מוסוות",
+        "intro": "קבל דואר בלי למסור את הכתובת הראשית שלך. השבתת כתובת דוחה דואר חדש שנשלח אליה. לא ניתן לשלוח דואר מכתובות אלה.",
+        "loading": "טוען כתובות מוסוות…",
+        "count": "{count, plural, one {כתובת אחת} two {שתי כתובות} other {# כתובות}}",
+        "empty": "אין עדיין כתובות מוסוות.",
+        "website": "אתר (אופציונלי)",
+        "description": "תיאור (אופציונלי)",
+        "no_website": "לא צוין",
+        "enabled": "מופעלת",
+        "disabled": "מושבתת",
+        "enable": "הפעל",
+        "disable": "השבת",
+        "copy": "העתק",
+        "copied": "הכתובת הועתקה.",
+        "copy_failed": "ההעתקה נכשלה. סמן את הכתובת שלמעלה והעתק אותה.",
+        "save": "שמור תיאור",
+        "create": "יצירת כתובת מוסווית",
+        "refresh": "רענון",
+        "saved": "השינוי נשמר.",
+        "forbidden": "להפעלה הנוכחית שלך אין הרשאה להציג כתובות מוסוות.",
+        "unavailable": "כתובות מוסוות אינן זמינות לחשבון או לשרת הזה.",
+        "load_failed": "לא ניתן היה לטעון את רשימת הכתובות המלאה. רענן כדי לנסות שוב.",
+        "save_failed": "לא ניתן היה לאשר את השינוי. רענן את הרשימה לפני שתנסה שוב.",
+        "create_forbidden": "השרת לא התיר ליצור כתובת מוסווית בהפעלה הזו.",
+        "update_forbidden": "השרת לא התיר לערוך כתובות מוסוות בהפעלה הזו. עדיין אפשר להעתיק כתובות.",
+        "over_quota": "הגעת למכסת הכתובות המוסוות של השרת. ייתכן שכתובות מושבתות עדיין נספרות במגבלה.",
+        "rate_limit": "הגעת למגבלת קצב היצירה של השרת. נסה שוב מאוחר יותר."
+      },
       "title": "אבטחת חשבון",
       "description": "נהל את הסיסמה שלך, אימות דו-שלבי והגדרות אבטחה",
       "detecting": "מזהה יכולות שרת...",
@@ -3281,7 +3361,8 @@
         "description": "המסגרת סביב הכפתור, הקישור או השדה שהמקלדת נמצאת עליו.",
         "normal": "רגילה",
         "thick": "עבה",
-        "extra": "עבה במיוחד"
+        "extra": "עבה במיוחד",
+        "off": "כבוי"
       },
       "focus_always": {
         "label": "הצגת מיקוד תמיד",
@@ -3541,6 +3622,10 @@
       "sync_on": "המכשירים האחרים שלך משתמשים באותן הגדרות, ולכן גם הם ישתנו.",
       "sync_off": "המכשירים האחרים שלך ישמרו על ההגדרות שלהם."
     }
+  },
+  "layout_preview": {
+    "default_description": "אפליקציות ותיקיות בצד, חיפוש מעל הרשימה",
+    "mountain_view_description": "חיפוש לאורך החלק העליון, הודעות נפתחות ברוחב מלא"
   },
   "setup": {
     "title": "הגדרת Bulwark Webmail",
@@ -5259,10 +5344,10 @@
     "title": "ברוך הבא לתיבת הדואר שלך",
     "tip_compose": "הקש c כדי לכתוב דוא\"ל חדש",
     "tip_shortcuts": "לחץ על? כדי לראות את כל קיצורי המקלדת",
-    "tip_sidebar": "לוח השנה, אנשי הקשר וההגדרות נמצאים בסרגל שבצד ימין",
+    "tip_sidebar_apps": "{apps} נמצאים בסרגל שבצד ימין",
     "tip_settings": "התאם אישית את החוויה שלך בהגדרות",
     "tip_compose_touch": "הקישו על כפתור העיפרון כדי לכתוב הודעה חדשה",
-    "tip_sidebar_touch": "יומן, אנשי קשר והגדרות נמצאים בסרגל התחתון",
+    "tip_sidebar_apps_touch": "{apps} נמצאים בסרגל התחתון",
     "got_it": "הבנתי",
     "settings": "הגדרות",
     "dismiss": "לְפַטֵר",
@@ -5720,6 +5805,8 @@
     "delete_folder": "מחק תיקייה",
     "refresh": "רענן",
     "hide_shared_account": "הסתרה מסרגל הצד",
+    "move_shared_account_up": "הזזה למעלה",
+    "move_shared_account_down": "הזזה למטה",
     "mute_notifications": "השתקת התראות",
     "unmute_notifications": "ביטול השתקת התראות",
     "mute_account_notifications": "השתקת התראות לחשבון זה",
@@ -5783,7 +5870,8 @@
     "invited": "{name} הזמין/ה אותך ל\"{title}\"",
     "updated": "{name} עדכן/ה את \"{title}\"",
     "cancelled": "{name} ביטל/ה את \"{title}\"",
-    "untitled": "אירוע ללא כותרת"
+    "untitled": "אירוע ללא כותרת",
+    "summary": "שינויים באירועים שבהם את/ה משתתף/ת: {count}"
   },
   "calendar_month_select": {
     "selected_range": "נבחרו {start} עד {end}.",
@@ -5927,6 +6015,7 @@
     "shared": "{name} שיתף/ה איתך את {kind} \"{object}\"",
     "changed": "{name} שינה/תה את הגישה שלך ל{kind} \"{object}\"",
     "revoked": "{name} הסיר/ה את הגישה שלך ל{kind} \"{object}\"",
+    "summary": "{name} שינה/תה את הגישה שלך ל{count, plural, one {פריט משותף אחד} two {שני פריטים משותפים} other {# פריטים משותפים}}",
     "object": {
       "folder": "התיקייה",
       "calendar": "היומן",
@@ -6234,6 +6323,14 @@
     "date_label": "תאריך",
     "subject_label": "נושא"
   },
+  "print_styles": {
+    "title": "הדפסה",
+    "description": "איך נראים הודעות, אנשי קשר ולוחות שנה מודפסים.",
+    "style_label": "סגנון הדפסה",
+    "style_description": "תוספים יכולים להוסיף סגנונות, למשל נייר מכתבים עם כתובת החברה שלך.",
+    "standard": "רגיל",
+    "from_plugin": "{name} ({plugin})"
+  },
   "pwa_install": {
     "title": "התקן {appName}",
     "description": "התקן את היישום שלנו לגישה מהירה.",
@@ -6372,6 +6469,9 @@
     "attachments_description": "קבצים מצורפים של הודעות שמורות וקבצים ששומרים במצב לא מקוון, עד {total} בסך הכול. הישנים ביותר מוסרים ראשונים.",
     "total_locked": "הארגון שלך מאפשר לכל היותר {size} של קבצים מצורפים וקבצים.",
     "attachment_cap_label": "הקובץ המצורף הגדול ביותר לשמירה",
+    "total_cap_label": "הגודל הכולל של הקבצים המצורפים שנשמרים",
+    "total_cap_unlimited": "ללא הגבלה",
+    "attachments_description_unlimited": "קבצים מצורפים של הודעות שנשמרות והקבצים שאתם שומרים במצב לא מקוון, ללא הגבלה על הגודל הכולל.",
     "usage_mail": "הודעות ואינדקס חיפוש",
     "usage_attachments": "קבצים מצורפים",
     "usage_calendar": "יומן",
@@ -6713,6 +6813,10 @@
       "auth_emit": {
         "title": "ניתוק שלכם",
         "body": "ניתוק שלכם מה-Webmail."
+      },
+      "auth_impersonation_return": {
+        "title": "להחזיר אותך לחשבון שלך",
+        "body": "לאחר שמנהל פתח תיבת דואר באמצעות התחזות, לסיים את ההפעלה הזו ולהתחבר מחדש לחשבון שממנו היא התחילה."
       },
       "account_read": {
         "title": "צפייה בחשבונות שלכם",
@@ -7283,6 +7387,8 @@
       "title": "חלונות האפליקציה",
       "double_click_label": "פתיחת הודעות בחלון חדש בלחיצה כפולה",
       "double_click_description": "לחיצה אחת עדיין פותחת את ההודעה ליד הרשימה.",
+      "compose_window_label": "תמיד לכתוב הודעות בחלון חדש",
+      "compose_window_description": "הודעות חדשות, תשובות, העברות וטיוטות נפתחות בחלון משלהן במקום בחלון הראשי.",
       "restore_label": "פתיחה מחדש של חלונות בהפעלה",
       "restore_description": "חלונות הודעות וטיוטות שהיו פתוחים ביציאה חוזרים."
     },
@@ -7401,6 +7507,18 @@
     "attach_files": "צירוף קבצים…",
     "shortcut_apps": "מעבר לדואר, ליומן, לאנשי הקשר או לקבצים"
   },
+  "desktopSaveOpen": {
+    "menu_open": "פתיחה…",
+    "menu_save_as": "שמירה בשם…",
+    "open_filter": "הודעות, אירועים ואנשי קשר",
+    "save_filter": "הודעת דוא\"ל",
+    "folder_title": "בחירת תיקייה להודעות",
+    "folder_button": "שמירה כאן",
+    "saved_many": "{count, plural, one {הודעה אחת נשמרה.} other {# הודעות נשמרו.}}",
+    "save_failed": "{count, plural, one {לא ניתן היה לשמור הודעה אחת.} other {לא ניתן היה לשמור # הודעות.}}",
+    "shortcut_open": "פתיחת הודעה, אירוע או איש קשר שנשמרו",
+    "shortcut_save_as": "שמירת ההודעה כקובץ"
+  },
   "appLock": {
     "section_title": "נעילת אפליקציה",
     "section_desc": "מבקש PIN אחרי זמן ללא שימוש, בכל חלון ולשונית. בזמן הנעילה האפליקציה לא יכולה לקרוא את הדואר השמור במכשיר הזה עד שמישהו מזין את ה-PIN.",
@@ -7415,7 +7533,8 @@
     "pin_current": "קוד PIN נוכחי",
     "pin_new": "קוד PIN חדש",
     "pin_repeat": "חזרה על קוד PIN",
-    "pin_hint": "לפחות 6 תווים. אפשר גם אותיות, וקוד ארוך יותר קשה יותר לניחוש.",
+    "pin_hint": "לפחות 5 תווים. אפשר גם אותיות, וקוד ארוך יותר קשה יותר לניחוש.",
+    "pin_hint_policy": "הארגון שלכם דורש לפחות {count, plural, one {תו אחד} two {שני תווים} other {# תווים}}. אפשר גם אותיות.",
     "pin_obvious": "קל מדי לנחש את קוד ה-PIN הזה. הימנעו מחזרות, רצפים ובחירות נפוצות.",
     "pin_mismatch": "שני הקודים אינם זהים.",
     "pin_recovery": "אם תשכחו אותו, הדרך היחידה היא להסיר את הנתונים מהמכשיר הזה ולהיכנס שוב. הדואר שלכם בשרת נשאר. הודעות שעדיין ממתינות לשליחה במכשיר הזה יאבדו.",
@@ -7469,6 +7588,25 @@
     "blocked_seconds": "יותר מדי ניסיונות. נסו שוב בעוד {count, plural, one {שנייה אחת} two {שתי שניות} other {# שניות}}.",
     "blocked_minutes": "יותר מדי ניסיונות. נסו שוב בעוד {count, plural, one {דקה אחת} two {שתי דקות} other {# דקות}}."
   },
+  "appLockHello": {
+    "switch_label": "ביטול נעילה עם Windows Hello",
+    "switch_desc": "באמצעות הפנים, טביעת האצבע או קוד ה-PIN של Windows. קוד ה-PIN של האפליקציה ממשיך לעבוד.",
+    "protects": "כש-Windows Hello מופעל, Windows שומר עבור האפליקציה הזו מפתח שעובד רק אחרי ש-Windows Hello בדק שזה אתם. גם המפתח של האפליקציה נעול בו, כך שביטול הנעילה דורש את הפנים, טביעת האצבע או קוד ה-PIN של Windows, ותוכנה אחרת במחשב הזה לא יכולה להשתמש במפתח בלי ש-Windows ישאל אתכם קודם. קוד ה-PIN של האפליקציה ממשיך לעבוד, ותצטרכו אותו אם Windows Hello יאופס או יכובה.",
+    "enable_title": "הפעלת Windows Hello",
+    "enable_body": "הזינו את קוד ה-PIN של האפליקציה. אחר כך Windows יבקש לאשר עם Windows Hello.",
+    "enable_failed": "לא ניתן היה להפעיל את Windows Hello. נסו שוב.",
+    "cancelled": "Windows Hello בוטל.",
+    "unsupported": "Windows Hello במחשב הזה לא יכול להגן על המפתח. קוד ה-PIN ממשיך לעבוד.",
+    "unavailable": "Windows Hello לא זמין במחשב הזה.",
+    "busy": "Windows Hello תפוס או נעול. נסו שוב מאוחר יותר.",
+    "off_after_pin_change": "Windows Hello כבוי עכשיו, כי הוא לא אישר אחרי שינוי קוד ה-PIN. הפעילו אותו שוב אם אתם משתמשים בו.",
+    "prompt": "אשרו עם Windows Hello שזה אתם.",
+    "waiting": "ממתין ל-Windows Hello…",
+    "use_hello": "ביטול נעילה עם Windows Hello",
+    "use_pin": "שימוש בקוד PIN במקום",
+    "failed": "Windows Hello לא ביטל את נעילת האפליקציה. הזינו את קוד ה-PIN.",
+    "gone": "Windows Hello כבר לא מבטל את נעילת האפליקציה במחשב הזה. הזינו את קוד ה-PIN."
+  },
   "uxs_general": {
     "time_zone_common": "אזורי זמן נפוצים",
     "time_zone_all": "כל אזורי הזמן",
@@ -7480,6 +7618,8 @@
     "app_lock_now_desc_desktop": "נועל מיד את כל החלונות.",
     "app_lock_protects_toggle": "ממה זה מגן?",
     "app_lock_timeout_hours": "{count, plural, one {שעה אחת} two {שעתיים} other {# שעות}}",
+    "app_lock_until_screen": "כשהמסך ננעל",
+    "app_lock_until_session": "בהתנתקות או בהפעלה מחדש",
     "desktop_attention_title": "במחשב הזה"
   },
   "uxs2_ident": {
@@ -7567,6 +7707,10 @@
     "trouble_cors": "שרת הדואר שלכם צריך לאפשר כניסה מהאתר הזה. אם הכניסה נכשלת, בקשו ממי שמפעיל את שרת הדואר לאפשר זאת.",
     "provider_unsupported": "{provider} לא מציע JMAP, הדרך שבה Bulwark מדבר עם שרתי דואר, ולכן Bulwark עדיין לא יכול להתחבר אליו ישירות."
   },
+  "login_a11y": {
+    "caps_lock_on": "Caps Lock פועל",
+    "language_button": "שפה: {language}"
+  },
   "ux_p3_settings": {
     "connection": {
       "title": "לשנות את אופן החיבור של Bulwark?",
@@ -7652,6 +7796,8 @@
     "start_at_login_description": "היישום מופעל מעצמו כשנכנסים.",
     "start_minimized_label": "להפעיל במגש המערכת",
     "start_minimized_description": "בכניסה לא נפתח חלון. פותחים אותו מהסמל במגש המערכת.",
+    "reopen_after_restart_label": "פתיחה מחדש אחרי הפעלה מחדש",
+    "reopen_after_restart_description": "אם האפליקציה פתוחה כשהמחשב מופעל מחדש או כשאתם מתנתקים, היא נפתחת שוב כשאתם מתחברים, באותה תיקייה, הודעה או עמוד.",
     "attention_label": "הבהוב בשורת המשימות בדואר חדש",
     "attention_mac_label": "קפיצת סמל ה-Dock בדואר חדש",
     "attention_description": "רק כשהיישום לא בחזית.",
@@ -7755,6 +7901,45 @@
     "clear_confirm": "מחיקה",
     "signout_changed": "עדיין לא צורפו או נשמרו, ונמחקים עכשיו: {names}.",
     "signout_held": "עדיין פתוחים בתוכנה אחרת, ולכן יימחקו רק אחרי שתסגרו אותם שם: {names}."
+  },
+  "desktopPrint": {
+    "title": "הדפסה",
+    "pages_one": "עמוד אחד",
+    "pages_many": "{count} עמודים",
+    "preparing": "מכין תצוגה מקדימה…",
+    "preview_failed": "לא ניתן היה ליצור תצוגה מקדימה.",
+    "preview_label": "תצוגה מקדימה",
+    "destination": "יעד",
+    "save_as_pdf": "שמירה כ-PDF",
+    "pages": "עמודים",
+    "pages_all": "הכול",
+    "pages_custom": "מותאם אישית",
+    "pages_example": "למשל 1-3, 5",
+    "pages_invalid": "יש להזין עמודים בין 1 ל-{count}, למשל 1-3, 5.",
+    "copies": "עותקים",
+    "layout": "פריסה",
+    "portrait": "לאורך",
+    "landscape": "לרוחב",
+    "color": "צבע",
+    "color_color": "צבעוני",
+    "color_mono": "שחור-לבן",
+    "more": "הגדרות נוספות",
+    "paper": "גודל נייר",
+    "paper_printer": "ברירת המחדל של המדפסת",
+    "margins": "שוליים",
+    "margins_default": "ברירת מחדל",
+    "margins_none": "ללא",
+    "margins_minimum": "מינימליים",
+    "scale": "קנה מידה (%)",
+    "options": "אפשרויות",
+    "header_footer": "כותרות עליונות ותחתונות",
+    "background": "גרפיקת רקע",
+    "print": "הדפסה",
+    "save": "שמירה",
+    "cancel": "ביטול",
+    "system_dialog": "הדפסה דרך תיבת הדו-שיח של המערכת…",
+    "failed_title": "לא ניתן להדפיס",
+    "failed_detail": "המדפסת לא קיבלה את העבודה. יש לוודא שהיא פועלת ולנסות שוב."
   },
   "files_sync": {
     "title": "קבצים במחשב הזה",
@@ -8050,6 +8235,20 @@
       "app_lock_hello": "Windows Hello Touch ID טביעת אצבע פנים מפתח גישה passkey"
     }
   },
+  "settings_reorg": {
+    "tabs": {
+      "privacy": "פרטיות ואבטחה",
+      "security": "סיסמה וכניסה",
+      "about_updates": "אודות ועדכונים",
+      "backup": "גיבוי וייבוא"
+    },
+    "sections": {
+      "start": "הפעלה וסגירה",
+      "shortcuts": "קיצורים מיישומים אחרים",
+      "mail_links": "קישורי דואר וקבצים"
+    },
+    "privacy_link_description": "ההגדרות האלה נמצאות בדף פרטיות ואבטחה."
+  },
   "desktop_policy": {
     "server_refused": "הארגון שלך לא מאפשר את השרת הזה במכשיר הזה.",
     "plugin_refused": "הארגון שלך לא מאפשר את התוסף הזה במכשיר הזה, ולכן הוא לא פועל. ההגדרות והנתונים שלו נשמרים.",
@@ -8096,5 +8295,9 @@
   "selectionView": {
     "starred": "סומן בכוכב",
     "unstarred": "הכוכב הוסר"
+  },
+  "impersonation": {
+    "return_notice": "פתחת את {mailbox} באמצעות התחזות.",
+    "return_button": "חזרה לחשבון שלי"
   }
 }

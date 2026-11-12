@@ -43,6 +43,10 @@
       <string id="AppLockRequired_Explain">Wenn aktiviert, müssen Benutzer die App-Sperre einrichten und können sie nicht ausschalten.</string>
       <string id="AppLockTimeoutMinutes">App sperren nach</string>
       <string id="AppLockTimeoutMinutes_Explain">Wie viele Minuten ohne Nutzung die App entsperrt bleibt. Von 1 bis 1440.</string>
+      <string id="AppLockPinMinLength">Mindestlänge der PIN für die App-Sperre</string>
+      <string id="AppLockPinMinLength_Explain">Wie viele Zeichen eine neue PIN für die App-Sperre mindestens haben muss. Von 5 bis 64. Wenn nicht konfiguriert, sind es 5. Eine zuvor festgelegte PIN funktioniert weiter, bis sie geändert wird.</string>
+      <string id="AppLockHelloAllowed">Entsperren der App mit Windows Hello erlauben</string>
+      <string id="AppLockHelloAllowed_Explain">Wenn aktiviert oder nicht konfiguriert, können Benutzer die App-Sperre außer mit ihrer PIN auch mit Windows Hello aufheben. Wenn deaktiviert, wird die Option ausgeblendet, und Windows Hello entsperrt die App auch dort nicht mehr, wo es eingerichtet war: Dann ist die PIN nötig. Nur unter Windows.</string>
       <string id="TelemetryAllowed">Nutzungsstatistiken zulassen</string>
       <string id="TelemetryAllowed_Explain">Wenn deaktiviert, sendet die App keine Nutzungsstatistiken und fragt nicht danach. Wenn aktiviert oder nicht konfiguriert, fragt sie den Benutzer trotzdem zuerst.</string>
       <string id="CrashReportsAllowed">Absturzberichte zulassen</string>
@@ -75,6 +79,8 @@
       <string id="FilesFolderSyncEnabled_Explain">Wenn aktiviert oder nicht konfiguriert, können Benutzer einen Ordner auf dem Computer und einen Ordner in Dateien in beide Richtungen gleich halten. Wenn deaktiviert, wird dies nicht angeboten, und Ordner, die gerade synchronisiert werden, hören damit auf. Die Dateien in diesen Ordnern bleiben, wo sie sind.</string>
       <string id="FilesDriveLetter">Laufwerksbuchstabe für Dateien</string>
       <string id="FilesDriveLetter_Explain">Nur unter Windows. Ein Buchstabe von D bis Z gibt dem Laufwerk Dateien für jeden Benutzer diesen Buchstaben, und Benutzer können ihn nicht ändern. Geben Sie none ein, damit es nie einen Buchstaben bekommt. Wenn nicht konfiguriert, wählen Benutzer in den Einstellungen, und bis dahin gibt es keinen Buchstaben. Ein Wert, den die App nicht lesen kann, gilt als none.</string>
+      <string id="ComposeInNewWindow">Nachrichten in einem neuen Fenster schreiben</string>
+      <string id="ComposeInNewWindow_Explain">Wenn aktiviert, öffnet sich jede neue Nachricht, Antwort, Weiterleitung und jeder Entwurf in einem eigenen Fenster statt im Hauptfenster. Wenn deaktiviert, öffnen sie sich im Hauptfenster, und „In neuem Fenster öffnen“ verschiebt sie weiterhin in ein eigenes Fenster. Erzwungen ist die Einstellung gesperrt. Als Empfehlung ist es der Anfangswert der Einstellung in den Einstellungen, den Benutzer ändern können. Wenn nicht konfiguriert, ist die Einstellung aus, bis der Benutzer sie einschaltet.</string>
     </stringTable>
     <presentationTable>
       <presentation id="InstanceUrl"><textBox refId="InstanceUrl_Value"><label>Adresse des Bulwark-Servers</label></textBox></presentation>
@@ -86,6 +92,7 @@
       <presentation id="PluginAllowlist"><listBox refId="PluginAllowlist_Value">Plugin-IDs</listBox></presentation>
       <presentation id="AppLockTimeoutMinutes"><decimalTextBox refId="AppLockTimeoutMinutes_Value" defaultValue="10">Minuten</decimalTextBox></presentation>
       <presentation id="AppLockTimeoutMinutes_Recommended"><decimalTextBox refId="AppLockTimeoutMinutes_Recommended_Value" defaultValue="10">Minuten</decimalTextBox></presentation>
+      <presentation id="AppLockPinMinLength"><decimalTextBox refId="AppLockPinMinLength_Value" defaultValue="8">Zeichen</decimalTextBox></presentation>
       <presentation id="QuickComposeShortcut"><textBox refId="QuickComposeShortcut_Value"><label>Tastenkombination</label></textBox></presentation>
       <presentation id="QuickComposeShortcut_Recommended"><textBox refId="QuickComposeShortcut_Recommended_Value"><label>Tastenkombination</label></textBox></presentation>
       <presentation id="AuthServerAllowlist"><textBox refId="AuthServerAllowlist_Value"><label>Server</label></textBox></presentation>

@@ -214,6 +214,7 @@ const ENTRIES: SettingSchemaEntry[] = [
   ]),
   bool('tintListRowsByTag', 'message_list', `${AP}tint_list_rows.label`),
   bool('showVerificationCodes', 'message_list', `${EB}show_verification_codes.label`),
+  bool('showAttachmentChips', 'message_list', `${EB}show_attachment_chips.label`),
   // Both make the server fetch the sender's domain: the assistant may only switch them off.
   bool('senderFavicons', 'privacy', 'settings.advanced.sender_favicons.label', { thirdParty: true, only: false }),
   bool('showAvatarsInJunk', 'privacy', 'settings.advanced.show_avatars_in_junk.label', { thirdParty: true, only: false }),
@@ -249,8 +250,6 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('returnToListAfterAction', 'reading', `${EB}return_to_list_after_action.label`),
   choice('messageSpacing', 'reading', `${EB}message_spacing.label`, opts(`${EB}message_spacing.`, ['auto', 'always', 'edge'])),
   bool('emailAlwaysLightMode', 'reading', `${EB}always_light_mode.label`),
-  choice('attachmentPosition', 'reading', `${EB}attachment_position.label`,
-    opts(`${EB}attachment_position.`, ['below-header', 'below-message'])),
   choice('mailAttachmentAction', 'reading', `${EB}attachment_click_action.label`,
     opts(`${EB}attachment_click_action.`, ['preview', 'download'])),
   bool('attachmentImagePreviewsEnabled', 'reading', `${EB}attachment_image_previews.label`),
@@ -271,6 +270,7 @@ const ENTRIES: SettingSchemaEntry[] = [
   choice('mentionAddsRecipientTo', 'composing', `${EB}mention_adds_recipient.label`,
     opts(`${EB}mention_adds_recipient.`, ['to', 'cc', 'off'])),
   bool('rtlEditingSupport', 'composing', `${EB}rtl_editing.label`),
+  bool('replyUnderMessage', 'composing', `${EB}reply_under_message.label`),
   bool('quickReplyEnabled', 'composing', `${EB}quick_reply.label`),
   bool('autoSelectReplyIdentity', 'composing', 'compose_words.reply_from_received.label'),
   // The page shows it only while the composer may rewrite From.
@@ -429,10 +429,10 @@ export const DENIED_SETTINGS: readonly string[] = [
   // A browser voice id the model can't know.
   'readAloudVoice',
   // Maps and lists keyed by server ids.
-  'allMailFolderIds', 'hiddenSharedMailAccounts', 'notificationMutes', 'hiddenCompanyCalendars', 'sharedCalendarColors',
+  'allMailFolderIds', 'hiddenSharedMailAccounts', 'sharedMailAccountOrder', 'notificationMutes', 'hiddenCompanyCalendars', 'sharedCalendarColors',
   'folderIcons', 'folderCountModes', 'preferredIdentityIds',
   // App bookkeeping and UI state, not preferences.
-  'onboardingCompleted', 'tourCompleted', 'mvUnreadSectionCollapsed', 'mvEverythingElseCollapsed',
+  'onboardingCompleted', 'tourCompleted', 'emailKeywordsChoiceTracked', 'mvUnreadSectionCollapsed', 'mvEverythingElseCollapsed',
   'vacationCalendarBlocks', 'explicitSettings', 'proofreadingNoticeSeen',
   // Security, debugging and sync.
   'sessionTimeout', 'debugMode', 'debugCategories', 'settingsSyncDisabled',
@@ -455,6 +455,8 @@ export const DENIED_SETTINGS: readonly string[] = [
 export const NOT_YET_SETTINGS: readonly string[] = [
   'messageListOrder', 'filesSettings', 'activeThemeId', 'birthdayCalendarColor', 'vacationBlockCalendar',
   'writingLanguage', 'calendarNarrowWeekAllDays',
+  // A plugin's print style: offered only while that plugin runs.
+  'printTheme',
 ];
 
 /** Line breaks, tabs and other control characters. */
