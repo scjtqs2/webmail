@@ -22,6 +22,7 @@
       "totp_required": "需要双重验证代码。请在下方输入验证码。",
       "totp_invalid": "验证码无效。请检查您的身份验证器应用，然后重试。",
       "oauth_discovery_failed": "SSO 已启用，但无法访问身份提供者。检查您的 OAuth 配置。",
+      "oauth_issuer_mismatch": "通过此身份提供者登录的配置不正确。管理员需要设置其颁发者（issuer）地址。",
       "token_exchange_failed": "密码和验证码已通过，但邮件服务器拒绝为此应用建立会话。请联系管理员检查其 OAuth 客户端设置。"
     },
     "show_password": "显示密码",
@@ -338,6 +339,14 @@
     "show_on_mobile": "在手机上显示"
   },
   "email_list": {
+    "date_groups": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "last_week": "上周",
+      "last_month": "上个月",
+      "older": "更早"
+    },
+    "group_by_date": "按日期分组",
     "sections": {
       "unread": "未读",
       "everything_else": "其他所有邮件",
@@ -2097,6 +2106,10 @@
         "label": "在列表中显示附件",
         "description": "在每封邮件下方显示附件，方便直接从列表中打开。回形针图标始终显示。"
       },
+      "show_tag_chips": {
+        "label": "在列表中显示标签",
+        "description": "在邮件列表中于发件人或主题旁显示标签"
+      },
       "plain_text_mode": {
         "label": "仅纯文本",
         "description": "禁用富文本编辑器，并将所有邮件（包括回复和转发）以纯文本发送"
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "从右到左编辑支持",
         "description": "在编辑器工具栏中添加方向按钮，可将段落设置为从左到右或从右到左"
+      },
+      "group_by_date": {
+        "label": "按日期分组",
+        "description": "在“今天”“昨天”“上周”等日期标题下显示邮件。仅在列表按日期排序时适用。"
       },
       "group_conversations": {
         "label": "按会话分组邮件",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "统一视图中无法使用搜索"
   },
+  "account_routing": {
+    "group_members_one_account": "一个群组只能包含同一账户的联系人。",
+    "link_names_no_account": "此链接没有指出邮件所在的账户，因此未打开。",
+    "group_member_gone": "所选的其中一位联系人已不存在。请重新选择成员。",
+    "invitation_other_account": "此邀请在另一个账户中。请切换到该账户再回复或添加到日历。",
+    "tab_names_no_account": "此标签页保存时没有记下所属账户，因此未打开。请关闭它，再从所属账户重新打开。"
+  },
   "mail_import": {
     "menu_import": "导入邮件…",
     "settings_label": "导入邮件",
@@ -6833,6 +6857,10 @@
         "title": "连接其他网站",
         "body": "向以下网站发送请求。插件能读取的任何内容都可能被发送到这些网站："
       },
+      "links_check": {
+        "title": "检查您打开的链接",
+        "body": "查看您打开的每个网页链接及其文字，并可阻止打开或改为打开另一个地址。"
+      },
       "admin_config": {
         "title": "读取管理员为其保存的设置",
         "body": "读取管理员为此插件保存的设置。"
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "显示通知",
-        "body": "在您的设备上显示通知；如果您未允许通知，则在应用内显示。每条通知都会注明插件名称。"
+        "body": "在您的设备上显示通知；如果您未允许通知，则在应用内显示。每条通知都会注明插件名称。插件还能看到应用向您显示的提示。"
       },
       "ui_message_list": {
         "title": "添加到邮件列表",
@@ -7089,6 +7117,14 @@
     "not_available_title": "此页面不可用",
     "not_available_description": "添加此页面的插件已关闭或已不再安装。",
     "back_to_mail": "返回邮件"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "来自插件 {name} 的列表",
+    "dropdown_list_labelled": "{label},来自插件 {name} 的列表",
+    "oauth_failed": "该服务未完成登录。请关闭此窗口后重试。",
+    "banners_more": "更多横幅（{count}）：{names}",
+    "banners_fewer": "收起横幅",
+    "opened_by_plugin": "由插件 {name} 打开"
   },
   "command_palette": {
     "title": "命令面板",
@@ -7291,6 +7327,14 @@
       "added_from": "添加自 {domain} 发来的邮件",
       "added_from_subject": "添加自 {domain} 发来的邮件“{subject}”"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "此取消通知由 {sender} 发送，但你日历中此活动的组织者是 {organizer}。只有组织者才能取消活动。如果你信任这封邮件，请自行删除。",
+    "cancel_unverified": "无法确认此取消通知来自组织者。如果你信任这封邮件，请自行删除该活动。",
+    "card_sender": "来自 {domain}",
+    "card_sender_title": "此邮件已通过邮件服务器对 {domain} 的发件人检查。",
+    "outside_link": "其他网站",
+    "outside_link_title": "此链接指向 {host}，不在发件人的域名 {domain} 之内。"
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "你通过模拟登录打开了 {mailbox}。",
     "return_button": "返回我的账户"
+  },
+  "admin_access": {
+    "label": "此服务器的超级用户可以打开管理面板",
+    "help": "此服务器的超级用户无需管理员密码即可登录管理面板，与主 JMAP 服务器的超级用户相同。仅对你自己运营的服务器开启。"
   }
 }

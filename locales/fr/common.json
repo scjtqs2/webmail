@@ -22,6 +22,7 @@
       "totp_required": "Un code d'authentification à deux facteurs est requis. Veuillez saisir votre code ci-dessous.",
       "totp_invalid": "Code d'authentification invalide. Vérifiez votre application d'authentification.",
       "oauth_discovery_failed": "Le SSO est activé mais le fournisseur d'identité est injoignable. Vérifiez votre configuration OAuth.",
+      "oauth_issuer_mismatch": "La connexion avec ce fournisseur n'est pas configurée correctement. L'administrateur doit définir son adresse d'émetteur (issuer).",
       "token_exchange_failed": "Votre mot de passe et votre code ont été acceptés, mais le serveur de messagerie a refusé d'ouvrir une session pour cette application. Demandez à votre administrateur de vérifier les paramètres de son client OAuth."
     },
     "show_password": "Afficher le mot de passe",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Afficher sur mobile"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "last_week": "La semaine dernière",
+      "last_month": "Le mois dernier",
+      "older": "Plus anciens"
+    },
+    "group_by_date": "Regrouper par date",
     "sections": {
       "unread": "Non lus",
       "everything_else": "Tout le reste",
@@ -2144,6 +2153,10 @@
         "label": "Afficher les pièces jointes dans la liste",
         "description": "Afficher les fichiers joints sous chaque message pour les ouvrir directement depuis la liste. Le trombone reste affiché dans tous les cas."
       },
+      "show_tag_chips": {
+        "label": "Afficher les étiquettes dans la liste",
+        "description": "Afficher les étiquettes à côté de l'expéditeur ou de l'objet dans la liste des messages"
+      },
       "attachment_click_action": {
         "label": "Action au clic sur les pièces jointes",
         "description": "Choisissez si un clic sur une pièce jointe ouvre un aperçu ou lance immédiatement le téléchargement",
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "Prise en charge de la saisie de droite à gauche",
         "description": "Ajoute un bouton de direction à la barre d'outils de l'éditeur pour mettre les paragraphes de gauche à droite ou de droite à gauche"
+      },
+      "group_by_date": {
+        "label": "Regrouper par date",
+        "description": "Affiche les messages sous des en-têtes de date comme Aujourd'hui, Hier et La semaine dernière. Ne s'applique que lorsque la liste est triée par date."
       },
       "group_conversations": {
         "label": "Grouper les messages par conversation",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "La recherche n'est pas disponible dans la vue unifiée"
   },
+  "account_routing": {
+    "group_members_one_account": "Un groupe ne peut contenir que des contacts d'un seul compte.",
+    "link_names_no_account": "Ce lien n'indique pas dans quel compte se trouve le message, il n'a donc pas été ouvert.",
+    "group_member_gone": "L'un des contacts choisis n'existe plus. Choisissez à nouveau les membres.",
+    "invitation_other_account": "Cette invitation se trouve dans un autre compte. Passez à ce compte pour y répondre ou l'ajouter à un calendrier.",
+    "tab_names_no_account": "Cet onglet a été enregistré sans son compte, il n'a donc pas été ouvert. Fermez-le et rouvrez-le depuis le compte auquel il appartient."
+  },
   "mail_import": {
     "menu_import": "Importer des e-mails…",
     "settings_label": "Importer des e-mails",
@@ -6833,6 +6857,10 @@
         "title": "Se connecter à d'autres sites web",
         "body": "Envoyer des requêtes à ces sites. Tout ce que le plugin peut lire peut y être envoyé :"
       },
+      "links_check": {
+        "title": "Vérifier les liens que vous ouvrez",
+        "body": "Voir chaque lien web que vous ouvrez, avec son texte, et le bloquer ou ouvrir une autre adresse à la place."
+      },
       "admin_config": {
         "title": "Lire ses paramètres définis par votre administrateur",
         "body": "Lire les paramètres que votre administrateur a enregistrés pour ce plugin."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Afficher des notifications",
-        "body": "Afficher des notifications sur votre appareil, ou dans l'application si vous ne les avez pas autorisées. Chacune indique le nom du plugin."
+        "body": "Afficher des notifications sur votre appareil, ou dans l'application si vous ne les avez pas autorisées. Chacune indique le nom du plugin. Le plugin voit aussi les notifications que l'application vous affiche."
       },
       "ui_message_list": {
         "title": "Ajouter à la liste des messages",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Cette page n'est pas disponible",
     "not_available_description": "Le plugin qui l'a ajoutée est désactivé ou n'est plus installé.",
     "back_to_mail": "Retour aux emails"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Liste du plugin {name}",
+    "dropdown_list_labelled": "{label}, liste du plugin {name}",
+    "oauth_failed": "Le service n'a pas terminé la connexion. Fermez cette fenêtre et réessayez.",
+    "banners_more": "Autres bannières ({count}) : {names}",
+    "banners_fewer": "Moins de bannières",
+    "opened_by_plugin": "Ouvert par le plugin {name}"
   },
   "command_palette": {
     "title": "Palette de commandes",
@@ -7291,6 +7327,14 @@
       "added_from": "Ajouté depuis un e-mail de {domain}",
       "added_from_subject": "Ajouté depuis l’e-mail « {subject} » de {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Cette annulation a été envoyée depuis {sender}, mais l'organisateur de cet événement dans votre calendrier est {organizer}. Seul l'organisateur peut l'annuler. Supprimez-le vous-même si vous faites confiance à ce message.",
+    "cancel_unverified": "Impossible de vérifier que cette annulation vient de l'organisateur. Supprimez l'événement vous-même si vous faites confiance à ce message.",
+    "card_sender": "de {domain}",
+    "card_sender_title": "Ce message a réussi la vérification de l'expéditeur du serveur de messagerie pour {domain}.",
+    "outside_link": "Autre site",
+    "outside_link_title": "Ce lien mène à {host}, en dehors de {domain}, le domaine de l'expéditeur."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Vous avez ouvert {mailbox} par usurpation d'identité.",
     "return_button": "Revenir à mon compte"
+  },
+  "admin_access": {
+    "label": "Les superutilisateurs de ce serveur peuvent ouvrir le tableau de bord d’administration",
+    "help": "Les superutilisateurs de ce serveur se connectent au tableau de bord d’administration sans le mot de passe administrateur, comme ceux du serveur JMAP principal. N’activez cette option que pour un serveur que vous gérez vous-même."
   }
 }

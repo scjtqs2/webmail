@@ -4,9 +4,10 @@ import { JMAPClient, RateLimitError, RequestTimeoutError } from '@/lib/jmap/clie
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { useIdentityStore } from './identity-store';
 import { setClientLookup } from './client-registry';
-import { useContactStore } from './contact-store';
+import { forgetLoginContacts, useContactStore } from './contact-store';
 import { useVacationStore } from './vacation-store';
-import { subscriptionOwner, useCalendarStore } from './calendar-store';
+import { forgetLoginCalendars, subscriptionOwner, useCalendarStore } from './calendar-store';
+import { forgetLoginTasks } from './task-store';
 import { useFilterStore } from './filter-store';
 import { useSettingsStore } from './settings-store';
 import { useAccountStore, type AccountEntry, type AccountRemovalReason } from './account-store';
@@ -112,8 +113,8 @@ interface AuthState {
    * the server stops accepting it, the user signs in again.
    */
   loginWithToken: (serverUrl: string, token: string, rememberMe?: boolean) => Promise<boolean>;
-  loginWithOAuth: (serverUrl: string, code: string, codeVerifier: string, redirectUri: string, serverId?: string) => Promise<boolean>;
-  loginWithServerSso: (code: string, state: string) => Promise<boolean>;
+  loginWithOAuth: (serverUrl: string, code: string, codeVerifier: string, redirectUri: string, serverId?: string, iss?: string) => Promise<boolean>;
+  loginWithServerSso: (code: string, state: string, iss?: string) => Promise<boolean>;
   /**
    * The desktop app on an instance: the one-time code from its browser sign-in, with the
    * verifier it kept. `blocked` is the device's own list of servers saying no.
@@ -523,8 +524,9 @@ async function exchangeOAuthCode(params: {
   slot: number;
   serverId?: string;
   remember: boolean;
+  iss?: string;
 }): Promise<Response> {
-  const { serverUrl, code, codeVerifier, redirectUri, slot, serverId, remember } = params;
+  const { serverUrl, code, codeVerifier, redirectUri, slot, serverId, remember, iss } = params;
   if (!IS_LITE) {
     return apiFetch(`/api/auth/token?slot=${slot}`, {
       method: 'POST',
@@ -535,6 +537,7 @@ async function exchangeOAuthCode(params: {
         redirect_uri: redirectUri,
         slot,
         ...(serverId ? { server_id: serverId } : {}),
+        ...(iss ? { iss } : {}),
         remember,
         // The desktop app signs in to a server only it knows about.
         ...(IS_DESKTOP_BUILD ? { custom_server_url: serverUrl, client_id: sessionStorage.getItem(DESKTOP_CLIENT_ID_KEY) } : {}),
@@ -884,6 +887,21 @@ const refusedAtConnect = new Set<string>();
 const ACCOUNT_REFUSED = 'account_refused';
 const endingRefused = new Set<string>();
 
+/**
+ * A login that is removed, or has no client for longer: its mail rows, cards,
+ * calendars, events and tasks leave the lists. Ids repeat across logins, so
+ * nothing done to them could go anywhere but to another login's namesakes.
+ * Views that hold one of its messages or folders themselves (Pro tabs) look
+ * up their login's client again on the revision and show nothing of it.
+ */
+function forgetLoginRows(accountId: string, activeClient: IJMAPClient | null): void {
+  forgetAccountRows(accountId, activeClient);
+  forgetLoginContacts(accountId);
+  forgetLoginCalendars(accountId);
+  forgetLoginTasks(accountId);
+  useAuthStore.setState((state) => ({ connectedAccountsRevision: state.connectedAccountsRevision + 1 }));
+}
+
 /** A client that's connected: what the server said on the way there is over. */
 function holdClient(accountId: string, client: JMAPClient): void {
   clients.set(accountId, client);
@@ -994,13 +1012,35 @@ function bindClientStatusHandlers(
   });
 }
 
+/**
+ * Whether the browser-local default sender identity was chosen for the
+ * account `owns` picks. Identity ids repeat across accounts, so another
+ * account's "c" is any identity here (#1644). A value kept from before its
+ * account was recorded counts only while one login is in the browser.
+ */
+function localPreferredIdentityBelongsTo(owns: (account: Pick<AccountEntry, 'id' | 'username'>) => boolean): boolean {
+  const owner = useIdentityStore.getState().preferredPrimaryAccountId;
+  const accounts = useAccountStore.getState().accounts;
+  if (owner) {
+    const entry = accounts.find((a) => a.id === owner);
+    return owns(entry ?? { id: owner, username: '' });
+  }
+  return accounts.every(owns);
+}
+
 function loadIdentities(rawIdentities: Identity[], username: string): { identities: Identity[]; primaryIdentity: Identity | null } {
   // The synced per-account default sender identity (#507) is keyed by
   // AccountEntry.id and re-applied by applyPreferredIdentity() once
   // loadFromServer resolves (the accountId isn't known here). At load time we
   // only honour the browser-local fallback (identity-storage) so the ordering
-  // is stable before - or entirely without - settings sync.
-  const preferredPrimaryId = useIdentityStore.getState().preferredPrimaryId;
+  // is stable before - or entirely without - settings sync. It is honoured
+  // only for the account it was chosen for, and dropped for any other.
+  const login = username.trim().toLowerCase();
+  let preferredPrimaryId = useIdentityStore.getState().preferredPrimaryId;
+  if (preferredPrimaryId && !localPreferredIdentityBelongsTo((a) => a.username.trim().toLowerCase() === login)) {
+    preferredPrimaryId = null;
+    useIdentityStore.getState().setPreferredPrimary(null);
+  }
 
   const identities = sortIdentities(rawIdentities, username);
 
@@ -1065,7 +1105,9 @@ export function applyPreferredIdentity(accountId?: string | null): void {
   // it follows the user across devices.
   if (!preferred) {
     const legacy = idStore.preferredPrimaryId;
-    if (legacy) {
+    // Only the account the local value was chosen for: another account's
+    // id names some other identity here, often an alias (#1644).
+    if (legacy && localPreferredIdentityBelongsTo((a) => a.id === targetId)) {
       preferred = legacy;
       const current = useSettingsStore.getState().preferredIdentityIds;
       useSettingsStore.getState().updateSetting('preferredIdentityIds', { ...current, [targetId]: legacy }, { internal: true });
@@ -1073,7 +1115,7 @@ export function applyPreferredIdentity(accountId?: string | null): void {
   }
   if (!preferred) return;
 
-  idStore.setPreferredPrimary(preferred);
+  idStore.setPreferredPrimary(preferred, targetId);
   const ids = [...idStore.identities];
   const idx = ids.findIndex((i) => i.id === preferred);
   if (idx > 0) {
@@ -1082,6 +1124,19 @@ export function applyPreferredIdentity(accountId?: string | null): void {
     idStore.setIdentities(ids);
   }
   useAuthStore.setState({ identities: ids, primaryIdentity: ids[0] ?? null });
+  syncAccountEmail(targetId, ids[0]);
+}
+
+/**
+ * The account switcher and the sidebar header show the account's address,
+ * taken from its default identity at sign-in; it follows a new default
+ * (#1644).
+ */
+function syncAccountEmail(accountId: string, primary: Identity | null | undefined): void {
+  const email = primary?.email?.trim();
+  if (!email) return;
+  const entry = useAccountStore.getState().getAccountById(accountId);
+  if (entry && entry.email !== email) useAccountStore.getState().updateAccount(accountId, { email });
 }
 
 function getLocaleLoginPath(): string {
@@ -2300,7 +2355,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      loginWithOAuth: async (serverUrl, code, codeVerifier, redirectUri, serverId) => {
+      loginWithOAuth: async (serverUrl, code, codeVerifier, redirectUri, serverId, iss) => {
         set({ isLoading: true, error: null, isRateLimited: false, rateLimitUntil: null });
 
         // Lite: the slot whose refresh token this attempt wrote, until the
@@ -2326,7 +2381,7 @@ export const useAuthStore = create<AuthState>()(
           // The login page parks "Remember me" here when the box is offered.
           const remember = typeof window === 'undefined' || sessionStorage.getItem('oauth_remember') !== 'false';
 
-          const tokenRes = await exchangeOAuthCode({ serverUrl, code, codeVerifier, redirectUri, slot, serverId, remember });
+          const tokenRes = await exchangeOAuthCode({ serverUrl, code, codeVerifier, redirectUri, slot, serverId, remember, iss });
 
           if (!tokenRes.ok) {
             throw new Error('token_exchange_failed');
@@ -2469,7 +2524,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      loginWithServerSso: async (code, state) => {
+      loginWithServerSso: async (code, state, iss) => {
         set({ isLoading: true, error: null, isRateLimited: false, rateLimitUntil: null });
 
         try {
@@ -2488,7 +2543,7 @@ export const useAuthStore = create<AuthState>()(
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
-              body: JSON.stringify({ code, state, slot }),
+              body: JSON.stringify({ code, state, slot, ...(iss ? { iss } : {}) }),
             }).then((res) => noteSessionAnswer(res, slot)),
             fetchConfig(),
           ]);
@@ -2885,7 +2940,7 @@ export const useAuthStore = create<AuthState>()(
         });
         clients.delete(accountId);
         evictAccount(accountId);
-        forgetAccountRows(accountId, get().client);
+        forgetLoginRows(accountId, get().client);
         accountStore.removeAccount(accountId, reason);
         clearDesktopCertificateChoices({ account: accountId });
         forgetPrincipals(accountId);
@@ -3835,6 +3890,7 @@ export const useAuthStore = create<AuthState>()(
         const { activeAccountId, client } = get();
         if (activeAccountId && client) {
           void syncAccountDisplayName(activeAccountId, client, primaryIdentity?.name);
+          syncAccountEmail(activeAccountId, primaryIdentity);
         }
       },
 
@@ -3969,10 +4025,17 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           skipLocalCopy = false;
         }
-        return offline.every(([id]) => {
+        const swapped = offline.every(([id]) => {
           const client = clients.get(id);
           return !!client && !client.isOfflineOnly();
         });
+        // A login that came back without a client is gone from here on: its
+        // rows and views go, as when it is removed.
+        const { activeAccountId, client: activeClient } = get();
+        for (const [id] of offline) {
+          if (!clients.has(id) && id !== activeAccountId) forgetLoginRows(id, activeClient);
+        }
+        return swapped;
       },
     }),
     {
@@ -4066,6 +4129,9 @@ export function applyDesktopServerPolicy(): void {
       clients.delete(id);
     }
     useAccountStore.getState().updateAccount(id, { isConnected: false });
+    // Its rows and its folder on screen go, as when it is removed: with no
+    // client, nothing done to them could reach its server.
+    if (id !== auth.activeAccountId) forgetLoginRows(id, auth.client);
   }
   const returned = [...refusedAccounts].filter((id) => !plan.refused.includes(id));
   refusedAccounts = new Set(plan.refused);

@@ -21,6 +21,7 @@
       "generic": "Notikusi neparedzēta kļūda. Ja tā atkārtojas, sazinieties ar administratoru.",
       "totp_invalid": "Nepareizs autentifikācijas kods. Pārbaudiet lietotni un mēģiniet vēlreiz.",
       "oauth_discovery_failed": "SSO ir iespējots, bet autentifikācijas pakalpojums nav pieejams. Pārbaudiet OAuth iestatījumus.",
+      "oauth_issuer_mismatch": "Pieteikšanās ar šo pakalpojumu sniedzēju nav pareizi iestatīta. Administratoram jānorāda tā izdevēja (issuer) adrese.",
       "token_exchange_failed": "Parole un kods tika pieņemti, taču pasta serveris atteicās sākt sesiju šai lietotnei. Lūdziet administratoram pārbaudīt OAuth klienta iestatījumus.",
       "totp_required": "Nepieciešams divu faktoru autentifikācijas kods. Lūdzu, ievadiet kodu zemāk."
     },
@@ -338,6 +339,14 @@
     "show_on_mobile": "Rādīt mobilajā ierīcē"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Šodien",
+      "yesterday": "Vakar",
+      "last_week": "Pagājušajā nedēļā",
+      "last_month": "Pagājušajā mēnesī",
+      "older": "Vecākas"
+    },
+    "group_by_date": "Grupēt pēc datuma",
     "sections": {
       "unread": "Nelasītie",
       "everything_else": "Viss pārējais",
@@ -2144,6 +2153,10 @@
         "label": "Rādīt pielikumus sarakstā",
         "description": "Rādīt pievienotos failus zem katras vēstules, lai tos varētu atvērt tieši no saraksta. Saspraudes ikona tiek rādīta jebkurā gadījumā."
       },
+      "show_tag_chips": {
+        "label": "Rādīt birkas sarakstā",
+        "description": "Rādīt birkas blakus sūtītājam vai tematam ziņojumu sarakstā"
+      },
       "attachment_click_action": {
         "label": "Darbība, noklikšķinot uz pielikuma",
         "description": "Izvēlieties priekšskatījumu vai tūlītēju lejupielādi",
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "Rakstīšanas no labās uz kreiso atbalsts",
         "description": "Pievieno redaktora rīkjoslai virziena pogu, ar kuru rindkopas var iestatīt no kreisās uz labo vai no labās uz kreiso"
+      },
+      "group_by_date": {
+        "label": "Grupēt pēc datuma",
+        "description": "Rādīt ziņojumus zem datuma virsrakstiem, piemēram, Šodien, Vakar un Pagājušajā nedēļā. Attiecas tikai tad, ja saraksts ir kārtots pēc datuma."
       },
       "group_conversations": {
         "label": "Grupēt ziņas pēc sarunas",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "Meklēšana nav pieejama apvienotajā skatā"
   },
+  "account_routing": {
+    "group_members_one_account": "Grupā var būt tikai viena konta kontakti.",
+    "link_names_no_account": "Šī saite nenorāda, kurā kontā ir ziņojums, tāpēc tā netika atvērta.",
+    "group_member_gone": "Viens no izvēlētajiem kontaktiem vairs nepastāv. Izvēlieties dalībniekus vēlreiz.",
+    "invitation_other_account": "Šis uzaicinājums ir citā kontā. Pārslēdzieties uz to kontu, lai uz to atbildētu vai pievienotu to kalendāram.",
+    "tab_names_no_account": "Šī cilne tika saglabāta bez sava konta, tāpēc tā netika atvērta. Aizveriet to un atveriet vēlreiz no konta, kuram tā pieder."
+  },
   "mail_import": {
     "menu_import": "Importēt pastu…",
     "settings_label": "Importēt pastu",
@@ -6833,6 +6857,10 @@
         "title": "Savienoties ar citām vietnēm",
         "body": "Sūtīt pieprasījumus uz šīm vietnēm. Uz turieni var nosūtīt visu, ko spraudnis var nolasīt:"
       },
+      "links_check": {
+        "title": "Pārbaudīt saites, ko atverat",
+        "body": "Redzēt katru tīmekļa saiti, ko atverat, kopā ar tās tekstu, un apturēt to vai tās vietā atvērt citu adresi."
+      },
       "admin_config": {
         "title": "Lasīt savus iestatījumus no administratora",
         "body": "Lasīt iestatījumus, ko jūsu administrators saglabājis šim spraudnim."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Rādīt paziņojumus",
-        "body": "Rādīt paziņojumus jūsu ierīcē vai lietotnē, ja neesat tos atļāvis. Katrā ir spraudņa nosaukums."
+        "body": "Rādīt paziņojumus jūsu ierīcē vai lietotnē, ja neesat tos atļāvis. Katrā ir spraudņa nosaukums. Spraudnis redz arī paziņojumus, ko jums rāda lietotne."
       },
       "ui_message_list": {
         "title": "Papildināt vēstuļu sarakstu",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Šī lapa nav pieejama",
     "not_available_description": "Spraudnis, kas to pievienoja, ir izslēgts vai vairs nav instalēts.",
     "back_to_mail": "Atgriezties pie pasta"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Saraksts no spraudņa {name}",
+    "dropdown_list_labelled": "{label}, saraksts no spraudņa {name}",
+    "oauth_failed": "Pakalpojums nepabeidza pierakstīšanos. Aizveriet šo logu un mēģiniet vēlreiz.",
+    "banners_more": "Vairāk reklāmjoslu ({count}): {names}",
+    "banners_fewer": "Mazāk reklāmjoslu",
+    "opened_by_plugin": "Atvēra spraudnis {name}"
   },
   "command_palette": {
     "title": "Komandu palete",
@@ -7291,6 +7327,14 @@
       "added_from": "Pievienots no {domain} e-pasta",
       "added_from_subject": "Pievienots no {domain} e-pasta “{subject}”"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Šo atcelšanu nosūtīja {sender}, bet pasākuma organizators jūsu kalendārā ir {organizer}. Atcelt to var tikai organizators. Ja uzticaties šim ziņojumam, noņemiet to pats.",
+    "cancel_unverified": "Neizdevās pārbaudīt, vai šī atcelšana nāk no organizatora. Ja uzticaties šim ziņojumam, noņemiet pasākumu pats.",
+    "card_sender": "no {domain}",
+    "card_sender_title": "Šis ziņojums izturēja pasta servera sūtītāja pārbaudi domēnam {domain}.",
+    "outside_link": "Cita vietne",
+    "outside_link_title": "Šī saite ved uz {host}, ārpus sūtītāja domēna {domain}."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Jūs atvērāt {mailbox}, uzdodoties par lietotāju.",
     "return_button": "Atgriezties manā kontā"
+  },
+  "admin_access": {
+    "label": "Šī servera superlietotāji var atvērt administrēšanas paneli",
+    "help": "Šī servera superlietotāji piesakās administrēšanas panelī bez administratora paroles, tāpat kā galvenā JMAP servera superlietotāji. Ieslēdziet to tikai serverim, ko uzturat paši."
   }
 }

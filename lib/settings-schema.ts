@@ -203,6 +203,7 @@ const ENTRIES: SettingSchemaEntry[] = [
 
   // --- Message list ---
   bool('disableThreading', 'message_list', `${EB}group_conversations.label`, { inverted: true }),
+  bool('groupListByDate', 'message_list', `${EB}group_by_date.label`),
   bool('showPreview', 'message_list', `${EB}show_preview.label`),
   bool('listColumns', 'message_list', `${EB}list_columns.label`),
   choice('mvInboxType', 'message_list', `${EB}inbox_type.label`,
@@ -215,6 +216,7 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('tintListRowsByTag', 'message_list', `${AP}tint_list_rows.label`),
   bool('showVerificationCodes', 'message_list', `${EB}show_verification_codes.label`),
   bool('showAttachmentChips', 'message_list', `${EB}show_attachment_chips.label`),
+  bool('showTagChips', 'message_list', `${EB}show_tag_chips.label`),
   // Both make the server fetch the sender's domain: the assistant may only switch them off.
   bool('senderFavicons', 'privacy', 'settings.advanced.sender_favicons.label', { thirdParty: true, only: false }),
   bool('showAvatarsInJunk', 'privacy', 'settings.advanced.show_avatars_in_junk.label', { thirdParty: true, only: false }),

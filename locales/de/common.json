@@ -22,6 +22,7 @@
       "totp_required": "Ein Zwei-Faktor-Authentifizierungscode ist erforderlich. Bitte geben Sie Ihren Code unten ein.",
       "totp_invalid": "Ungültiger Authentifizierungscode. Überprüfen Sie Ihre Authenticator-App.",
       "oauth_discovery_failed": "SSO ist aktiviert, aber der Identitätsanbieter ist nicht erreichbar. Überprüfen Sie Ihre OAuth-Konfiguration.",
+      "oauth_issuer_mismatch": "Die Anmeldung über diesen Anbieter ist nicht richtig eingerichtet. Die Administration muss seine Issuer-Adresse eintragen.",
       "token_exchange_failed": "Passwort und Code wurden akzeptiert, aber der Mailserver hat für diese App keine Sitzung gestartet. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen."
     },
     "show_password": "Passwort anzeigen",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Auf Mobilgerät anzeigen"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "last_week": "Letzte Woche",
+      "last_month": "Letzten Monat",
+      "older": "Älter"
+    },
+    "group_by_date": "Nach Datum gruppieren",
     "sections": {
       "unread": "Ungelesen",
       "everything_else": "Alles andere",
@@ -2097,6 +2106,10 @@
         "label": "Anhänge in der Liste anzeigen",
         "description": "Angehängte Dateien unter jeder Nachricht zeigen, damit Sie sie direkt aus der Liste öffnen können. Die Büroklammer erscheint in jedem Fall."
       },
+      "show_tag_chips": {
+        "label": "Tags in der Liste anzeigen",
+        "description": "Tags neben dem Absender oder Betreff in der Nachrichtenliste anzeigen"
+      },
       "plain_text_mode": {
         "label": "Nur Klartext",
         "description": "Rich-Text-Editor deaktivieren und alle E-Mails nur als Klartext senden, einschließlich Antworten und Weiterleitungen"
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "Unterstützung für Rechts-nach-links-Bearbeitung",
         "description": "Fügt der Editor-Symbolleiste eine Schreibrichtungs-Schaltfläche hinzu, mit der Absätze auf links-nach-rechts oder rechts-nach-links gestellt werden können"
+      },
+      "group_by_date": {
+        "label": "Nach Datum gruppieren",
+        "description": "Zeigt Nachrichten unter Datumsüberschriften wie Heute, Gestern und Letzte Woche. Gilt nur, solange die Liste nach Datum sortiert ist."
       },
       "group_conversations": {
         "label": "Nachrichten nach Unterhaltung gruppieren",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "Die Suche ist in der vereinheitlichten Ansicht nicht verfügbar"
   },
+  "account_routing": {
+    "group_members_one_account": "Eine Gruppe kann nur Kontakte aus einem Konto enthalten.",
+    "link_names_no_account": "Dieser Link gibt nicht an, in welchem Konto die Nachricht liegt, deshalb wurde er nicht geöffnet.",
+    "group_member_gone": "Einer der gewählten Kontakte existiert nicht mehr. Wählen Sie die Mitglieder erneut aus.",
+    "invitation_other_account": "Diese Einladung liegt in einem anderen Konto. Wechseln Sie zu diesem Konto, um sie zu beantworten oder einem Kalender hinzuzufügen.",
+    "tab_names_no_account": "Dieser Tab wurde ohne sein Konto gespeichert, deshalb wurde er nicht geöffnet. Schließen Sie ihn und öffnen Sie ihn erneut aus dem Konto, zu dem er gehört."
+  },
   "mail_import": {
     "menu_import": "E-Mails importieren…",
     "settings_label": "E-Mails importieren",
@@ -6833,6 +6857,10 @@
         "title": "Mit anderen Websites verbinden",
         "body": "Anfragen an diese Websites senden. Alles, was das Plugin lesen kann, kann dorthin gesendet werden:"
       },
+      "links_check": {
+        "title": "Links prüfen, die Sie öffnen",
+        "body": "Jeden Weblink sehen, den Sie öffnen, mit seinem Text, und ihn stoppen oder stattdessen eine andere Adresse öffnen."
+      },
       "admin_config": {
         "title": "Seine Einstellungen von Ihrem Administrator lesen",
         "body": "Die Einstellungen lesen, die Ihr Administrator für dieses Plugin gespeichert hat."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Benachrichtigungen anzeigen",
-        "body": "Benachrichtigungen auf Ihrem Gerät anzeigen oder in der App, wenn Sie sie nicht erlaubt haben. Jede nennt den Namen des Plugins."
+        "body": "Benachrichtigungen auf Ihrem Gerät anzeigen oder in der App, wenn Sie sie nicht erlaubt haben. Jede nennt den Namen des Plugins. Das Plugin sieht auch die Hinweise, die die App Ihnen anzeigt."
       },
       "ui_message_list": {
         "title": "Zur Nachrichtenliste hinzufügen",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Diese Seite ist nicht verfügbar",
     "not_available_description": "Das Plugin, das sie hinzugefügt hat, ist ausgeschaltet oder nicht mehr installiert.",
     "back_to_mail": "Zurück zu E-Mails"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Liste vom Plugin {name}",
+    "dropdown_list_labelled": "{label}, Liste vom Plugin {name}",
+    "oauth_failed": "Der Dienst hat die Anmeldung nicht abgeschlossen. Schließen Sie dieses Fenster und versuchen Sie es erneut.",
+    "banners_more": "Weitere Banner ({count}): {names}",
+    "banners_fewer": "Weniger Banner",
+    "opened_by_plugin": "Geöffnet vom Plugin {name}"
   },
   "command_palette": {
     "title": "Befehlspalette",
@@ -7291,6 +7327,14 @@
       "added_from": "Hinzugefügt aus einer E-Mail von {domain}",
       "added_from_subject": "Hinzugefügt aus der E-Mail „{subject}“ von {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Diese Absage wurde von {sender} gesendet, aber der Organisator dieses Termins in Ihrem Kalender ist {organizer}. Nur der Organisator kann ihn absagen. Entfernen Sie ihn selbst, wenn Sie dieser Nachricht vertrauen.",
+    "cancel_unverified": "Es konnte nicht bestätigt werden, dass diese Absage vom Organisator kommt. Entfernen Sie den Termin selbst, wenn Sie dieser Nachricht vertrauen.",
+    "card_sender": "von {domain}",
+    "card_sender_title": "Diese Nachricht hat die Absenderprüfung des Mailservers für {domain} bestanden.",
+    "outside_link": "Andere Website",
+    "outside_link_title": "Dieser Link führt zu {host}, außerhalb von {domain}, der Domain des Absenders."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Sie haben {mailbox} per Impersonation geöffnet.",
     "return_button": "Zurück zu meinem Konto"
+  },
+  "admin_access": {
+    "label": "Superuser dieses Servers dürfen das Admin-Dashboard öffnen",
+    "help": "Superuser dieses Servers melden sich ohne das Admin-Passwort im Admin-Dashboard an, wie die des Haupt-JMAP-Servers. Schalten Sie dies nur für einen Server ein, den Sie selbst betreiben."
   }
 }

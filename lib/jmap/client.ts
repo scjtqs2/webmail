@@ -62,6 +62,7 @@ import { outgoingKeywordMap } from "@/lib/outgoing/outgoing-keywords";
 import { draftLabelProperty } from "@/lib/classification/labels";
 import { attachmentParts, HTML_PART_ID, relatedBodyStructure, repointAttachments, TEXT_PART_ID, type OutgoingBodyPart, type SavedPart } from "./outgoing-body";
 import { addBodyMediaToAttachments } from "./body-media-attachments";
+import { isThreadingMessageId } from "@/lib/email-threading";
 
 // Cap for the follow-up Email/get issued when a displayed body part comes
 // back truncated at the normal 256000-byte limit (see refetchTruncatedBodyValues
@@ -860,6 +861,21 @@ function completeBareTaskDates<T extends Partial<CalendarTask>>(task: T): T {
   if (typeof result.due === 'string' && BARE_DATE.test(result.due)) result.due = `${result.due}T00:00:00`;
   if (typeof result.start === 'string' && BARE_DATE.test(result.start)) result.start = `${result.start}T00:00:00`;
   return result;
+}
+
+/**
+ * An RRULE needs a DTSTART (RFC 5545), and Stalwart drops a task's
+ * recurrenceRule without a `start`, silently. A recurring task the form
+ * sends with a due only starts at that due.
+ */
+function anchorRecurringTaskStart<T extends Partial<CalendarTask>>(task: T): T {
+  if (!task.recurrenceRules?.length || task.start || !task.due) return task;
+  return { ...task, start: task.due };
+}
+
+/** A task as Stalwart keeps it: dates as LocalDateTimes, a series with a start. */
+function prepareTaskDates<T extends Partial<CalendarTask>>(task: T): T {
+  return anchorRecurringTaskStart(completeBareTaskDates(task));
 }
 
 /**
@@ -2164,6 +2180,15 @@ export class JMAPClient implements IJMAPClient {
       }
 
       const session = await sessionResponse.json();
+      // A session without an accounts object, an API URL and a download URL
+      // is no sign-in: reading on would show an empty mailbox of account "0".
+      if (
+        !session || typeof session !== 'object'
+        || !session.accounts || typeof session.accounts !== 'object' || Array.isArray(session.accounts)
+        || typeof session.apiUrl !== 'string' || typeof session.downloadUrl !== 'string'
+      ) {
+        throw new Error('No mail account found in session');
+      }
       this.rewriteSessionUrls(session);
 
       this.session = session;
@@ -3571,6 +3596,9 @@ export class JMAPClient implements IJMAPClient {
     } as Email;
     addBodyMediaToAttachments(email);
     if (email.headers) await this.parseEmailHeaders(email);
+    // A message read from a file was never received by this server: whatever
+    // its own Received and Authentication-Results lines say earns it nothing.
+    email.authenticationResultsOnReceipt = false;
     return email;
   }
 
@@ -5393,9 +5421,10 @@ export class JMAPClient implements IJMAPClient {
 
     const sanitizedFromName = sanitizeIdentityDisplayName(fromName);
     // A reply draft keeps its thread: re-opened or re-sent after Undo, it has
-    // nothing else to rebuild In-Reply-To / References from.
-    const draftInReplyTo = inReplyTo?.map(stripMessageIdBrackets).filter(Boolean);
-    const draftReferences = references?.map(stripMessageIdBrackets).filter(Boolean);
+    // nothing else to rebuild In-Reply-To / References from. An id with white
+    // space or a control character in it is dropped (isThreadingMessageId).
+    const draftInReplyTo = inReplyTo?.map(stripMessageIdBrackets).filter(isThreadingMessageId);
+    const draftReferences = references?.map(stripMessageIdBrackets).filter(isThreadingMessageId);
     const emailData: EmailDraft = {
       // Fixed here: when the connection breaks on the way, this is how the
       // device later finds out whether the server took the draft after all.
@@ -5644,8 +5673,10 @@ export class JMAPClient implements IJMAPClient {
 
     // Per RFC 8621 §4.1.2.3 inReplyTo/references are arrays of bare msg-ids
     // (no angle brackets). Stalwart may return them either way, so normalize.
-    const normalizedInReplyTo = inReplyTo?.map(stripMessageIdBrackets).filter(Boolean);
-    const normalizedReferences = references?.map(stripMessageIdBrackets).filter(Boolean);
+    // The server writes them into the header as they are: an id with white
+    // space or a control character in it is dropped (isThreadingMessageId).
+    const normalizedInReplyTo = inReplyTo?.map(stripMessageIdBrackets).filter(isThreadingMessageId);
+    const normalizedReferences = references?.map(stripMessageIdBrackets).filter(isThreadingMessageId);
 
     const sanitizedFromName = sanitizeIdentityDisplayName(fromEmail ? fromName : fromName || identityName);
     // Always create a new email with the final body content
@@ -10497,7 +10528,7 @@ export class JMAPClient implements IJMAPClient {
       accountId = resolved.accountId;
       taskData.calendarIds = resolved.calendarIds;
     }
-    const cleanTask = { ...completeBareTaskDates(taskData), '@type': 'Task', uid: taskData.uid || generateUUID() };
+    const cleanTask = { ...prepareTaskDates(taskData), '@type': 'Task', uid: taskData.uid || generateUUID() };
     // A task moved to another login carries recurrenceRules, which Stalwart
     // refuses (0.16) or drops (1.0) under that name.
     cleanRecurrenceRules(cleanTask as Record<string, unknown>);

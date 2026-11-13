@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, useId } from "react";
 import { spamApplicableIn } from "@/lib/spam-applicable";
-import { Email, ContactCard, Mailbox } from "@/lib/jmap/types";
+import { Email, ContactCard, Identity, Mailbox } from "@/lib/jmap/types";
 import { attachmentDownloadFilename, attachmentsBundleFilename, DEFAULT_ATTACHMENT_TEMPLATE, renamedAttachmentFilename } from "@/lib/download-filename";
 import { TRANSPARENT_BLOCKED_PIXEL, applyNewTabToAnchor, emailIframeCsp, isExternalResourceUrl, isOpenableLinkHref, plainTextToSafeHtml, sanitizeEmailBodyForIframe, sanitizePlainTextRenderedHtml } from "@/lib/email-sanitization";
 import { getRenderableHtmlBody } from "@/lib/email-body-selection";
@@ -154,7 +154,7 @@ import { useDeviceDetection } from "@/hooks/use-media-query";
 import { useIsPaneScoped } from "@/hooks/use-pane-context";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAccountStore } from "@/stores/account-store";
-import { useEmailStore, resolveEmailBlobContext, emailWriteSource, bulkDeleteIsPermanent, type EmailBlobContext } from "@/stores/email-store";
+import { useEmailStore, resolveEmailBlobContext, bulkDeleteIsPermanent, type EmailBlobContext } from "@/stores/email-store";
 import { trashRestoreTarget } from "@/lib/trash-restore-target";
 import { useListSelection } from "@/lib/plugin-sandbox/assistant/b.list-selection";
 import { readability } from "@/lib/plugin-sandbox/assistant/b.projection";
@@ -165,7 +165,7 @@ import { ReceivedLabelChip } from "./received-label-chip";
 import { UnsubscribeBanner } from "./unsubscribe-banner";
 import { CalendarInvitationBanner } from "./calendar-invitation-banner";
 import { ReadReceiptBanner } from "./read-receipt-banner";
-import { stripCrossAccountIdentityPrefix } from "@/hooks/use-pro-multi-account-identities";
+import { cachedIdentitiesForAccount, stripCrossAccountIdentityPrefix } from "@/hooks/use-pro-multi-account-identities";
 import { useTour } from "@/components/tour/tour-provider";
 import { useMenuNavigation } from "@/hooks/use-menu-navigation";
 import { findCalendarAttachment, isCalendarMimeType } from "@/lib/calendar-invitation";
@@ -290,6 +290,14 @@ export interface EmailViewerProps {
   onMarkAsSpam?: () => void;
   onUndoSpam?: () => void;
   onMoveToMailbox?: (mailboxId: string) => void;
+  /**
+   * Why the message can't be moved from here, when the host offers no Move
+   * (its login's folders can't be had, see moveFoldersFor): Move shows,
+   * unavailable, with this as its hint.
+   */
+  moveUnavailableHint?: string;
+  /** Whose folders `mailboxes` are, when not the active login's: Move shows it above them (moveFoldersFor's `owner`). */
+  moveHeading?: string;
   /**
    * Take the message out of the open folder only (#615). Passed only when
    * the message is also in another folder.
@@ -914,6 +922,7 @@ function MvConversationCard({ email, onOpen, timeFormat, compact, shortDates }: 
       type="button"
       onClick={() => onOpen?.(email)}
       data-mv-conversation-card=""
+      data-plugin-list-avoid=""
       data-email-id={email.id}
       className={cn("w-full flex items-start py-3 border-t border-border text-start hover:bg-muted/40 transition-colors", compact ? "gap-3 px-4" : "gap-4 px-6")}
     >
@@ -965,7 +974,7 @@ function MvConversationDetails({ email, timeFormat, className }: { email: Email;
     [t('headers.message_id'), email.messageId],
   ];
   return (
-    <dl className={cn("grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 pb-3 text-xs", className)} data-mv-conversation-details="">
+    <dl className={cn("grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 pb-3 text-xs", className)} data-mv-conversation-details="" data-plugin-list-avoid="">
       {rows.filter(([, value]) => value).map(([label, value]) => (
         <Fragment key={label}>
           <dt className="text-muted-foreground">{label}</dt>
@@ -1054,6 +1063,7 @@ export function MvExpandedConversationCard({
           }
         }}
         data-mv-conversation-header=""
+        data-plugin-list-avoid=""
         className={cn("flex items-start pt-3 pb-2 cursor-pointer", compact ? "gap-3 px-4" : "gap-4 px-6")}
       >
         <Avatar name={sender?.name} email={sender?.email} size="md" className="w-10 h-10 flex-shrink-0" senderWarning={senderWarning} brandDomain={brandDomain} />
@@ -1290,6 +1300,8 @@ interface ReaderMoreMenuProps {
   options: MessageActionOptions;
   label: string;
   mailboxes: Mailbox[];
+  /** Whose folders `mailboxes` are, when not the active login's. */
+  moveHeading?: string;
   selectedMailbox: string;
   onMoveToMailbox?: (mailboxId: string) => void;
   onSetTag?: (tagId: string | null) => void;
@@ -1298,7 +1310,7 @@ interface ReaderMoreMenuProps {
 }
 
 /** The reader's ⋮ on a desktop: the row's context menu, anchored to the button (R6). */
-function ReaderMoreMenu({ menu, options, label, mailboxes, selectedMailbox, onMoveToMailbox, onSetTag, pluginEntries }: ReaderMoreMenuProps) {
+function ReaderMoreMenu({ menu, options, label, mailboxes, moveHeading, selectedMailbox, onMoveToMailbox, onSetTag, pluginEntries }: ReaderMoreMenuProps) {
   const { email } = options;
   const { copyTargets, copyToAccount } = useCopyToAccount(email, true);
   return (
@@ -1310,6 +1322,8 @@ function ReaderMoreMenu({ menu, options, label, mailboxes, selectedMailbox, onMo
       menuRef={menu.menuRef}
       label={label}
       mailboxes={mailboxes}
+      moveHeading={moveHeading}
+      moveUnavailableHint={options.moveUnavailableHint}
       selectedMailbox={selectedMailbox}
       currentMailboxRole={options.currentMailboxRole}
       onReply={options.onReply}
@@ -1446,10 +1460,14 @@ function ReaderMorePanelBody({
               aria-haspopup="menu"
               data-testid={entry.key === 'rules' ? 'viewer-rules' : `panel-${entry.key}`}
               onClick={() => openSub(entry.key)}
-              className={PANEL_ROW_CLASS}
+              disabled={entry.disabled}
+              className={cn(PANEL_ROW_CLASS, entry.disabled && "opacity-50")}
             >
               <Icon className="w-5 h-5" />
-              <span className="flex-1">{entry.label}</span>
+              <span className="flex-1">
+                {entry.label}
+                {entry.hint && <span className="block text-xs text-muted-foreground">{entry.hint}</span>}
+              </span>
               {entry.key === 'tag' && currentTagIds.length > 0 && (
                 <span className="flex -space-x-1 me-1" aria-hidden>
                   {sortedTagIds.slice(0, 3).map((tagId) => (
@@ -1505,6 +1523,8 @@ export function EmailViewer({
   onMarkAsSpam,
   onUndoSpam,
   onMoveToMailbox,
+  moveUnavailableHint,
+  moveHeading,
   onRemoveFromFolder,
   onTogglePinned,
   onBack,
@@ -1795,10 +1815,21 @@ export function EmailViewer({
   // inline images, export and attachment drag-out. Other viewer hosts keep
   // their existing fallback routing.
   const isUnifiedView = useEmailStore((s) => s.isUnifiedView);
+  // A stamped message's parts come through its own login only: the same blob
+  // id is another file in any other login.
   const legacyBlobClient = useMemo(() => {
     const scid = isUnifiedView ? email?.sourceClientAccountId : undefined;
-    return (scid ? useAuthStore.getState().getClientForAccount(scid) : null) ?? client;
-  }, [isUnifiedView, email?.sourceClientAccountId, client]);
+    if (!scid) return client;
+    return useAuthStore.getState().getClientForAccount(scid) ?? (scid === activeAccountId ? client : null);
+  }, [isUnifiedView, email?.sourceClientAccountId, client, activeAccountId]);
+  // Where the open message is: what the host says (a Pro tab, a message
+  // window, the Mail tab's reader), else its stamps or the login browsed.
+  // What the reader sends or notes for the message (a read receipt and its
+  // flag, the unsubscribe mail) goes through that login. No client there
+  // means the login is not connected, and nothing goes out.
+  const messageSource = email ? blobSource ?? resolveEmailBlobContext(email, client) : null;
+  const messageSourceRef = useRef(messageSource);
+  messageSourceRef.current = messageSource;
   const legacyBlobAccountId = isUnifiedView ? email?.sourceAccountId : undefined;
   const blobClient = blobSource ? blobSource.client : legacyBlobClient;
   const blobAccountId = blobSource ? blobSource.accountId : legacyBlobAccountId;
@@ -1815,15 +1846,13 @@ export function EmailViewer({
   // subscriber; sendEmail resolves the identity (with its own fallback to
   // the account default) from the address we pass.
   const handleSendMailtoUnsubscribe = async (fields: { to: string[]; subject?: string; body?: string }) => {
-    const sendClient = (email?.sourceClientAccountId
-      ? useAuthStore.getState().getClientForAccount(email.sourceClientAccountId)
-      : undefined) ?? client;
+    const sendClient = messageSourceRef.current?.client;
     if (!sendClient) throw new Error(tNotifications('not_connected'));
 
     const recipientAddresses = [...(email?.to ?? []), ...(email?.cc ?? [])].map(r => r.email?.toLowerCase());
-    // In unified views the owning account's identities are not loaded here -
-    // pass nothing and let its client fall back to its default identity.
-    const fromIdentity = email?.sourceClientAccountId
+    // Another login's identities are not loaded here - pass nothing and let
+    // its client fall back to its default identity.
+    const fromIdentity = sendClient !== client
       ? undefined
       : identities.find(i => i.email && recipientAddresses.includes(i.email.toLowerCase()));
 
@@ -2239,6 +2268,7 @@ export function EmailViewer({
     currentMailboxId: selectedMailbox,
     ownerAccountId: moveOwnerAccountId,
     emails: moveEmails,
+    heading: moveHeading,
   });
   const canMoveAnywhere = !moveMenuIsEmpty(moveModel);
   const chooseMoveFolder = useChooseMoveFolder();
@@ -3333,20 +3363,23 @@ export function EmailViewer({
         attachment.tnefData.byteOffset,
         attachment.tnefData.byteOffset + attachment.tnefData.byteLength,
       ) as ArrayBuffer;
-      const blob = new Blob([buffer], { type: attachment.type || 'application/octet-stream' });
-      const objectUrl = URL.createObjectURL(blob);
+      // The MIME tag inside winmail.dat is free text: the Blob gets the
+      // inline-safe list's own type or octet-stream, never the tag itself.
+      const blob = new Blob([buffer], { type: inertBlobType(attachment.type) });
 
       if (opensPreview) {
+        const objectUrl = URL.createObjectURL(blob);
         const transformed = await emailHooks.onAttachmentPreview.transform({ previewUrl: objectUrl } as AttachmentPreview, info);
-        if (!openPreviewInNewWindow(transformed.previewUrl || objectUrl, email)) {
+        const previewUrl = transformed.previewUrl || objectUrl;
+        if (!openPreviewInNewWindow(previewUrl, email, previewUrl === objectUrl ? blob : undefined)) {
           setInAppPreview({ name: attachment.name || downloadName, downloadName, blob, contentType: blob.type });
         }
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
       } else if (downloadAllowed('attachment', email)) {
         emailHooks.onAttachmentDownload.emit(info);
-        saveBlobAs(objectUrl, downloadName, { kind: 'attachment', subject: email });
+        // A download gets an object URL of its own (lib/download-guard.ts).
+        saveBlobAs(blob, downloadName, { kind: 'attachment', subject: email });
       }
-
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
       return;
     }
 
@@ -3360,20 +3393,21 @@ export function EmailViewer({
     }
 
     const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-    const blob = new Blob([buffer], { type: attachment.type || 'application/octet-stream' });
-    const objectUrl = URL.createObjectURL(blob);
+    // A part of an attached or decrypted message: its type is the sender's text.
+    const blob = new Blob([buffer], { type: inertBlobType(attachment.type) });
 
     if (opensPreview) {
+      const objectUrl = URL.createObjectURL(blob);
       const transformed = await emailHooks.onAttachmentPreview.transform({ previewUrl: objectUrl } as AttachmentPreview, info);
-      if (!openPreviewInNewWindow(transformed.previewUrl || objectUrl, email)) {
+      const previewUrl = transformed.previewUrl || objectUrl;
+      if (!openPreviewInNewWindow(previewUrl, email, previewUrl === objectUrl ? blob : undefined)) {
         setInAppPreview({ name: attachment.name || downloadName, downloadName, blob, contentType: blob.type });
       }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } else if (downloadAllowed('attachment', email)) {
       emailHooks.onAttachmentDownload.emit(info);
-      saveBlobAs(objectUrl, downloadName, { kind: 'attachment', subject: email });
+      saveBlobAs(blob, downloadName, { kind: 'attachment', subject: email });
     }
-
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
   }, [mailAttachmentAction, downloadsOff, onDownloadAttachment, email, resolveAttachmentName]);
 
   const handleEffectiveAttachmentDownload = useCallback((attachment: EffectiveAttachment) => {
@@ -3891,7 +3925,7 @@ export function EmailViewer({
       && isFilePreviewable(part.name, part.type)
       && isMimeTypeSafeForInlinePreview(part.type);
     if (opensPreview || (part && downloadsOffRef.current && isFilePreviewable(part.name, part.type) && isMimeTypeSafeForInlinePreview(part.type))) {
-      if (!openPreviewInNewWindow(href, guardEmailRef.current)) {
+      if (!openPreviewInNewWindow(href, guardEmailRef.current, part.blob)) {
         setInAppPreview({ name: part.name, downloadName: part.name, blob: part.blob, contentType: part.type || part.blob.type });
       }
       return;
@@ -4242,15 +4276,26 @@ export function EmailViewer({
     return addr || null;
   }, [email?.headers]);
 
+  // A receipt belongs to the login and account the message is in
+  // (messageSource): it goes out through that login, from one of its
+  // identities, and is noted on that message. No client there: no receipt.
+  const receiptClient = messageSource?.client ?? null;
+  const receiptFromActiveLogin = !!receiptClient && receiptClient === client;
+
   // The identity whose address received the original message — the MDN is sent
-  // "from" that address. Falls back to the primary identity.
-  const receiptIdentity = useMemo(() => {
-    if (!identities?.length) return null;
+  // "from" that address. Falls back to that login's primary identity.
+  const pickReceiptIdentity = useCallback((list: readonly Identity[] | null | undefined): Identity | null => {
+    if (!list?.length) return null;
     const recipients = [...(email?.to || []), ...(email?.cc || [])]
       .map(r => r.email?.toLowerCase())
       .filter(Boolean);
-    return identities.find(i => recipients.includes(i.email?.toLowerCase())) || identities[0];
-  }, [identities, email?.to, email?.cc]);
+    return list.find(i => recipients.includes(i.email?.toLowerCase())) || list[0];
+  }, [email?.to, email?.cc]);
+  // The auth store holds the active login's identities only.
+  const receiptIdentity = useMemo(
+    () => (receiptFromActiveLogin ? pickReceiptIdentity(identities) : null),
+    [receiptFromActiveLogin, pickReceiptIdentity, identities],
+  );
 
   const mdnAlreadyHandled = email?.keywords?.['$mdnsent'] === true;
   const [mdnHandledLocally, setMdnHandledLocally] = useQuietState(false);
@@ -4269,25 +4314,48 @@ export function EmailViewer({
     readReceiptResponse !== 'never' &&
     inReceiptEligibleFolder &&
     !isDraft &&
-    !!receiptIdentity;
+    // Another login's identities are read when the receipt is sent.
+    (receiptFromActiveLogin ? !!receiptIdentity : !!receiptClient);
+  // "Always send" is the active login's setting. A message of another login
+  // asks instead.
+  const askForReadReceipt = readReceiptResponse === 'ask'
+    || (readReceiptResponse === 'always' && !receiptFromActiveLogin);
 
   const sendReadReceiptNow = useCallback(async (automatic: boolean) => {
-    if (!client || !email || !readReceiptRequestedBy || !receiptIdentity) return;
     // Taken now: another folder may be open once the receipt is out.
-    const source = blobSource ?? emailWriteSource(email, client);
-    const { rawId } = stripCrossAccountIdentityPrefix(receiptIdentity.id);
+    const source = messageSourceRef.current;
+    const sendClient = source?.client;
+    if (!sendClient || !source || !email || !readReceiptRequestedBy) return;
+    let identity = receiptIdentity;
+    if (sendClient !== client) {
+      // The message's own login: its identities as last read, else asked now.
+      let ofLogin: Identity[] | undefined = source.clientAccountId
+        ? cachedIdentitiesForAccount(source.clientAccountId)
+        : undefined;
+      if (!ofLogin && typeof sendClient.getIdentities === 'function') {
+        ofLogin = await sendClient.getIdentities().catch(() => undefined);
+      }
+      identity = pickReceiptIdentity(ofLogin);
+    }
+    if (!identity) {
+      // No address of that login to send it from: nothing goes out, and never
+      // from another login's address.
+      if (!automatic) toast.error(t('read_receipt.send_failed'), { message: tNotifications('not_connected') });
+      throw new Error('No identity to send the read receipt from');
+    }
+    const { rawId } = stripCrossAccountIdentityPrefix(identity.id);
     try {
-      await client.sendReadReceipt({
+      await sendClient.sendReadReceipt({
         to: readReceiptRequestedBy,
-        fromEmail: receiptIdentity.email,
-        fromName: receiptIdentity.name,
-        identityId: rawId ?? receiptIdentity.id,
+        fromEmail: identity.email,
+        fromName: identity.name,
+        identityId: rawId ?? identity.id,
         originalMessageId: email.messageId,
         originalSubject: email.subject,
-        originalRecipient: receiptIdentity.email,
+        originalRecipient: identity.email,
         automatic,
         subject: t('read_receipt.mdn_subject', { subject: email.subject || '' }),
-        humanText: t('read_receipt.mdn_body', { recipient: receiptIdentity.email }),
+        humanText: t('read_receipt.mdn_body', { recipient: identity.email }),
       });
     } catch (err) {
       // Surface the failure instead of silently resetting the banner so we can
@@ -4301,21 +4369,22 @@ export function EmailViewer({
     // The receipt is out. Failing to flag that must not read as a failed
     // send, nor let the "always" mode send it again.
     try {
-      await useEmailStore.getState().markEmailKeyword(client, email.id, '$mdnsent', source);
+      await useEmailStore.getState().markEmailKeyword(sendClient, email.id, '$mdnsent', source);
     } catch (err) {
       console.error('Read receipt sent, but setting $MDNSent failed:', err);
       setMdnHandledLocally(true);
     }
-  }, [client, email, blobSource, readReceiptRequestedBy, receiptIdentity, t, tComposer, setMdnHandledLocally]);
+  }, [client, email, readReceiptRequestedBy, receiptIdentity, pickReceiptIdentity, t, tComposer, tNotifications, setMdnHandledLocally]);
 
   const ignoreReadReceipt = useCallback(async () => {
     setMdnHandledLocally(true);
-    if (client && email) {
+    const source = messageSourceRef.current;
+    if (source?.client && email) {
       // $MDNSent is the RFC 3503 flag every IMAP/JMAP client honours, so the
       // request is suppressed everywhere - not just locally.
-      try { await useEmailStore.getState().markEmailKeyword(client, email.id, '$mdnsent', blobSource ?? emailWriteSource(email, client)); } catch { /* best effort */ }
+      try { await useEmailStore.getState().markEmailKeyword(source.client, email.id, '$mdnsent', source); } catch { /* best effort */ }
     }
-  }, [client, email, blobSource, setMdnHandledLocally]);
+  }, [email, setMdnHandledLocally]);
 
   // "always" mode: auto-send the MDN once when the message is opened. A
   // failure is not retried while the message stays open: the attempt itself
@@ -4328,7 +4397,7 @@ export function EmailViewer({
     if (autoMdnRef.current !== email?.id) autoMdnRef.current = null;
   }, [email?.id]);
   useEffect(() => {
-    if (readReceiptResponse !== 'always' || noAutomaticActions) return;
+    if (readReceiptResponse !== 'always' || noAutomaticActions || askForReadReceipt) return;
     if (!shouldOfferReadReceipt || !email) return;
     if (autoMdnRef.current === email.id) return;
     autoMdnRef.current = email.id;
@@ -4336,7 +4405,7 @@ export function EmailViewer({
     // email is already captured via email?.id and sendReadReceiptNow (which
     // depends on `email`); the autoMdnRef guard prevents a double send.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readReceiptResponse, shouldOfferReadReceipt, email?.id, sendReadReceiptNow]);
+  }, [readReceiptResponse, askForReadReceipt, shouldOfferReadReceipt, email?.id, sendReadReceiptNow]);
 
   // The toolbar row with only the panel button: over the empty or loading
   // reader, and on top when the user put the toolbar below the subject. Same
@@ -4580,6 +4649,7 @@ export function EmailViewer({
     email,
     currentMailboxRole,
     canMove: canMoveAnywhere && !!onMoveToMailbox,
+    moveUnavailableHint: onMoveToMailbox ? undefined : moveUnavailableHint,
     canRemoveFromFolder: !!onRemoveFromFolder,
     onReply: onReply ? () => onReply() : undefined,
     onReplyAll,
@@ -4856,10 +4926,27 @@ export function EmailViewer({
                 <MoveFolderList
                   model={moveModel}
                   onPick={(mailboxId) => { onMoveToMailbox(mailboxId); closeMoveMenu(); }}
-                  onChooseFolder={chooseMoveFolder ? () => { closeMoveMenu(); chooseMoveFolder({ emails: moveEmails, onMove: onMoveToMailbox, mailboxes, selectedMailbox }); } : undefined}
+                  onChooseFolder={chooseMoveFolder ? () => { closeMoveMenu(); chooseMoveFolder({ emails: moveEmails, onMove: onMoveToMailbox, mailboxes, selectedMailbox, heading: moveHeading }); } : undefined}
                 />
               </div>
             </ContextMenu>
+          </div>
+        )}
+        {/* Move, unavailable: the host says why (moveUnavailableHint) */}
+        {!onMoveToMailbox && moveUnavailableHint && (
+          <div data-overflow-item data-overflow-priority="5" className={cn("relative", mvViewer && "order-6")}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              className="flex-col items-center gap-0.5 h-auto py-1.5 px-2 sm:flex-row sm:h-8 sm:gap-1.5 sm:py-0"
+              title={moveUnavailableHint}
+              aria-label={`${t('move_to')}. ${moveUnavailableHint}`}
+              data-testid="reader-move-unavailable"
+            >
+              <FolderInput className="w-4 h-4" />
+              {showToolbarLabels && <span data-toolbar-label="primary" className="text-[0.625rem] leading-tight sm:hidden sm:text-sm sm:whitespace-nowrap sm:@[30rem]/reader-toolbar:inline">{t('move')}</span>}
+            </Button>
           </div>
         )}
         {/* Tag Picker - hidden on mobile, overflows to More menu */}
@@ -5055,6 +5142,7 @@ export function EmailViewer({
               options={readerActionOptions}
               label={t('more_actions')}
               mailboxes={mailboxes}
+              moveHeading={moveHeading}
               selectedMailbox={selectedMailbox}
               onMoveToMailbox={onMoveToMailbox}
               onSetTag={onSetTag ? (tagId) => onSetTag(email.id, tagId) : undefined}
@@ -5090,6 +5178,7 @@ export function EmailViewer({
   const topToolbar = (
     <div
       data-viewer-top-toolbar={liftToolbar ? "full-width" : "column"}
+      data-plugin-list-avoid=""
       className={cn(
         "bg-background flex-shrink-0",
         !mvViewer && "border-b border-border",
@@ -5221,7 +5310,7 @@ export function EmailViewer({
       <PluginSlot name="reader-header" className="w-full bg-background" extraProps={pluginEmailProps} />
 
       {/* === SUBJECT BLOCK === data-reader-subject: a reply that takes the pane covers it and shows the subject in its bar. */}
-      <div data-reader-subject="" className={cn(
+      <div data-reader-subject="" data-plugin-list-avoid="" className={cn(
         "bg-background",
         !mvViewer && "border-b border-border",
         toolbarPosition === 'below-subject' && "max-desk:sticky max-desk:top-0 max-desk:z-10"
@@ -5356,7 +5445,7 @@ export function EmailViewer({
       {toolbarPosition === 'below-subject' && (
         <div className="bg-background border-b border-border">
           <div className="px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5">
-            <div ref={toolbarRef} className="@container/reader-toolbar flex items-center justify-between gap-0.5 sm:gap-2">
+            <div ref={toolbarRef} data-plugin-list-avoid="" className="@container/reader-toolbar flex items-center justify-between gap-0.5 sm:gap-2">
               {renderToolbarItems(false)}
             </div>
           </div>
@@ -5401,6 +5490,7 @@ export function EmailViewer({
         className={cn("hidden desk:block bg-background px-6", !mvViewer && "border-b border-border", (mvViewer || conversationPane) && mvBefore.length > 0 && "border-t border-border", mvOpenIndex >= 0 && "cursor-pointer")}
         style={mvViewer ? { paddingBlock: '0.75rem 0.5rem' } : { paddingBlock: 'var(--density-header-py)' }}
         data-mv-open-header={mvOpenIndex >= 0 ? "" : undefined}
+        data-plugin-list-avoid=""
         onClick={mvOpenIndex >= 0 ? (e) => {
           // In a conversation, a click on the sender line folds the open
           // message, as Gmail does; its buttons and links keep their own job.
@@ -5612,6 +5702,7 @@ export function EmailViewer({
           className={cn("desk:hidden bg-background border-b border-border px-4", mvOpenIndex >= 0 && "cursor-pointer", mvOpenIndex >= 0 && mvBefore.length > 0 && "border-t")}
           style={{ paddingBlock: 'var(--density-header-py)' }}
           data-mv-open-header-mobile={mvOpenIndex >= 0 ? "" : undefined}
+          data-plugin-list-avoid=""
           onClick={mvOpenIndex >= 0 ? (e) => {
             if (isInteractiveClick(e.target, e.currentTarget)) return;
             if (window.getSelection()?.toString()) return;
@@ -5867,7 +5958,7 @@ export function EmailViewer({
               <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-x-10 gap-y-5">
                 <section className="min-w-0">
                   <SectionHeader>{t('details.recipients_routing')}</SectionHeader>
-                  <dl className="grid grid-cols-1 @sm:grid-cols-[minmax(4.5rem,7rem)_minmax(0,1fr)] gap-x-4 gap-y-1.5">
+                  <dl data-plugin-list-avoid="" className="grid grid-cols-1 @sm:grid-cols-[minmax(4.5rem,7rem)_minmax(0,1fr)] gap-x-4 gap-y-1.5">
                     <Row label={t('from')}>
                       {/* The name and the address are lines of their own, so
                           the check mark and chips follow the name, not the
@@ -5957,7 +6048,7 @@ export function EmailViewer({
                 {hasAuthSection && (
                   <section className="min-w-0">
                     <SectionHeader>{t('details.authentication_security')}</SectionHeader>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5" data-plugin-list-avoid="">
                       {auth?.spf && (() => {
                         // When multiple identities (HELO + MAIL FROM) were
                         // evaluated, list each result in the tooltip for full
@@ -6020,7 +6111,7 @@ export function EmailViewer({
                       )}
                     </div>
                     {email.spamLLM && (
-                      <div className="mt-2 flex items-start gap-2 text-sm">
+                      <div className="mt-2 flex items-start gap-2 text-sm" data-plugin-list-avoid="">
                         {email.spamLLM.verdict === 'LEGITIMATE' ? <Brain className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-700 dark:text-green-400" /> :
                          email.spamLLM.verdict === 'SPAM' ? <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-700 dark:text-red-400" /> :
                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-700 dark:text-amber-400" />}
@@ -6144,7 +6235,7 @@ export function EmailViewer({
             sender the server's checks don't back, a message reported as
             phishing, and the plugins' banners (S/MIME and PGP verdicts). === */}
         {senderVerification && (
-          <div className="border-b border-border bg-muted/30 isolate" data-reader-security-warnings="">
+          <div className="border-b border-border bg-muted/30 isolate" data-reader-security-warnings="" data-plugin-list-avoid="">
             <div className="px-6 py-1.5">
               <div className="flex items-start gap-3 py-1" data-testid="sender-check-warning">
                 <div className={cn(
@@ -6240,9 +6331,9 @@ export function EmailViewer({
         {/* Unified Notification Banner - External Content + Calendar Invitation + Read Receipt */}
         {((!plainView && !pluginBlocksExternal && hasBlockedContent && (remoteBlockedByOrg || (!allowExternalContent && externalContentPolicy !== 'allow'))) ||
           hasCalendarInvitation ||
-          (readReceiptResponse === 'ask' && shouldOfferReadReceipt) ||
+          (askForReadReceipt && shouldOfferReadReceipt) ||
           structuredCards.length > 0) && (
-          <div className="border-b border-border bg-muted/30 isolate">
+          <div className="border-b border-border bg-muted/30 isolate" data-reader-notices="" data-plugin-list-avoid="">
             <div className="px-6 py-1.5">
               <div className="flex flex-col gap-3 isolate">
                 {/* External Content Controls */}
@@ -6304,7 +6395,7 @@ export function EmailViewer({
 
 
                 {/* Read-receipt (MDN) request banner — only in "ask" mode */}
-                {readReceiptResponse === 'ask' && shouldOfferReadReceipt && readReceiptRequestedBy && (
+                {askForReadReceipt && shouldOfferReadReceipt && readReceiptRequestedBy && (
                   <div className="py-1">
                     <ReadReceiptBanner
                       requestedBy={readReceiptRequestedBy}
@@ -6638,7 +6729,7 @@ export function EmailViewer({
         viewport `sm:hidden` guard would otherwise hide it there, and
         `fixed` would span the whole app instead of the pane). */}
     {isMobile && !mvMobileViewer && (
-      <nav ref={bottomBarRef} className={cn(
+      <nav ref={bottomBarRef} data-plugin-list-avoid="" className={cn(
         "z-50 bg-background border-t border-border overflow-hidden pb-[calc(env(safe-area-inset-bottom)/2)]",
         isPaneScoped ? "absolute bottom-0 inset-x-0" : "fixed bottom-0 inset-x-0 sm:hidden",
       )}>

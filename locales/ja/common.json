@@ -22,6 +22,7 @@
       "totp_required": "二要素認証コードが必要です。以下にコードを入力してください。",
       "totp_invalid": "認証コードが無効です。認証アプリを確認してください。",
       "oauth_discovery_failed": "SSOは有効ですが、IDプロバイダーに接続できません。OAuth設定を確認してください。",
+      "oauth_issuer_mismatch": "このプロバイダーでのサインインは正しく設定されていません。管理者がプロバイダーの発行者 (issuer) アドレスを設定する必要があります。",
       "token_exchange_failed": "パスワードとコードは受け付けられましたが、メールサーバーがこのアプリのセッション開始を拒否しました。管理者に OAuth クライアントの設定を確認してもらってください。"
     },
     "show_password": "パスワードを表示",
@@ -338,6 +339,14 @@
     "show_on_mobile": "モバイルで表示"
   },
   "email_list": {
+    "date_groups": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "last_week": "先週",
+      "last_month": "先月",
+      "older": "それ以前"
+    },
+    "group_by_date": "日付でグループ化",
     "sections": {
       "unread": "未読",
       "everything_else": "その他すべて",
@@ -2144,6 +2153,10 @@
         "label": "一覧に添付ファイルを表示",
         "description": "各メッセージの下に添付ファイルを表示し、一覧から直接開けるようにします。クリップのアイコンはどちらの場合も表示されます。"
       },
+      "show_tag_chips": {
+        "label": "リストにタグを表示",
+        "description": "メッセージリストで差出人または件名の横にタグバッジを表示します"
+      },
       "attachment_click_action": {
         "label": "添付ファイルクリック時の動作",
         "description": "添付ファイルをクリックしたときに、プレビューを開くかすぐにダウンロードするかを選択します",
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "右から左への編集サポート",
         "description": "エディターのツールバーに文字方向ボタンを追加し、段落を左から右または右から左に設定できます"
+      },
+      "group_by_date": {
+        "label": "日付でグループ化",
+        "description": "メッセージを「今日」「昨日」「先週」などの日付見出しの下に表示します。リストが日付順のときのみ適用されます。"
       },
       "group_conversations": {
         "label": "メッセージをスレッドにまとめる",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "統合ビューでは検索を利用できません"
   },
+  "account_routing": {
+    "group_members_one_account": "グループに入れられるのは 1 つのアカウントの連絡先だけです。",
+    "link_names_no_account": "このリンクにはメッセージのあるアカウントが示されていないため、開きませんでした。",
+    "group_member_gone": "選んだ連絡先の 1 つがもう存在しません。メンバーを選び直してください。",
+    "invitation_other_account": "この招待は別のアカウントにあります。返信したりカレンダーに追加したりするには、そのアカウントに切り替えてください。",
+    "tab_names_no_account": "このタブはアカウントの情報なしで保存されていたため、開きませんでした。閉じてから、該当するアカウントでもう一度開いてください。"
+  },
   "mail_import": {
     "menu_import": "メールをインポート…",
     "settings_label": "メールをインポート",
@@ -6833,6 +6857,10 @@
         "title": "他のウェブサイトに接続",
         "body": "次のサイトにリクエストを送信できます。プラグインが読めるものはすべて送信される可能性があります:"
       },
+      "links_check": {
+        "title": "開くリンクの確認",
+        "body": "開くすべてのウェブリンクとそのテキストを確認し、リンクを止めたり、代わりに別のアドレスを開いたりできます。"
+      },
       "admin_config": {
         "title": "管理者が保存した設定を読む",
         "body": "管理者がこのプラグイン用に保存した設定を読むことができます。"
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "通知を表示",
-        "body": "デバイスに通知を表示します。通知を許可していない場合はアプリ内に表示します。どの通知にもプラグイン名が入ります。"
+        "body": "デバイスに通知を表示します。通知を許可していない場合はアプリ内に表示します。どの通知にもプラグイン名が入ります。アプリが表示するお知らせもプラグインが確認できます。"
       },
       "ui_message_list": {
         "title": "メッセージ一覧に追加",
@@ -7089,6 +7117,14 @@
     "not_available_title": "このページは利用できません",
     "not_available_description": "このページを追加したプラグインがオフになっているか、インストールされていません。",
     "back_to_mail": "メールに戻る"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "プラグイン {name} のリスト",
+    "dropdown_list_labelled": "{label}(プラグイン {name} のリスト)",
+    "oauth_failed": "サービスでサインインが完了しませんでした。このウィンドウを閉じて、もう一度お試しください。",
+    "banners_more": "その他のバナー（{count}）: {names}",
+    "banners_fewer": "バナーを折りたたむ",
+    "opened_by_plugin": "プラグイン {name} が開きました"
   },
   "command_palette": {
     "title": "コマンドパレット",
@@ -7291,6 +7327,14 @@
       "added_from": "{domain} からのメールから追加",
       "added_from_subject": "{domain} からのメール「{subject}」から追加"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "このキャンセルは {sender} から送信されましたが、カレンダー上のこのイベントの主催者は {organizer} です。キャンセルできるのは主催者だけです。このメッセージを信頼できる場合は、ご自身で削除してください。",
+    "cancel_unverified": "このキャンセルが主催者から送信されたことを確認できませんでした。このメッセージを信頼できる場合は、ご自身でイベントを削除してください。",
+    "card_sender": "{domain} から",
+    "card_sender_title": "このメッセージは、{domain} についてメールサーバーの送信者チェックに合格しました。",
+    "outside_link": "外部サイト",
+    "outside_link_title": "このリンクは送信者のドメイン {domain} の外にある {host} に移動します。"
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "なりすましで {mailbox} を開いています。",
     "return_button": "自分のアカウントに戻る"
+  },
+  "admin_access": {
+    "label": "このサーバーのスーパーユーザーが管理ダッシュボードを開けるようにする",
+    "help": "このサーバーのスーパーユーザーは、メインの JMAP サーバーと同じく、管理者パスワードなしで管理ダッシュボードにサインインできます。自分で運用しているサーバーにだけオンにしてください。"
   }
 }

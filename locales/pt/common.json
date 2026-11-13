@@ -22,6 +22,7 @@
       "totp_required": "É necessário um código de autenticação de dois fatores. Insira seu código abaixo.",
       "totp_invalid": "Código de autenticação inválido. Verifique seu aplicativo de autenticação.",
       "oauth_discovery_failed": "SSO está ativado mas o provedor de identidade não pôde ser contatado. Verifique sua configuração OAuth.",
+      "oauth_issuer_mismatch": "O login com este provedor não está configurado corretamente. O administrador precisa definir o endereço do emissor (issuer).",
       "token_exchange_failed": "Sua senha e o código foram aceitos, mas o servidor de e-mail se recusou a iniciar uma sessão para este aplicativo. Peça ao administrador que verifique as configurações do cliente OAuth."
     },
     "show_password": "Mostrar senha",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Mostrar no celular"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Hoje",
+      "yesterday": "Ontem",
+      "last_week": "Semana passada",
+      "last_month": "Mês passado",
+      "older": "Mais antigos"
+    },
+    "group_by_date": "Agrupar por data",
     "sections": {
       "unread": "Não lidas",
       "everything_else": "Todo o resto",
@@ -2144,6 +2153,10 @@
         "label": "Mostrar anexos na lista",
         "description": "Mostrar os arquivos anexados abaixo de cada mensagem para abri-los direto da lista. O clipe aparece de qualquer forma."
       },
+      "show_tag_chips": {
+        "label": "Mostrar etiquetas na lista",
+        "description": "Mostrar as etiquetas ao lado do remetente ou assunto na lista de mensagens"
+      },
       "attachment_click_action": {
         "label": "Ação ao clicar em anexos",
         "description": "Escolha se clicar em um anexo abre uma pré-visualização ou inicia o download imediatamente",
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "Suporte à edição da direita para a esquerda",
         "description": "Adiciona um botão de direção à barra de ferramentas do editor para definir parágrafos da esquerda para a direita ou da direita para a esquerda"
+      },
+      "group_by_date": {
+        "label": "Agrupar por data",
+        "description": "Mostra as mensagens sob cabeçalhos de data como Hoje, Ontem e Semana passada. Só se aplica quando a lista está ordenada por data."
       },
       "group_conversations": {
         "label": "Agrupar mensagens por conversa",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "A pesquisa não está disponível na vista unificada"
   },
+  "account_routing": {
+    "group_members_one_account": "Um grupo só pode conter contatos de uma conta.",
+    "link_names_no_account": "Este link não indica em qual conta a mensagem está, por isso não foi aberto.",
+    "group_member_gone": "Um dos contatos escolhidos não existe mais. Escolha os membros novamente.",
+    "invitation_other_account": "Este convite está noutra conta. Mude para essa conta para lhe responder ou adicioná-lo a um calendário.",
+    "tab_names_no_account": "Este separador foi guardado sem a sua conta, por isso não foi aberto. Feche-o e volte a abri-lo a partir da conta a que pertence."
+  },
   "mail_import": {
     "menu_import": "Importar e-mails…",
     "settings_label": "Importar e-mails",
@@ -6833,6 +6857,10 @@
         "title": "Conectar-se a outros sites",
         "body": "Enviar solicitações a estes sites. Tudo o que o plugin pode ler pode ser enviado para lá:"
       },
+      "links_check": {
+        "title": "Verificar os links que você abre",
+        "body": "Ver cada link da web que você abre, com o texto dele, e bloqueá-lo ou abrir outro endereço no lugar."
+      },
       "admin_config": {
         "title": "Ler as configurações do seu administrador",
         "body": "Ler as configurações que seu administrador salvou para este plugin."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Mostrar notificações",
-        "body": "Mostrar notificações no seu dispositivo, ou dentro do aplicativo se você não as permitiu. Cada uma indica o nome do plugin."
+        "body": "Mostrar notificações no seu dispositivo, ou dentro do aplicativo se você não as permitiu. Cada uma indica o nome do plugin. O plugin também vê os avisos que o aplicativo mostra para você."
       },
       "ui_message_list": {
         "title": "Adicionar à lista de mensagens",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Esta página não está disponível",
     "not_available_description": "O plugin que a adicionou está desativado ou não está mais instalado.",
     "back_to_mail": "Voltar para e-mails"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Lista do plugin {name}",
+    "dropdown_list_labelled": "{label}, lista do plugin {name}",
+    "oauth_failed": "O serviço não concluiu o início de sessão. Feche esta janela e tente novamente.",
+    "banners_more": "Mais faixas ({count}): {names}",
+    "banners_fewer": "Menos faixas",
+    "opened_by_plugin": "Aberto pelo plugin {name}"
   },
   "command_palette": {
     "title": "Paleta de comandos",
@@ -7291,6 +7327,14 @@
       "added_from": "Adicionado a partir de um e-mail de {domain}",
       "added_from_subject": "Adicionado a partir do e-mail “{subject}” de {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Este cancelamento foi enviado por {sender}, mas o organizador deste evento no seu calendário é {organizer}. Apenas o organizador pode cancelá-lo. Remova-o você mesmo se confiar nesta mensagem.",
+    "cancel_unverified": "Não foi possível verificar que este cancelamento vem do organizador. Remova o evento você mesmo se confiar nesta mensagem.",
+    "card_sender": "de {domain}",
+    "card_sender_title": "Esta mensagem passou na verificação de remetente do servidor de email para {domain}.",
+    "outside_link": "Outro site",
+    "outside_link_title": "Este link leva a {host}, fora de {domain}, o domínio do remetente."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Abriu {mailbox} através de representação.",
     "return_button": "Voltar à minha conta"
+  },
+  "admin_access": {
+    "label": "Os superutilizadores deste servidor podem abrir o painel de administração",
+    "help": "Os superutilizadores deste servidor iniciam sessão no painel de administração sem a senha de administrador, tal como os do servidor JMAP principal. Ative esta opção apenas para um servidor que gere."
   }
 }

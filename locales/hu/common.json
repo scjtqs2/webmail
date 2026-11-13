@@ -22,6 +22,7 @@
       "totp_required": "Kétfaktoros hitelesítési kód szükséges. Kérjük, add meg a kódot lent.",
       "totp_invalid": "Érvénytelen hitelesítési kód. Ellenőrizd a hitelesítő alkalmazásod és próbáld újra.",
       "oauth_discovery_failed": "SSO engedélyezve van, de az identitásszolgáltató nem érhető el. Ellenőrizd az OAuth konfigurációt.",
+      "oauth_issuer_mismatch": "A bejelentkezés ezen a szolgáltatón keresztül nincs megfelelően beállítva. A rendszergazdának meg kell adnia a kibocsátó (issuer) címét.",
       "token_exchange_failed": "A jelszót és a kódot elfogadtuk, de a levelezőszerver nem indított munkamenetet ehhez az alkalmazáshoz. Kérje meg a rendszergazdát, hogy ellenőrizze az OAuth-kliens beállításait."
     },
     "show_password": "Jelszó megjelenítése",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Megjelenítés mobilon"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Ma",
+      "yesterday": "Tegnap",
+      "last_week": "Múlt héten",
+      "last_month": "Múlt hónapban",
+      "older": "Régebbi"
+    },
+    "group_by_date": "Csoportosítás dátum szerint",
     "sections": {
       "unread": "Olvasatlan",
       "everything_else": "Minden más",
@@ -2100,6 +2109,10 @@
         "label": "Mellékletek megjelenítése a listában",
         "description": "A csatolt fájlok megjelenítése minden üzenet alatt, hogy közvetlenül a listából megnyithassa őket. A gemkapocs ikon mindenképp látható."
       },
+      "show_tag_chips": {
+        "label": "Címkék megjelenítése a listában",
+        "description": "Címkék megjelenítése a feladó vagy tárgy mellett az üzenetlistában"
+      },
       "plain_text_mode": {
         "label": "Csak szöveges mód",
         "description": "Rich text szerkesztő letiltása és az összes e-mail küldése csak szöveges formátumban, beleértve a válaszokat és továbbításokat"
@@ -2289,6 +2302,10 @@
       "rtl_editing": {
         "label": "Jobbról balra írás támogatása",
         "description": "Iránygombot ad a szerkesztő eszköztárához, amellyel a bekezdések balról jobbra vagy jobbról balra állíthatók"
+      },
+      "group_by_date": {
+        "label": "Csoportosítás dátum szerint",
+        "description": "Az üzenetek dátumfejlécek, például Ma, Tegnap és Múlt héten alatt jelennek meg. Csak akkor érvényes, ha a lista dátum szerint van rendezve."
       },
       "group_conversations": {
         "label": "Üzenetek csoportosítása beszélgetés szerint",
@@ -6136,6 +6153,13 @@
   "unified_mailbox": {
     "search_unavailable": "A keresés nem érhető el az egységes nézetben"
   },
+  "account_routing": {
+    "group_members_one_account": "Egy csoport csak egy fiók névjegyeit tartalmazhatja.",
+    "link_names_no_account": "Ez a link nem mondja meg, melyik fiókban van az üzenet, ezért nem nyílt meg.",
+    "group_member_gone": "Az egyik kiválasztott névjegy már nem létezik. Válaszd ki újra a tagokat.",
+    "invitation_other_account": "Ez a meghívó egy másik fiókban van. Váltson arra a fiókra, ha válaszolni szeretne rá, vagy hozzá szeretné adni egy naptárhoz.",
+    "tab_names_no_account": "Ez a lap a fiókja nélkül lett elmentve, ezért nem nyílt meg. Zárja be, és nyissa meg újra abból a fiókból, amelyhez tartozik."
+  },
   "mail_import": {
     "menu_import": "Levelek importálása…",
     "settings_label": "Levelek importálása",
@@ -6833,6 +6857,10 @@
         "title": "Kapcsolódás más webhelyekhez",
         "body": "Kéréseket küld ezekre a webhelyekre. Bármi, amit a bővítmény olvashat, ide is eljuthat:"
       },
+      "links_check": {
+        "title": "A megnyitott linkek ellenőrzése",
+        "body": "Látja az összes megnyitott webes linket a szövegükkel együtt, és leállíthatja őket, vagy helyettük másik címet nyithat meg."
+      },
       "admin_config": {
         "title": "A rendszergazdától kapott beállítások olvasása",
         "body": "Olvassa a beállításokat, amelyeket a rendszergazda mentett ehhez a bővítményhez."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Értesítések megjelenítése",
-        "body": "Értesítéseket jelenít meg az eszközödön, vagy az alkalmazásban, ha nem engedélyezted őket. Mindegyiken szerepel a bővítmény neve."
+        "body": "Értesítéseket jelenít meg az eszközödön, vagy az alkalmazásban, ha nem engedélyezted őket. Mindegyiken szerepel a bővítmény neve. A bővítmény az alkalmazás által megjelenített értesítéseket is látja."
       },
       "ui_message_list": {
         "title": "Tartalom az üzenetlistában",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Ez az oldal nem érhető el",
     "not_available_description": "A bővítmény, amely hozzáadta, ki van kapcsolva, vagy már nincs telepítve.",
     "back_to_mail": "Vissza a levelekhez"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Lista a(z) {name} bővítménytől",
+    "dropdown_list_labelled": "{label}, lista a(z) {name} bővítménytől",
+    "oauth_failed": "A szolgáltatás nem fejezte be a bejelentkezést. Zárja be ezt az ablakot, és próbálja újra.",
+    "banners_more": "További bannerek ({count}): {names}",
+    "banners_fewer": "Kevesebb banner",
+    "opened_by_plugin": "A(z) {name} bővítmény nyitotta meg"
   },
   "command_palette": {
     "title": "Parancspaletta",
@@ -7291,6 +7327,14 @@
       "added_from": "Hozzáadva egy {domain} által küldött levélből",
       "added_from_subject": "Hozzáadva a(z) {domain} által küldött „{subject}” levélből"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Ezt a lemondást {sender} küldte, de a naptáradban lévő esemény szervezője {organizer}. Csak a szervező mondhatja le. Ha megbízol ebben az üzenetben, távolítsd el magad.",
+    "cancel_unverified": "Nem sikerült ellenőrizni, hogy ez a lemondás a szervezőtől származik. Ha megbízol ebben az üzenetben, távolítsd el magad az eseményt.",
+    "card_sender": "feladó: {domain}",
+    "card_sender_title": "Ez az üzenet átment a levelezőszerver feladó-ellenőrzésén erre a tartományra: {domain}.",
+    "outside_link": "Másik webhely",
+    "outside_link_title": "Ez a hivatkozás ide vezet: {host}, a feladó tartományán ({domain}) kívülre."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "A(z) {mailbox} postafiókot megszemélyesítéssel nyitotta meg.",
     "return_button": "Vissza a saját fiókomhoz"
+  },
+  "admin_access": {
+    "label": "A kiszolgáló szuperfelhasználói megnyithatják az adminisztrációs felületet",
+    "help": "A kiszolgáló szuperfelhasználói az adminisztrátori jelszó nélkül jelentkeznek be az adminisztrációs felületre, ahogy a fő JMAP-kiszolgáló szuperfelhasználói is. Csak olyan kiszolgálónál kapcsolja be, amelyet Ön üzemeltet."
   }
 }

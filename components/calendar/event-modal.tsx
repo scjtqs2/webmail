@@ -12,6 +12,7 @@ import { X, Trash2, Users, CalendarDays, CopyPlus, Pencil, Clock, MapPin, Video,
 import { IconButton } from "@/components/ui/icon-button";
 import { findMeetingLink, locationAction, mapsUrl, primaryLocationName } from "@/lib/event-links";
 import { descriptionAsText, isHtmlDescription, plainDescriptionFields } from "@/lib/calendar-description";
+import { locationsWithName } from "@/lib/calendar-event-normalization";
 import { ParticipantStatusBadge } from "./rsvp-buttons";
 import { format, parseISO, addHours, isSameDay } from "date-fns";
 import type { CalendarEvent, Calendar, CalendarParticipant, CalendarEventAlert, CalendarRecurrenceRule } from "@/lib/jmap/types";
@@ -44,6 +45,7 @@ import { useAccountStore } from "@/stores/account-store";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { changesWhen, type EditorAttendee, type EventEditorState } from "@/lib/recurrence-scope-edit";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
+import { linkCallback } from "@/lib/plugin-sandbox/slot-callbacks";
 import { useSettingsStore } from "@/stores/settings-store";
 import { generateUUID } from "@/lib/utils";
 import { useFormatEventDate } from "@/hooks/use-format-event-date";
@@ -893,18 +895,7 @@ export function EventModal({
     }
 
     if (location.trim()) {
-      data.locations = {
-        loc1: {
-          "@type": "Location",
-          name: location.trim(),
-          description: null,
-          locationTypes: null,
-          coordinates: null,
-          timeZone: null,
-          links: null,
-          relativeTo: null,
-        },
-      };
+      data.locations = locationsWithName(location.trim(), seed?.locations);
     } else if (event && event.locations && Object.keys(event.locations).length > 0) {
       data.locations = null;
     }
@@ -1610,7 +1601,10 @@ export function EventModal({
                   uid: event?.uid,
                   attendees: attendees.map((a) => a.email),
                 },
-                setVirtualLocation,
+                // The plugin's frame calls this with whatever it sends: only an
+                // http(s) link that fits the field goes in; anything else is
+                // ignored, and the plugin is answered false.
+                setVirtualLocation: linkCallback(setVirtualLocation, 2000),
               }}
             />
           </div>

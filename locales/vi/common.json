@@ -22,6 +22,7 @@
       "totp_required": "Cần có mã xác thực hai yếu tố. Vui lòng nhập mã của bạn dưới đây.",
       "totp_invalid": "Mã xác thực không hợp lệ. Vui lòng kiểm tra ứng dụng xác thực của bạn và thử lại.",
       "oauth_discovery_failed": "SSO đã được bật nhưng không thể liên lạc được với nhà cung cấp danh tính. Kiểm tra cấu hình OAuth của bạn.",
+      "oauth_issuer_mismatch": "Đăng nhập qua nhà cung cấp này chưa được thiết lập đúng. Quản trị viên cần đặt địa chỉ issuer của nhà cung cấp.",
       "token_exchange_failed": "Mật khẩu và mã của bạn đã được chấp nhận nhưng máy chủ thư từ chối bắt đầu phiên cho ứng dụng này. Yêu cầu quản trị viên của bạn kiểm tra cài đặt ứng dụng khách OAuth của nó."
     },
     "show_password": "Hiển thị mật khẩu",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Hiển thị trên thiết bị di động"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua",
+      "last_week": "Tuần trước",
+      "last_month": "Tháng trước",
+      "older": "Cũ hơn"
+    },
+    "group_by_date": "Nhóm theo ngày",
     "sections": {
       "unread": "Chưa đọc",
       "everything_else": "Các thư còn lại",
@@ -2112,6 +2121,10 @@
         "label": "Hiện tệp đính kèm trong danh sách",
         "description": "Hiện các tệp đính kèm bên dưới mỗi thư để mở ngay từ danh sách. Biểu tượng kẹp giấy vẫn hiển thị trong mọi trường hợp."
       },
+      "show_tag_chips": {
+        "label": "Hiển thị nhãn trong danh sách",
+        "description": "Hiển thị huy hiệu nhãn bên cạnh người gửi hoặc chủ đề trong danh sách thư"
+      },
       "plain_text_mode": {
         "label": "Chỉ dùng văn bản thuần",
         "description": "Tắt trình soạn thảo văn bản đa dạng thức và chỉ gửi thư dưới dạng văn bản thuần, kể cả thư trả lời và chuyển tiếp"
@@ -2301,6 +2314,10 @@
       "rtl_editing": {
         "label": "Hỗ trợ soạn thảo từ phải sang trái",
         "description": "Thêm nút chọn hướng vào thanh công cụ soạn thư để đặt hướng đoạn văn từ trái sang phải hoặc từ phải sang trái"
+      },
+      "group_by_date": {
+        "label": "Nhóm theo ngày",
+        "description": "Hiển thị thư dưới các tiêu đề ngày như Hôm nay, Hôm qua và Tuần trước. Chỉ áp dụng khi danh sách được sắp xếp theo ngày."
       },
       "group_conversations": {
         "label": "Nhóm thư theo cuộc trò chuyện",
@@ -6148,6 +6165,13 @@
   "unified_mailbox": {
     "search_unavailable": "Tìm kiếm không có sẵn trong chế độ xem hợp nhất"
   },
+  "account_routing": {
+    "group_members_one_account": "Một nhóm chỉ có thể chứa danh bạ của một tài khoản.",
+    "link_names_no_account": "Liên kết này không cho biết thư nằm trong tài khoản nào nên không được mở.",
+    "group_member_gone": "Một trong các liên hệ đã chọn không còn tồn tại. Hãy chọn lại thành viên.",
+    "invitation_other_account": "Lời mời này nằm trong tài khoản khác. Chuyển sang tài khoản đó để trả lời hoặc thêm vào lịch.",
+    "tab_names_no_account": "Thẻ này được lưu mà không kèm tài khoản nên không được mở. Hãy đóng thẻ và mở lại từ tài khoản chứa nó."
+  },
   "mail_import": {
     "menu_import": "Nhập thư…",
     "settings_label": "Nhập thư",
@@ -6845,6 +6869,10 @@
         "title": "Kết nối với các trang web khác",
         "body": "Gửi yêu cầu đến các trang web này. Mọi thứ plugin có thể đọc đều có thể được gửi ở đó:"
       },
+      "links_check": {
+        "title": "Kiểm tra các liên kết bạn mở",
+        "body": "Xem mọi liên kết web bạn mở cùng văn bản của nó, và chặn liên kết đó hoặc mở một địa chỉ khác thay thế."
+      },
       "admin_config": {
         "title": "Đọc cài đặt plugin từ quản trị viên",
         "body": "Đọc cài đặt quản trị viên đã lưu cho plugin này."
@@ -6979,7 +7007,7 @@
       },
       "ui_notifications": {
         "title": "Hiển thị thông báo",
-        "body": "Hiển thị thông báo trên thiết bị, hoặc trong ứng dụng nếu bạn chưa cấp quyền thông báo. Mỗi thông báo đều ghi tên plugin."
+        "body": "Hiển thị thông báo trên thiết bị, hoặc trong ứng dụng nếu bạn chưa cấp quyền thông báo. Mỗi thông báo đều ghi tên plugin. Plugin cũng thấy các thông báo mà ứng dụng hiển thị cho bạn."
       }
     },
     "forward_approval": {
@@ -7101,6 +7129,14 @@
     "not_available_title": "Trang này không có sẵn",
     "not_available_description": "Plugin đã thêm nó đã bị tắt hoặc không còn được cài đặt.",
     "back_to_mail": "Quay lại thư"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Danh sách từ plugin {name}",
+    "dropdown_list_labelled": "{label}, danh sách từ plugin {name}",
+    "oauth_failed": "Dịch vụ chưa hoàn tất đăng nhập. Hãy đóng cửa sổ này và thử lại.",
+    "banners_more": "Thêm biểu ngữ ({count}): {names}",
+    "banners_fewer": "Bớt biểu ngữ",
+    "opened_by_plugin": "Được mở bởi plugin {name}"
   },
   "command_palette": {
     "title": "Bảng lệnh",
@@ -7303,6 +7339,14 @@
       "added_from": "Được thêm từ một thư của {domain}",
       "added_from_subject": "Được thêm từ thư “{subject}” của {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Thông báo hủy này được gửi từ {sender}, nhưng người tổ chức sự kiện này trong lịch của bạn là {organizer}. Chỉ người tổ chức mới có thể hủy sự kiện. Hãy tự xóa nếu bạn tin tưởng thư này.",
+    "cancel_unverified": "Không thể xác minh thông báo hủy này đến từ người tổ chức. Hãy tự xóa sự kiện nếu bạn tin tưởng thư này.",
+    "card_sender": "từ {domain}",
+    "card_sender_title": "Thư này đã vượt qua bước kiểm tra người gửi của máy chủ thư cho {domain}.",
+    "outside_link": "Trang khác",
+    "outside_link_title": "Liên kết này dẫn tới {host}, nằm ngoài {domain}, tên miền của người gửi."
   },
   "proofreading": {
     "kind": {
@@ -8310,5 +8354,9 @@
   "impersonation": {
     "return_notice": "Bạn đã mở {mailbox} bằng cách mạo danh.",
     "return_button": "Quay lại tài khoản của tôi"
+  },
+  "admin_access": {
+    "label": "Siêu người dùng của máy chủ này có thể mở bảng điều khiển quản trị",
+    "help": "Siêu người dùng của máy chủ này đăng nhập vào bảng điều khiển quản trị mà không cần mật khẩu quản trị, giống như siêu người dùng của máy chủ JMAP chính. Chỉ bật cho máy chủ do chính bạn vận hành."
   }
 }

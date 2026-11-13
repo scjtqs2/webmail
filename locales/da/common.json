@@ -22,6 +22,7 @@
       "totp_required": "En to-faktor-godkendelseskode er påkrævet. Indtast din kode nedenfor.",
       "totp_invalid": "Ugyldig godkendelseskode. Kontrollér din autentificeringsapp og prøv igen.",
       "oauth_discovery_failed": "SSO er aktiveret, men identitetsudbyderen kunne ikke nås. Kontrollér din OAuth-konfiguration.",
+      "oauth_issuer_mismatch": "Login med denne udbyder er ikke sat korrekt op. Administratoren skal angive udbyderens issuer-adresse.",
       "token_exchange_failed": "Din adgangskode og kode blev accepteret, men mailserveren nægtede at starte en session for denne app. Bed din administrator om at kontrollere OAuth-klientindstillingerne."
     },
     "show_password": "Vis adgangskode",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Vis på mobil"
   },
   "email_list": {
+    "date_groups": {
+      "today": "I dag",
+      "yesterday": "I går",
+      "last_week": "Sidste uge",
+      "last_month": "Sidste måned",
+      "older": "Ældre"
+    },
+    "group_by_date": "Gruppér efter dato",
     "sections": {
       "unread": "Ulæste",
       "everything_else": "Alt andet",
@@ -2100,6 +2109,10 @@
         "label": "Vis vedhæftede filer i listen",
         "description": "Vis vedhæftede filer under hver besked, så du kan åbne dem direkte fra listen. Papirclipsen vises under alle omstændigheder."
       },
+      "show_tag_chips": {
+        "label": "Vis etiketter på listen",
+        "description": "Vis etiketter ved siden af afsender eller emne i meddelelseslisten"
+      },
       "plain_text_mode": {
         "label": "Kun almindelig tekst",
         "description": "Deaktivér den rige teksteditor og send alle e-mails som ren tekst, inklusive svar og videresendelser"
@@ -2289,6 +2302,10 @@
       "rtl_editing": {
         "label": "Understøttelse af højre-mod-venstre-redigering",
         "description": "Tilføjer en retningsknap til værktøjslinjen i editoren, så afsnit kan sættes venstre-mod-højre eller højre-mod-venstre"
+      },
+      "group_by_date": {
+        "label": "Gruppér efter dato",
+        "description": "Vis beskeder under datooverskrifter som I dag, I går og Sidste uge. Gælder kun, når listen er sorteret efter dato."
       },
       "group_conversations": {
         "label": "Gruppér beskeder efter samtale",
@@ -6136,6 +6153,13 @@
   "unified_mailbox": {
     "search_unavailable": "Søgning er ikke tilgængelig i den samlede visning"
   },
+  "account_routing": {
+    "group_members_one_account": "En gruppe kan kun indeholde kontakter fra én konto.",
+    "link_names_no_account": "Dette link siger ikke, hvilken konto beskeden ligger i, så det blev ikke åbnet.",
+    "group_member_gone": "En af de valgte kontakter findes ikke længere. Vælg medlemmerne igen.",
+    "invitation_other_account": "Denne invitation ligger i en anden konto. Skift til den konto for at svare på den eller tilføje den til en kalender.",
+    "tab_names_no_account": "Denne fane blev gemt uden sin konto, så den blev ikke åbnet. Luk den, og åbn den igen fra den konto, den hører til."
+  },
   "mail_import": {
     "menu_import": "Importér mail…",
     "settings_label": "Importér mail",
@@ -6833,6 +6857,10 @@
         "title": "Forbinde til andre websteder",
         "body": "Sende forespørgsler til disse websteder. Alt, hvad pluginnet kan læse, kan blive sendt dertil:"
       },
+      "links_check": {
+        "title": "Tjekke de links, du åbner",
+        "body": "Se hvert weblink, du åbner, med dets tekst, og stoppe det eller åbne en anden adresse i stedet."
+      },
       "admin_config": {
         "title": "Læse sine indstillinger fra din administrator",
         "body": "Læse de indstillinger, din administrator har gemt for dette plugin."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Vise notifikationer",
-        "body": "Vise notifikationer på din enhed eller i appen, hvis du ikke har tilladt dem. Hver af dem nævner pluginets navn."
+        "body": "Vise notifikationer på din enhed eller i appen, hvis du ikke har tilladt dem. Hver af dem nævner pluginets navn. Pluginet ser også de beskeder, appen viser dig."
       },
       "ui_message_list": {
         "title": "Tilføje til beskedlisten",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Denne side er ikke tilgængelig",
     "not_available_description": "Det plugin, der tilføjede den, er slået fra eller ikke længere installeret.",
     "back_to_mail": "Tilbage til mail"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Liste fra pluginet {name}",
+    "dropdown_list_labelled": "{label}, liste fra pluginet {name}",
+    "oauth_failed": "Tjenesten gennemførte ikke login. Luk dette vindue, og prøv igen.",
+    "banners_more": "Flere bannere ({count}): {names}",
+    "banners_fewer": "Færre bannere",
+    "opened_by_plugin": "Åbnet af pluginet {name}"
   },
   "command_palette": {
     "title": "Kommandopalet",
@@ -7291,6 +7327,14 @@
       "added_from": "Tilføjet fra en mail fra {domain}",
       "added_from_subject": "Tilføjet fra mailen »{subject}« fra {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Denne aflysning blev sendt fra {sender}, men arrangøren af begivenheden i din kalender er {organizer}. Kun arrangøren kan aflyse den. Fjern den selv, hvis du stoler på denne besked.",
+    "cancel_unverified": "Det kunne ikke bekræftes, at denne aflysning kommer fra arrangøren. Fjern selv begivenheden, hvis du stoler på denne besked.",
+    "card_sender": "fra {domain}",
+    "card_sender_title": "Denne besked bestod mailserverens afsenderkontrol for {domain}.",
+    "outside_link": "Andet websted",
+    "outside_link_title": "Dette link fører til {host}, uden for {domain}, afsenderens domæne."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Du har åbnet {mailbox} via impersonering.",
     "return_button": "Tilbage til min konto"
+  },
+  "admin_access": {
+    "label": "Superbrugere på denne server må åbne administrationspanelet",
+    "help": "Superbrugere på denne server logger ind på administrationspanelet uden administratoradgangskoden, ligesom dem på JMAP-hovedserveren. Slå det kun til for en server, du selv driver."
   }
 }

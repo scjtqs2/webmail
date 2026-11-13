@@ -22,6 +22,7 @@
       "totp_required": "Wymagany jest kod uwierzytelniania dwuskładnikowego. Wprowadź kod poniżej.",
       "totp_invalid": "Nieprawidłowy kod uwierzytelniania. Sprawdź aplikację uwierzytelniającą i spróbuj ponownie.",
       "oauth_discovery_failed": "SSO jest włączone, ale nie można połączyć się z dostawcą tożsamości. Sprawdź konfigurację OAuth.",
+      "oauth_issuer_mismatch": "Logowanie przez tego dostawcę nie jest poprawnie skonfigurowane. Administrator musi ustawić jego adres wystawcy (issuer).",
       "token_exchange_failed": "Hasło i kod zostały zaakceptowane, ale serwer poczty odmówił rozpoczęcia sesji dla tej aplikacji. Poproś administratora o sprawdzenie ustawień klienta OAuth."
     },
     "show_password": "Pokaż hasło",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Pokaż na telefonie"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Dzisiaj",
+      "yesterday": "Wczoraj",
+      "last_week": "W zeszłym tygodniu",
+      "last_month": "W zeszłym miesiącu",
+      "older": "Starsze"
+    },
+    "group_by_date": "Grupuj według daty",
     "sections": {
       "unread": "Nieprzeczytane",
       "everything_else": "Wszystkie pozostałe",
@@ -2097,6 +2106,10 @@
         "label": "Pokazuj załączniki na liście",
         "description": "Pokazuj załączone pliki pod każdą wiadomością, aby można je było otworzyć prosto z listy. Spinacz jest widoczny w każdym przypadku."
       },
+      "show_tag_chips": {
+        "label": "Pokazuj etykiety na liście",
+        "description": "Pokazuj etykiety obok nadawcy lub tematu na liście wiadomości"
+      },
       "plain_text_mode": {
         "label": "Tylko zwykły tekst",
         "description": "Wyłącz edytor tekstu sformatowanego i wysyłaj wszystkie wiadomości e-mail tylko jako zwykły tekst, w tym odpowiedzi i przekazywanie dalej"
@@ -2286,6 +2299,10 @@
       "rtl_editing": {
         "label": "Obsługa edycji od prawej do lewej",
         "description": "Dodaje przycisk kierunku do paska narzędzi edytora, pozwalający ustawić akapity od lewej do prawej lub od prawej do lewej"
+      },
+      "group_by_date": {
+        "label": "Grupuj według daty",
+        "description": "Pokazuj wiadomości pod nagłówkami dat, takimi jak Dzisiaj, Wczoraj i W zeszłym tygodniu. Działa tylko wtedy, gdy lista jest posortowana według daty."
       },
       "group_conversations": {
         "label": "Grupuj wiadomości w wątki",
@@ -5867,6 +5884,13 @@
   "unified_mailbox": {
     "search_unavailable": "Wyszukiwanie jest niedostępne w widoku ujednoliconym"
   },
+  "account_routing": {
+    "group_members_one_account": "Grupa może zawierać tylko kontakty z jednego konta.",
+    "link_names_no_account": "Ten link nie wskazuje, na którym koncie jest wiadomość, więc nie został otwarty.",
+    "group_member_gone": "Jeden z wybranych kontaktów już nie istnieje. Wybierz członków ponownie.",
+    "invitation_other_account": "To zaproszenie jest na innym koncie. Przełącz się na to konto, aby na nie odpowiedzieć lub dodać je do kalendarza.",
+    "tab_names_no_account": "Ta karta została zapisana bez swojego konta, więc nie została otwarta. Zamknij ją i otwórz ponownie z konta, do którego należy."
+  },
   "mail_import": {
     "menu_import": "Importuj pocztę…",
     "settings_label": "Importuj pocztę",
@@ -6833,6 +6857,10 @@
         "title": "Łączenie z innymi witrynami",
         "body": "Wysyła żądania do tych witryn. Wszystko, co wtyczka może odczytać, może tam zostać wysłane:"
       },
+      "links_check": {
+        "title": "Sprawdzanie otwieranych linków",
+        "body": "Widzi każdy otwierany link internetowy wraz z jego tekstem i może go zablokować lub otworzyć zamiast niego inny adres."
+      },
       "admin_config": {
         "title": "Odczyt ustawień od administratora",
         "body": "Odczytuje ustawienia, które administrator zapisał dla tej wtyczki."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Wyświetlanie powiadomień",
-        "body": "Wyświetla powiadomienia na urządzeniu lub w aplikacji, jeśli ich nie zezwolono. Każde podaje nazwę wtyczki."
+        "body": "Wyświetla powiadomienia na urządzeniu lub w aplikacji, jeśli ich nie zezwolono. Każde podaje nazwę wtyczki. Wtyczka widzi też komunikaty, które wyświetla aplikacja."
       },
       "ui_message_list": {
         "title": "Elementy na liście wiadomości",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Ta strona jest niedostępna",
     "not_available_description": "Wtyczka, która ją dodała, jest wyłączona lub nie jest już zainstalowana.",
     "back_to_mail": "Powrót do poczty"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Lista od wtyczki {name}",
+    "dropdown_list_labelled": "{label}, lista od wtyczki {name}",
+    "oauth_failed": "Usługa nie dokończyła logowania. Zamknij to okno i spróbuj ponownie.",
+    "banners_more": "Więcej banerów ({count}): {names}",
+    "banners_fewer": "Mniej banerów",
+    "opened_by_plugin": "Otwarte przez wtyczkę {name}"
   },
   "command_palette": {
     "title": "Paleta poleceń",
@@ -7291,6 +7327,14 @@
       "added_from": "Dodano z wiadomości od {domain}",
       "added_from_subject": "Dodano z wiadomości „{subject}” od {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "To odwołanie zostało wysłane z {sender}, ale organizatorem tego wydarzenia w Twoim kalendarzu jest {organizer}. Tylko organizator może je odwołać. Usuń je samodzielnie, jeśli ufasz tej wiadomości.",
+    "cancel_unverified": "Nie udało się potwierdzić, że to odwołanie pochodzi od organizatora. Usuń wydarzenie samodzielnie, jeśli ufasz tej wiadomości.",
+    "card_sender": "od {domain}",
+    "card_sender_title": "Ta wiadomość przeszła sprawdzenie nadawcy przez serwer poczty dla {domain}.",
+    "outside_link": "Inna witryna",
+    "outside_link_title": "Ten link prowadzi do {host}, poza {domain}, domenę nadawcy."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Skrzynka {mailbox} została otwarta przez podszywanie się.",
     "return_button": "Wróć do mojego konta"
+  },
+  "admin_access": {
+    "label": "Superużytkownicy tego serwera mogą otwierać panel administracyjny",
+    "help": "Superużytkownicy tego serwera logują się do panelu administracyjnego bez hasła administratora, tak jak superużytkownicy głównego serwera JMAP. Włącz tylko dla serwera, którym zarządzasz samodzielnie."
   }
 }

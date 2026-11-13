@@ -22,6 +22,7 @@
       "totp_required": "Cal un codi d'autenticació de dos factors. Introduïu-lo a continuació.",
       "totp_invalid": "El codi d'autenticació no és vàlid. Comproveu l'aplicació d'autenticació i torneu-ho a provar.",
       "oauth_discovery_failed": "El SSO està activat, però no s'ha pogut contactar amb el proveïdor d'identitat. Comproveu la configuració d'OAuth.",
+      "oauth_issuer_mismatch": "L'inici de sessió amb aquest proveïdor no està ben configurat. L'administrador n'ha de definir l'adreça de l'emissor (issuer).",
       "token_exchange_failed": "La contrasenya i el codi s'han acceptat, però el servidor de correu s'ha negat a iniciar una sessió per a aquesta aplicació. Demaneu a l'administrador que revisi la configuració del client OAuth."
     },
     "show_password": "Mostra la contrasenya",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Mostra al mòbil"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Avui",
+      "yesterday": "Ahir",
+      "last_week": "La setmana passada",
+      "last_month": "El mes passat",
+      "older": "Més antics"
+    },
+    "group_by_date": "Agrupa per data",
     "sections": {
       "unread": "No llegits",
       "everything_else": "Tota la resta",
@@ -2100,6 +2109,10 @@
         "label": "Mostra els fitxers adjunts a la llista",
         "description": "Mostra els fitxers adjunts sota cada missatge per obrir-los des de la llista. El clip es mostra igualment."
       },
+      "show_tag_chips": {
+        "label": "Mostra les etiquetes a la llista",
+        "description": "Mostra les etiquetes al costat del remitent o assumpte a la llista de missatges"
+      },
       "plain_text_mode": {
         "label": "Només text sense format",
         "description": "Desactiva l'editor de text enriquit i envia tots els correus només com a text sense format, incloses les respostes i els reenviaments"
@@ -2289,6 +2302,10 @@
       "rtl_editing": {
         "label": "Compatibilitat amb edició de dreta a esquerra",
         "description": "Afegeix un botó de direcció a la barra d'eines del redactor perquè pugueu establir els paràgrafs d'esquerra a dreta o de dreta a esquerra"
+      },
+      "group_by_date": {
+        "label": "Agrupa per data",
+        "description": "Mostra els missatges sota capçaleres de data com Avui, Ahir i La setmana passada. Només s'aplica quan la llista està ordenada per data."
       },
       "group_conversations": {
         "label": "Agrupa els missatges per conversa",
@@ -6136,6 +6153,13 @@
   "unified_mailbox": {
     "search_unavailable": "La cerca no està disponible a la vista unificada"
   },
+  "account_routing": {
+    "group_members_one_account": "Un grup només pot contenir contactes d'un sol compte.",
+    "link_names_no_account": "Aquest enllaç no indica en quin compte és el missatge, així que no s'ha obert.",
+    "group_member_gone": "Un dels contactes triats ja no existeix. Torna a triar els membres.",
+    "invitation_other_account": "Aquesta invitació és en un altre compte. Canvia a aquell compte per respondre-la o afegir-la a un calendari.",
+    "tab_names_no_account": "Aquesta pestanya es va desar sense el seu compte, així que no s'ha obert. Tanca-la i torna-la a obrir des del compte al qual pertany."
+  },
   "mail_import": {
     "menu_import": "Importa correu…",
     "settings_label": "Importa correu",
@@ -6833,6 +6857,10 @@
         "title": "Connectar-se a altres llocs web",
         "body": "Enviar peticions a aquests llocs. Qualsevol cosa que el connector pugui llegir s'hi pot enviar:"
       },
+      "links_check": {
+        "title": "Comprovar els enllaços que obriu",
+        "body": "Veure cada enllaç web que obriu, amb el seu text, i aturar-lo o obrir una altra adreça en el seu lloc."
+      },
       "admin_config": {
         "title": "Llegir la configuració que li ha posat l'administrador",
         "body": "Llegir la configuració que l'administrador ha desat per a aquest connector."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Mostrar notificacions",
-        "body": "Mostrar notificacions al dispositiu, o dins l'aplicació si no les heu permeses. Cadascuna indica el nom del connector."
+        "body": "Mostrar notificacions al dispositiu, o dins l'aplicació si no les heu permeses. Cadascuna indica el nom del connector. El connector també veu els avisos que l'aplicació us mostra."
       },
       "ui_message_list": {
         "title": "Afegir elements a la llista de missatges",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Aquesta pàgina no està disponible",
     "not_available_description": "El connector que l'ha afegida està desactivat o ja no està instal·lat.",
     "back_to_mail": "Torna al correu"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Llista del connector {name}",
+    "dropdown_list_labelled": "{label}, llista del connector {name}",
+    "oauth_failed": "El servei no ha completat l'inici de sessió. Tanqueu aquesta finestra i torneu-ho a provar.",
+    "banners_more": "Més bàners ({count}): {names}",
+    "banners_fewer": "Menys bàners",
+    "opened_by_plugin": "Obert pel connector {name}"
   },
   "command_palette": {
     "title": "Paleta d'ordres",
@@ -7291,6 +7327,14 @@
       "added_from": "Afegit des d’un correu de {domain}",
       "added_from_subject": "Afegit des del correu «{subject}» de {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Aquesta cancel·lació s'ha enviat des de {sender}, però l'organitzador d'aquest esdeveniment al vostre calendari és {organizer}. Només l'organitzador el pot cancel·lar. Elimineu-lo vosaltres mateixos si confieu en aquest missatge.",
+    "cancel_unverified": "No s'ha pogut verificar que aquesta cancel·lació vingui de l'organitzador. Elimineu l'esdeveniment vosaltres mateixos si confieu en aquest missatge.",
+    "card_sender": "de {domain}",
+    "card_sender_title": "Aquest missatge ha superat la comprovació del remitent del servidor de correu per a {domain}.",
+    "outside_link": "Un altre lloc",
+    "outside_link_title": "Aquest enllaç porta a {host}, fora de {domain}, el domini del remitent."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Has obert {mailbox} mitjançant una suplantació.",
     "return_button": "Torna al meu compte"
+  },
+  "admin_access": {
+    "label": "Els superusuaris d’aquest servidor poden obrir el tauler d’administració",
+    "help": "Els superusuaris d’aquest servidor inicien la sessió al tauler d’administració sense la contrasenya d’administrador, com els del servidor JMAP principal. Activa-ho només per a un servidor que gestionis tu mateix."
   }
 }

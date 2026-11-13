@@ -22,6 +22,7 @@
       "totp_required": "Este necesar un cod de autentificare în doi pași. Vă rugăm să introduceți codul mai jos.",
       "totp_invalid": "Cod de autentificare invalid. Vă rugăm să verificați aplicația de autentificare și să încercați din nou.",
       "oauth_discovery_failed": "SSO este activată, dar furnizorul de identitate nu a putut fi contactat. Verificați configurația OAuth.",
+      "oauth_issuer_mismatch": "Autentificarea prin acest furnizor nu este configurată corect. Administratorul trebuie să seteze adresa emitentului (issuer) acestuia.",
       "token_exchange_failed": "Parola și codul au fost acceptate, dar serverul de e-mail a refuzat să pornească o sesiune pentru această aplicație. Cereți administratorului să verifice setările clientului OAuth."
     },
     "show_password": "Afișează parola",
@@ -338,6 +339,14 @@
     "show_on_mobile": "Afișare pe mobil"
   },
   "email_list": {
+    "date_groups": {
+      "today": "Astăzi",
+      "yesterday": "Ieri",
+      "last_week": "Săptămâna trecută",
+      "last_month": "Luna trecută",
+      "older": "Mai vechi"
+    },
+    "group_by_date": "Grupează după dată",
     "sections": {
       "unread": "Necitite",
       "everything_else": "Toate celelalte",
@@ -2100,6 +2109,10 @@
         "label": "Afișează atașamentele în listă",
         "description": "Afișează fișierele atașate sub fiecare mesaj, ca să le puteți deschide direct din listă. Agrafa apare oricum."
       },
+      "show_tag_chips": {
+        "label": "Afișează etichetele în listă",
+        "description": "Afișează etichetele lângă expeditor sau subiect în lista de mesaje"
+      },
       "plain_text_mode": {
         "label": "Numai text simplu",
         "description": "Dezactivați editorul de text formatat și trimiteți toate e-mailurile doar ca text simplu, inclusiv răspunsurile și redirecționările"
@@ -2289,6 +2302,10 @@
       "rtl_editing": {
         "label": "Suport pentru editare de la dreapta la stânga",
         "description": "Adaugă un buton de direcție în bara de instrumente a editorului, cu care paragrafele pot fi setate de la stânga la dreapta sau de la dreapta la stânga"
+      },
+      "group_by_date": {
+        "label": "Grupează după dată",
+        "description": "Afișează mesajele sub antete de dată precum Astăzi, Ieri și Săptămâna trecută. Se aplică doar când lista este sortată după dată."
       },
       "group_conversations": {
         "label": "Grupează mesajele pe conversații",
@@ -6136,6 +6153,13 @@
   "unified_mailbox": {
     "search_unavailable": "Funcția de căutare nu este disponibilă în vizualizarea unificată"
   },
+  "account_routing": {
+    "group_members_one_account": "Un grup poate conține doar contacte dintr-un singur cont.",
+    "link_names_no_account": "Acest link nu spune în ce cont se află mesajul, așa că nu a fost deschis.",
+    "group_member_gone": "Unul dintre contactele alese nu mai există. Alegeți din nou membrii.",
+    "invitation_other_account": "Această invitație se află în alt cont. Treci la acel cont ca să răspunzi la ea sau să o adaugi într-un calendar.",
+    "tab_names_no_account": "Această filă a fost salvată fără contul ei, așa că nu a fost deschisă. Închide-o și deschide-o din nou din contul de care ține."
+  },
   "mail_import": {
     "menu_import": "Importă e-mailuri…",
     "settings_label": "Importă e-mailuri",
@@ -6833,6 +6857,10 @@
         "title": "Conectarea la alte site-uri",
         "body": "Trimite cereri către aceste site-uri. Orice poate citi pluginul poate fi trimis acolo:"
       },
+      "links_check": {
+        "title": "Verificarea linkurilor pe care le deschideți",
+        "body": "Vede fiecare link web pe care îl deschideți, împreună cu textul lui, și îl poate opri sau poate deschide în loc o altă adresă."
+      },
       "admin_config": {
         "title": "Citirea setărilor de la administrator",
         "body": "Citește setările pe care administratorul le-a salvat pentru acest plugin."
@@ -6939,7 +6967,7 @@
       },
       "ui_notifications": {
         "title": "Afișarea notificărilor",
-        "body": "Afișează notificări pe dispozitiv sau în aplicație, dacă nu le-ați permis. Fiecare indică numele pluginului."
+        "body": "Afișează notificări pe dispozitiv sau în aplicație, dacă nu le-ați permis. Fiecare indică numele pluginului. Pluginul vede și notificările pe care vi le afișează aplicația."
       },
       "ui_message_list": {
         "title": "Adăugarea în lista de mesaje",
@@ -7089,6 +7117,14 @@
     "not_available_title": "Această pagină nu este disponibilă",
     "not_available_description": "Pluginul care a adăugat-o este dezactivat sau nu mai este instalat.",
     "back_to_mail": "Înapoi la e-mail"
+  },
+  "plugin_surfaces": {
+    "dropdown_list": "Listă de la pluginul {name}",
+    "dropdown_list_labelled": "{label}, listă de la pluginul {name}",
+    "oauth_failed": "Serviciul nu a finalizat conectarea. Închide această fereastră și încearcă din nou.",
+    "banners_more": "Mai multe bannere ({count}): {names}",
+    "banners_fewer": "Mai puține bannere",
+    "opened_by_plugin": "Deschis de pluginul {name}"
   },
   "command_palette": {
     "title": "Paleta de comenzi",
@@ -7291,6 +7327,14 @@
       "added_from": "Adăugat dintr-un e-mail de la {domain}",
       "added_from_subject": "Adăugat din e-mailul „{subject}” de la {domain}"
     }
+  },
+  "sender_trust": {
+    "cancel_not_organizer": "Această anulare a fost trimisă de la {sender}, dar organizatorul acestui eveniment din calendarul dumneavoastră este {organizer}. Doar organizatorul îl poate anula. Eliminați-l singur dacă aveți încredere în acest mesaj.",
+    "cancel_unverified": "Nu s-a putut verifica faptul că această anulare vine de la organizator. Eliminați singur evenimentul dacă aveți încredere în acest mesaj.",
+    "card_sender": "de la {domain}",
+    "card_sender_title": "Acest mesaj a trecut verificarea expeditorului făcută de serverul de e-mail pentru {domain}.",
+    "outside_link": "Alt site",
+    "outside_link_title": "Acest link duce la {host}, în afara {domain}, domeniul expeditorului."
   },
   "proofreading": {
     "kind": {
@@ -8298,5 +8342,9 @@
   "impersonation": {
     "return_notice": "Ați deschis {mailbox} prin impersonare.",
     "return_button": "Înapoi la contul meu"
+  },
+  "admin_access": {
+    "label": "Superutilizatorii acestui server pot deschide panoul de administrare",
+    "help": "Superutilizatorii acestui server se conectează la panoul de administrare fără parola de administrator, la fel ca cei ai serverului JMAP principal. Activați această opțiune doar pentru un server pe care îl administrați dumneavoastră."
   }
 }
