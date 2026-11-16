@@ -141,11 +141,11 @@ export const SHARED_SETTINGS = [
   'enableUnifiedMailbox', 'sessionTimeout',
   // Everything else app.setSettings may change (lib/settings-schema.ts), so
   // a plugin reads the current value before it proposes a new one.
-  'colorfulSidebarIcons', 'showFolderTotalCount', 'hideAccountSwitcher', 'sidebarAccountSwitcher', 'showRailAccountList',
+  'colorfulSidebarIcons', 'showFolderTotalCount', 'hideAccountSwitcher', 'sidebarAccountSwitcher', 'composePlacement', 'showRailAccountList',
   'unifiedCrossAccount', 'includeGroupInUnified', 'enableCrossUnreadView', 'enableCrossStarredView', 'enableCrossAllView',
   'tintListRowsByAccount', 'showAccountDot', 'showSharedMailAccounts', 'compactSharedMailboxes', 'showAdvancedSettings',
   'dateLocale', 'protocolOpenMode', 'showOnboardingOnNewDevices',
-  'mvInboxType', 'messageListOrderScope', 'tintListRowsByTag', 'senderFavicons', 'showAvatarsInJunk',
+  'mvInboxType', 'mvUnreadSectionSize', 'messageListOrderScope', 'tintListRowsByTag', 'senderFavicons', 'showAvatarsInJunk',
   'hoverActions', 'hoverActionsMode', 'hoverActionsCorner', 'swipeRightAction', 'swipeLeftAction',
   'searchDefaultScope', 'clearSearchOnFolderChange',
   'messageSpacing', 'attachmentImagePreviewsEnabled', 'hideInlineImageAttachments',
@@ -155,7 +155,7 @@ export const SHARED_SETTINGS = [
   'notificationSoundChoice', 'pushNotifyInboxOnly', 'faviconUnreadBadge', 'unreadBadgeAllAccounts', 'calendarNotificationSound', 'doNotDisturb', 'visualAlerts',
   'calendarInvitationParsingEnabled', 'showTimeInMonthView', 'calendarTintedEvents', 'calendarMonthTimedEvents',
   'calendarLimitHours', 'calendarDayStartHour', 'calendarDayEndHour', 'calendarHideNonWorkingDays',
-  'calendarFreeScroll', 'calendarHoverPreview', 'showTasksOnCalendar',
+  'calendarFreeScroll', 'calendarHoverPreview', 'showTasksOnCalendar', 'showTasksApp',
   'groupContactsByLetter', 'sortContactsByLastName', 'showContactsDirectory',
   'showAccessibilityButton', 'lineSpacing', 'letterSpacing', 'wordSpacing', 'paragraphSpacing', 'readingWidth',
   'readingMask', 'reduceTransparency', 'showColorNames', 'colorBlindPalette', 'pauseAnimatedImages',

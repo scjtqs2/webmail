@@ -159,6 +159,7 @@
     "settings": "Nastavenia",
     "admin": "Administrácia",
     "files": "Súbory",
+    "tasks": "Úlohy",
     "loading_mailboxes": "Načítavanie schránok...",
     "push_connected": "Aktualizácie v reálnom čase sú aktívne",
     "push_disconnected": "Aktualizácie v reálnom čase sú neaktívne",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Vymazať formátovanie",
       "undo": "Späť",
       "redo": "Znova",
+      "cell_background": "Pozadie bunky",
       "add_row_above": "Pridať riadok nad",
       "add_row_below": "Pridať riadok pod",
       "add_column_before": "Pridať stĺpec pred",
@@ -1729,6 +1731,13 @@
         "label": "Prepínač účtov hore v postrannom paneli",
         "description": "Zobrazí prepínač účtov nad priečinkami a okrúhle tlačidlo Napísať nad zoznamom správ. Po vypnutí bude tlačidlo Napísať nad priečinkami."
       },
+      "compose_placement": {
+        "label": "Tlačidlo Napísať",
+        "description": "Kde je tlačidlo Napísať na počítači. V telefóne je vždy nad zoznamom správ.",
+        "floating": "Nad zoznamom správ",
+        "sidebar": "Hore v paneli priečinkov",
+        "rail": "Hore na navigačnej lište"
+      },
       "show_rail_account_list": {
         "label": "Zobraziť avatáry účtov na navigačnej lište",
         "description": "Zobrazovať jednotlivé ikony účtov v dolnej časti navigačnej lišty pre rýchle prepínanie."
@@ -2008,9 +2017,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Typ doručenej pošty",
-        "description": "„Najprv neprečítané“ zobrazí 25 najnovších neprečítaných správ v sekcii nad zvyškom doručenej pošty",
+        "description": "„Najprv neprečítané“ zobrazí najnovšie neprečítané správy v sekcii nad zvyškom doručenej pošty",
         "default": "Predvolené",
         "unread_first": "Najprv neprečítané"
+      },
+      "unread_section_size": {
+        "label": "Zobrazené neprečítané správy",
+        "description": "Koľko najnovších neprečítaných správ zobrazí sekcia „Najprv neprečítané“",
+        "5": "5 správ",
+        "10": "10 správ",
+        "15": "15 správ",
+        "20": "20 správ",
+        "25": "25 správ",
+        "50": "50 správ"
       },
       "clear_search_on_folder_change": {
         "label": "Vymazať hľadanie pri prepnutí priečinka",
@@ -2562,6 +2581,7 @@
         "enable_tooltip": "Zapnúť šifrovanie týmto kľúčom",
         "configure_title": "Zapnúť šifrovanie týmto kľúčom",
         "enable_button": "Zapnúť",
+        "in_use": "Používa sa",
         "disable_tooltip": "Vypnúť šifrovanie",
         "disable_title": "Vypnúť šifrovanie uložených dát?",
         "disable_message": "Nová pošta sa odteraz ukladá bez šifrovania.",
@@ -2804,7 +2824,9 @@
       },
       "settings_sync": {
         "label": "Synchronizácia nastavení",
-        "description": "Synchronizovať nastavenia medzi prehliadačmi a zariadeniami"
+        "description": "Synchronizovať nastavenia medzi prehliadačmi a zariadeniami",
+        "replaced": "{count, plural, one {# nastavenie v tomto prehliadači sa teraz riadi} few {# nastavenia v tomto prehliadači sa teraz riadia} other {# nastavení v tomto prehliadači sa teraz riadi}} vaším účtom.",
+        "keep_mine": "Použiť nastavenia tohto prehliadača"
       },
       "sender_favicons": {
         "label": "Favikony odosielateľov",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Blokovať odosielateľa} few {Blokovať # odosielateľov} many {Blokovať # odosielateľa} other {Blokovať # odosielateľov}}",
       "no_junk": "Tento účet nemá priečinok nevyžiadanej pošty",
       "create": "Vytvoriť pravidlo…",
+      "add_sender_to_rule": "Pridať do pravidla: {sender}",
+      "sender_already_present": "Už je v tomto pravidle",
+      "no_rule_fits": "Žiadne pravidlo, kam pridať",
       "manage": "Spravovať pravidlá",
       "senders_count": "{count, plural, one {# odosielateľa} few {# odosielateľov} many {# odosielateľa} other {# odosielateľov}}",
       "cross_account": "Vyberte správy z jedného účtu",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Kým to nezmeníte, riadi sa to rozložením: vypnuté, keď sú zoznam a správa vedľa seba, inak zapnuté."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Zobrazí prepínač účtov nad priečinkami a pod ním tlačidlo Napísať. Po vypnutí bude na jeho mieste tlačidlo Napísať."
+    "sidebar_account_switcher_description": "Zobrazí prepínač účtov nad priečinkami. Po vypnutí prepínate účty avatarom na navigačnej lište."
   },
   "mail_p2_conv": {
     "show_message": "Zobraziť správu",
@@ -4508,6 +4533,8 @@
       "role_label": "Rola",
       "language_label": "Jazyk",
       "related_default_label": "Súvisiace",
+      "related_unknown": "Neznámy kontakt",
+      "related_remove": "Odstrániť zo súvisiacich kontaktov",
       "more_actions": "Viac akcií",
       "age_years": "{count, plural, one {1 rok} other {# rokov}}",
       "years_since": "{count, plural, one {1 rok} other {# rokov}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Čas ukončenia",
       "all_day_event": "Celodenná udalosť",
       "calendar_select": "Kalendár",
+      "show_as": "Zobraziť ako",
+      "show_as_busy": "Zaneprázdnený",
+      "show_as_free": "Voľno",
+      "shown_free": "Zobrazené ako voľno",
+      "visibility": "Viditeľnosť",
+      "visibility_public": "Verejné",
+      "visibility_private": "Súkromné",
+      "visibility_secret": "Skryté",
+      "visibility_hint_public": "Ľudia, s ktorými zdieľate kalendár, vidia podrobnosti.",
+      "visibility_hint_private": "Ľudia, s ktorými zdieľate kalendár, vidia len čas.",
+      "visibility_hint_secret": "Ľudia, s ktorými zdieľate kalendár, udalosť nevidia a čas zostane voľný.",
+      "visibility_series": "Platí pre všetky opakovania.",
       "save": "Uložiť",
       "cancel": "Zrušiť",
       "color": "Farba"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Zobrazovať zobrazenie úloh v kalendári",
       "show_tasks_on_calendar": "Zobraziť úlohy v kalendári",
       "show_tasks_on_calendar_desc": "Zobrazovať úlohy v mesačnom, týždennom a dennom zobrazení kalendára",
+      "show_tasks_app": "Úlohy ako samostatná aplikácia",
+      "show_tasks_app_desc": "Úlohy majú vlastnú ikonu na lište aplikácií namiesto zobrazenia v kalendári",
       "hover_preview": "Náhľad udalosti po prejdení",
       "hover_preview_desc": "Zobrazovať vyskakovacie okno s podrobnosťami pri najetí myšou na udalosti v kalendári",
       "hover_preview_instant": "Okamžite",

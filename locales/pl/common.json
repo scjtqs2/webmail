@@ -158,6 +158,7 @@
     "settings": "Ustawienia",
     "admin": "Administracja",
     "files": "Pliki",
+    "tasks": "Zadania",
     "loading_mailboxes": "Ładowanie skrzynek...",
     "push_connected": "Aktualizacje w czasie rzeczywistym aktywne",
     "push_disconnected": "Aktualizacje w czasie rzeczywistym nieaktywne",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Wyczyść formatowanie",
       "undo": "Cofnij",
       "redo": "Ponów",
+      "cell_background": "Tło komórki",
       "add_row_above": "Dodaj wiersz powyżej",
       "add_row_below": "Dodaj wiersz poniżej",
       "add_column_before": "Dodaj kolumnę przed",
@@ -1726,6 +1728,13 @@
         "label": "Przełącznik kont u góry paska bocznego",
         "description": "Pokazuje przełącznik kont nad folderami i okrągły przycisk Napisz nad listą wiadomości. Po wyłączeniu przycisk Napisz będzie nad folderami."
       },
+      "compose_placement": {
+        "label": "Przycisk Napisz",
+        "description": "Gdzie jest przycisk Napisz na komputerze. Na telefonie zawsze jest nad listą wiadomości.",
+        "floating": "Nad listą wiadomości",
+        "sidebar": "U góry paska folderów",
+        "rail": "U góry paska nawigacyjnego"
+      },
       "show_rail_account_list": {
         "label": "Pokazuj awatary kont na pasku nawigacyjnym",
         "description": "Wyświetlaj osobne ikony kont na dole paska nawigacyjnego, aby szybko się przełączać, z przyciskiem wylogowania poniżej."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Typ skrzynki odbiorczej",
-        "description": "„Najpierw nieprzeczytane” pokazuje 25 najnowszych nieprzeczytanych wiadomości w sekcji nad resztą skrzynki",
+        "description": "„Najpierw nieprzeczytane” pokazuje najnowsze nieprzeczytane wiadomości w sekcji nad resztą skrzynki",
         "default": "Domyślny",
         "unread_first": "Najpierw nieprzeczytane"
+      },
+      "unread_section_size": {
+        "label": "Pokazywane nieprzeczytane wiadomości",
+        "description": "Ile najnowszych nieprzeczytanych wiadomości pokazuje sekcja „Najpierw nieprzeczytane”",
+        "5": "5 wiadomości",
+        "10": "10 wiadomości",
+        "15": "15 wiadomości",
+        "20": "20 wiadomości",
+        "25": "25 wiadomości",
+        "50": "50 wiadomości"
       },
       "clear_search_on_folder_change": {
         "label": "Czyść wyszukiwanie przy zmianie folderu",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "Włącz szyfrowanie tym kluczem",
         "configure_title": "Włącz szyfrowanie tym kluczem",
         "enable_button": "Włącz",
+        "in_use": "W użyciu",
         "disable_tooltip": "Wyłącz szyfrowanie",
         "disable_title": "Wyłączyć szyfrowanie danych w spoczynku?",
         "disable_message": "Nowa poczta będzie od teraz zapisywana bez szyfrowania.",
@@ -2797,7 +2817,9 @@
       },
       "settings_sync": {
         "label": "Synchronizacja ustawień",
-        "description": "Synchronizuj ustawienia między przeglądarkami i urządzeniami"
+        "description": "Synchronizuj ustawienia między przeglądarkami i urządzeniami",
+        "replaced": "{count, plural, one {# ustawienie w tej przeglądarce jest teraz zgodne} few {# ustawienia w tej przeglądarce są teraz zgodne} other {# ustawień w tej przeglądarce jest teraz zgodnych}} z Twoim kontem.",
+        "keep_mine": "Użyj ustawień tej przeglądarki"
       },
       "sender_favicons": {
         "label": "Favikony nadawców",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, =1 {Zablokuj nadawcę} one {Zablokuj # nadawcę} few {Zablokuj # nadawców} many {Zablokuj # nadawców} other {Zablokuj # nadawcy}}",
       "no_junk": "To konto nie ma folderu spamu",
       "create": "Utwórz regułę…",
+      "add_sender_to_rule": "Dodaj do reguły: {sender}",
+      "sender_already_present": "Już jest w tej regule",
+      "no_rule_fits": "Brak reguł, do których można dodać",
       "manage": "Zarządzaj regułami",
       "senders_count": "{count, plural, one {# nadawcy} few {# nadawców} many {# nadawców} other {# nadawcy}}",
       "cross_account": "Wybierz wiadomości z jednego konta",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Dopóki tego nie zmienisz, ustawienie zależy od układu: wyłączone, gdy lista i wiadomość są obok siebie, w innych przypadkach włączone."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Pokazuje przełącznik kont nad folderami, a pod nim przycisk Napisz. Po wyłączeniu przycisk Napisz będzie w jego miejscu."
+    "sidebar_account_switcher_description": "Pokazuje przełącznik kont nad folderami. Wyłącz, aby zmieniać konto awatarem na pasku nawigacyjnym."
   },
   "mail_p2_conv": {
     "show_message": "Pokaż wiadomość",
@@ -4506,6 +4531,8 @@
       "role_label": "Role",
       "language_label": "Language",
       "related_default_label": "Related",
+      "related_unknown": "Nieznany kontakt",
+      "related_remove": "Usuń z powiązanych kontaktów",
       "more_actions": "Więcej działań",
       "age_years": "{count, plural, one {1 rok} few {# lata} many {# lat} other {# lat}}",
       "years_since": "{count, plural, one {1 rok temu} few {# lata temu} many {# lat temu} other {# lat temu}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Godzina zakończenia",
       "all_day_event": "Wydarzenie całodniowe",
       "calendar_select": "Kalendarz",
+      "show_as": "Pokaż jako",
+      "show_as_busy": "Zajęty",
+      "show_as_free": "Wolny",
+      "shown_free": "Widoczne jako wolny czas",
+      "visibility": "Widoczność",
+      "visibility_public": "Publiczne",
+      "visibility_private": "Prywatne",
+      "visibility_secret": "Ukryte",
+      "visibility_hint_public": "Osoby, którym udostępniasz kalendarz, widzą szczegóły.",
+      "visibility_hint_private": "Osoby, którym udostępniasz kalendarz, widzą tylko godzinę.",
+      "visibility_hint_secret": "Osoby, którym udostępniasz kalendarz, nie widzą wydarzenia, a czas pozostaje wolny.",
+      "visibility_series": "Dotyczy wszystkich powtórzeń.",
       "save": "Zapisz",
       "cancel": "Anuluj",
       "color": "Kolor"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Pokaż widok zadań w kalendarzu do zarządzania zadaniami",
       "show_tasks_on_calendar": "Pokaż zadania w kalendarzu",
       "show_tasks_on_calendar_desc": "Wyświetlaj zadania w miesięcznym, tygodniowym i dziennym widoku kalendarza",
+      "show_tasks_app": "Zadania jako osobna aplikacja",
+      "show_tasks_app_desc": "Zadania mają własną ikonę na pasku aplikacji zamiast widoku w kalendarzu",
       "hover_preview": "Podgląd wydarzenia po najechaniu",
       "hover_preview_desc": "Pokaż wyskakujące okno szczegółów po najechaniu na wydarzenia w kalendarzu",
       "hover_preview_instant": "Natychmiast",

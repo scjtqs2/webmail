@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, useId } from "react";
+import { Fragment, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, useId, type CSSProperties } from "react";
 import { spamApplicableIn } from "@/lib/spam-applicable";
 import { Email, ContactCard, Identity, Mailbox } from "@/lib/jmap/types";
 import { attachmentDownloadFilename, attachmentsBundleFilename, DEFAULT_ATTACHMENT_TEMPLATE, renamedAttachmentFilename } from "@/lib/download-filename";
@@ -74,6 +74,9 @@ import { useAccountTags, useEmailTagScope, type TagScope } from "@/hooks/use-acc
 import { getEmailTagIds, emailKeyFor } from "@/lib/thread-utils";
 import { getSecurityStatus, extractListHeaders, getSenderVerification } from "@/lib/email-headers";
 import { emailToReadView } from "@/lib/plugin-projection";
+import { askReplyIdentity, hasReplyIdentityPlugins } from "@/lib/plugin-reply-identity";
+import { deliveryAddresses } from "@/lib/reply-identity";
+import { toUnicodeEmail } from "@/lib/idn";
 import type { EmailReadView, ExternalLinkContext } from "@/lib/plugin-types";
 import { ViewSourceDialog } from "./view-source-dialog";
 import { MoveFolderList, moveMenuIsEmpty, useMoveMenu } from "./move-target-list";
@@ -284,9 +287,10 @@ export interface EmailViewerProps {
   onDownloadAttachment?: (blobId: string, name: string, type?: string, forceDownload?: boolean, source?: EmailBlobContext) => void;
   /** Resolves false when nothing was sent (the user went back), so the text stays. */
   /** `composerId`: the id plugins know the quick reply by, for its send checks. */
-  onQuickReply?: (body: string, extra?: { composerId?: string }) => Promise<boolean | void>;
+  /** `identityId`: the identity a plugin picked for it (onSelectReplyIdentity). */
+  onQuickReply?: (body: string, extra?: { composerId?: string; identityId?: string }) => Promise<boolean | void>;
   /** Keeps the typed quick reply as a draft before an automatic sign-out (lib/compose-flush-registry.ts). */
-  onSaveQuickReplyDraft?: (body: string) => Promise<void>;
+  onSaveQuickReplyDraft?: (body: string, extra?: { identityId?: string }) => Promise<void>;
   onMarkAsSpam?: () => void;
   onUndoSpam?: () => void;
   onMoveToMailbox?: (mailboxId: string) => void;
@@ -1003,10 +1007,13 @@ export function MvExpandedConversationCard({
   blobSource,
   compact,
   shortDates,
+  onCard,
 }: {
   email: Email;
   timeFormat: '12h' | '24h';
   compact?: boolean;
+  /** Inside the reader's message card (reading width about 80 characters). */
+  onCard?: boolean;
   /** The default layout's short date instead of Gmail's long one. */
   shortDates?: boolean;
   onCollapse: (email: Email) => void;
@@ -1158,6 +1165,7 @@ export function MvExpandedConversationCard({
           blobSource={blobSource}
           className={cn("pb-4", compact ? "px-4" : "ps-[80px] pe-6")}
           bodyStyle={{ paddingBlock: '0.25rem 0.5rem' }}
+          onCard={onCard}
         />
       ) : (
         <div className={cn("pb-4 pt-1 space-y-2 animate-pulse", compact ? "px-4" : "ps-[80px] pe-6")} data-mv-conversation-loading="">
@@ -1790,6 +1798,8 @@ export function EmailViewer({
         : blobSource ?? resolveEmailBlobContext(target, client)}
       onDownloadAttachment={(blobId, name, type, source) => onDownloadAttachment?.(blobId, name, type, false, source)}
       compact={mvMobileViewer}
+      // Called by the conversation run while it renders, after `readingCard` is set.
+      onCard={readingCard}
     />
   );
   // Mountain View's toolbars are icon-only, on the phone as on the desktop.
@@ -1927,10 +1937,32 @@ export function EmailViewer({
   const quickReplyPlaceholder = quickReplyNames
     ? tWords('quick_reply_to', { names: quickReplyNames })
     : t('quick_reply_placeholder');
+  // The quick reply's message and account, for the plugin pick below and
+  // the plugin actions' id.
+  const quickReplyKey = email ? JSON.stringify([email.id, activeAccountId, email.sourceClientAccountId, email.sourceAccountId]) : '';
+  // The identity a plugin picked for this quick reply (onSelectReplyIdentity),
+  // asked once the user starts on it, once per message and account.
+  const [quickReplyPluginIdentity, setQuickReplyPluginIdentity] = useState<{ key: string; id: string | null } | null>(null);
+  const quickReplyPluginIdentityId = quickReplyPluginIdentity?.key === quickReplyKey ? quickReplyPluginIdentity.id : null;
+  const quickReplyStarted = quickReplyEnabled && (isQuickReplyFocused || quickReplyText.length > 0);
+  const quickReplyAskedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!quickReplyStarted || !email || quickReplyAskedRef.current === quickReplyKey) return;
+    if (!hasReplyIdentityPlugins()) return;
+    quickReplyAskedRef.current = quickReplyKey;
+    const key = quickReplyKey;
+    const deliveredTo = deliveryAddresses(email.headers);
+    void askReplyIdentity({
+      mode: 'quick-reply',
+      source: { ...email, deliveredTo },
+      identities,
+      identityId: quickReplyEnvelope(email, identities).sendingIdentity?.id ?? null,
+    }).then((id) => setQuickReplyPluginIdentity({ key, id })).catch(() => {});
+  }, [quickReplyStarted, quickReplyKey, email, identities]);
   /** The recipients and identity the quick reply would be sent with. */
   const quickMetadata = (): ComposerMetadata => {
     if (!email) return { subject: '', to: [], attachments: [] };
-    const envelope = quickReplyEnvelope(email, identities);
+    const envelope = quickReplyEnvelope(email, identities, quickReplyPluginIdentityId);
     return {
       subject: email.subject ?? '', to: envelope.recipients, attachments: [],
       identityId: envelope.sendingIdentity?.id,
@@ -1941,36 +1973,43 @@ export function EmailViewer({
   // The id plugins know the quick reply by: its actions' clicks and its send
   // checks (OutgoingEmail.composerId) carry the same one. A new one per
   // message and account, as the actions' key below.
-  const quickReplyKey = email ? JSON.stringify([email.id, activeAccountId, email.sourceClientAccountId, email.sourceAccountId]) : '';
   // eslint-disable-next-line react-hooks/exhaustive-deps -- a new id per message and account
   const quickReplyComposerId = useMemo(() => generateUUID(), [quickReplyKey]);
   // The quick reply's Send button shows once it is focused or has text.
-  useComposingSurface(quickReplyEnabled && (isQuickReplyFocused || quickReplyText.length > 0));
+  useComposingSurface(quickReplyStarted);
+  // The address the quick reply goes out from, shown under the box when
+  // there is more than one to choose from.
+  const quickReplyFrom = email && identities.length > 1
+    ? quickReplyEnvelope(email, identities, quickReplyPluginIdentityId).sendingIdentity
+    : undefined;
   // An automatic sign-out keeps typed quick-reply text as a draft; text on
   // its way out as a reply needs none. A reply still waiting on the
   // "Send outside your organisation?" question hasn't gone out: the question
   // is answered with Back and the text kept as a draft.
-  const quickReplyDraftRef = useRef({ text: quickReplyText, sending: isSendingQuickReply, save: onSaveQuickReplyDraft });
-  quickReplyDraftRef.current = { text: quickReplyText, sending: isSendingQuickReply, save: onSaveQuickReplyDraft };
+  const quickReplyDraftRef = useRef({ text: quickReplyText, sending: isSendingQuickReply, save: onSaveQuickReplyDraft, identityId: quickReplyPluginIdentityId });
+  quickReplyDraftRef.current = { text: quickReplyText, sending: isSendingQuickReply, save: onSaveQuickReplyDraft, identityId: quickReplyPluginIdentityId };
   const hasQuickReplyDraft = quickReplyText.trim().length > 0 && !!onSaveQuickReplyDraft;
   useEffect(() => {
     if (!hasQuickReplyDraft) return;
     return registerComposeFlush(async () => {
-      const { text, sending, save } = quickReplyDraftRef.current;
+      const { text, sending, save, identityId } = quickReplyDraftRef.current;
       if (!text.trim() || !save) return;
       if (sending) {
         const confirm = useExternalRecipientConfirmStore.getState();
         if (!confirm.pending) return;
         confirm.cancelAll();
       }
-      await save(text);
+      await (identityId ? save(text, { identityId }) : save(text));
     });
   }, [hasQuickReplyDraft]);
   const handleSendQuickReply = async () => {
     if (!quickReplyText.trim() || !onQuickReply || isSendingQuickReply) return;
     setIsSendingQuickReply(true);
     try {
-      const sent = await onQuickReply(quickReplyText, { composerId: quickReplyComposerId });
+      const sent = await onQuickReply(quickReplyText, {
+        composerId: quickReplyComposerId,
+        ...(quickReplyPluginIdentityId ? { identityId: quickReplyPluginIdentityId } : {}),
+      });
       // Back on a pre-send question keeps what the user typed.
       if (sent !== false) {
         setQuickReplyText("");
@@ -3672,7 +3711,7 @@ export function EmailViewer({
   // Text size, minimum size and the other reading settings for the body. A
   // ref for the iframe setup, which runs from observers wired once per
   // document; the srcDoc changes with frameKey, so a new setting rebuilds it.
-  const reading = useMailReading();
+  const reading = useMailReading({ wide: !isMobile });
   const readingRef = useRef(reading);
   readingRef.current = reading;
   fitBodyToWidthRef.current = mailFitOptions(isMobile, reading.fitWidth);
@@ -3685,6 +3724,9 @@ export function EmailViewer({
   // inline colours written by our pass would only fight it. With the mail
   // shown in the app's own colours there is nothing left to recolour either.
   const recolorDark = isDark && !reading.forcedColors && !reading.overrideStyles;
+  // With lines of about 80 characters the message reads as a card on the
+  // pane, as wide as that column. Not on a phone: the column fills it anyway.
+  const readingCard = reading.card;
   const appFontSources = reading.fontSources.join(' ');
 
   // The body's language (Content-Language or the HTML's own lang), so a
@@ -5337,7 +5379,10 @@ export function EmailViewer({
                     blocks below are h3 and h4, so no level is skipped. */}
                 <h2 dir="auto" className={cn(
                   // The header stays while the message scrolls: a very long subject scrolls by itself.
-                  "text-foreground break-words min-w-0 max-h-[35dvh] overflow-y-auto",
+                  // The padding, taken back by the margin, holds the font's ascent and descent where
+                  // they reach past the line height (Segoe UI at Mountain View's 22/28), which
+                  // otherwise put a scroll bar beside every one-line subject (#1704).
+                  "text-foreground break-words min-w-0 max-h-[35dvh] overflow-y-auto py-1 -my-1",
                   mvViewer ? "text-[1.375rem] leading-7 font-normal" : "text-lg lg:text-xl font-bold tracking-tight"
                 )}>
                   {email.subject || t('no_subject')}
@@ -5455,8 +5500,20 @@ export function EmailViewer({
       {/* Email Content Area. Mountain View reads the conversation on one plain
           sheet, so the reply buttons under the message sit on the page colour
           rather than on a tinted strip. */}
-      <div data-reader-scroll="" className={cn("flex-1 overflow-auto overscroll-contain", mvViewer || mvMobileViewer ? "bg-background" : "bg-muted/30", isMobile && !mvMobileViewer && "pb-[calc(3.25rem+env(safe-area-inset-bottom)/2)] sm:pb-0")}>
-      <div className="min-h-full flex flex-col">
+      <div data-reader-scroll="" className={cn("flex-1 overflow-auto overscroll-contain", mvViewer || mvMobileViewer ? "bg-background" : "bg-muted/30", isMobile && !mvMobileViewer && "pb-[calc(3.25rem+env(safe-area-inset-bottom)/2)] sm:pb-0", readingCard && "px-4")}>
+      {/* The card takes its surface, border, corners and shadow from the
+          theme. Inside it the page colour is the card colour, so the
+          message's sections and the element hosting the mail body are
+          painted in the card colour too: the colour a dark mail's canvas
+          has to match. */}
+      <div
+        className={cn("min-h-full flex flex-col", readingCard && "min-h-0 max-w-(--reading-card-width) mx-auto my-4 overflow-clip rounded-xl border border-border bg-card shadow-sm [--color-background:var(--color-card)]")}
+        // Mountain View indents the bodies under the sender's name (60px for
+        // the open message, 80px for the others); the card makes room for it
+        // so their lines still hold about 80 characters.
+        style={readingCard ? { '--reading-card-width': mvViewer ? `calc(${reading.cardWidth} + 4rem)` : reading.cardWidth } as CSSProperties : undefined}
+        data-reading-card={readingCard ? "" : undefined}
+      >
 
       {/* Above the messages of the open conversation. */}
       {mvOpenIndex >= 0 && (
@@ -6440,9 +6497,12 @@ export function EmailViewer({
             (mvOpenFolded || mvAwaitingConversation) && "hidden",
             // Mountain View indents the body under the sender's name, as Gmail does.
             mvViewer && "lg:ps-[60px]",
-            !isDark && resolvedTheme === 'dark' ? "bg-white email-content-light" : "bg-background"
+            !isDark && resolvedTheme === 'dark' ? "bg-white email-content-light" : "bg-background",
+            // Mail in the app's colours paints the card colour itself; painted
+            // twice, a translucent card colour would show darker behind it.
+            readingCard && reading.overrideStyles && effectiveEmailContent.isHtml && "bg-transparent"
           )}
-          style={isDark ? { backgroundColor: '#121212' } : undefined}>
+          style={isDark && !readingCard ? { backgroundColor: '#121212' } : undefined}>
             <ReadAloudBar state={readAloud.state} onPause={readAloud.pause} onResume={readAloud.resume} onStop={readAloud.stop} />
             <Watermark text={watermark} />
             {readingMaskOn && !isBodyLoading && (
@@ -6627,6 +6687,11 @@ export function EmailViewer({
                   {/* Action buttons - show when focused or has text */}
                   {(isQuickReplyFocused || quickReplyText) && (
                     <div className="flex flex-wrap items-center justify-end gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                      {quickReplyFrom?.email && (
+                        <span data-testid="quick-reply-from" dir="auto" className="me-auto min-w-0 truncate text-xs text-muted-foreground">
+                          {tComposer('from')}: <span dir="ltr">{quickReplyFrom.name ? `${quickReplyFrom.name} <${toUnicodeEmail(quickReplyFrom.email)}>` : toUnicodeEmail(quickReplyFrom.email)}</span>
+                        </span>
+                      )}
                       <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <Button
                           variant="ghost"

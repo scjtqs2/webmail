@@ -43,7 +43,7 @@ import { getOutboxHooks } from "@/lib/offline/outbox-hooks";
 import { isAppLockOn } from "@/lib/app-lock/state";
 import { useOfflineStore } from "@/lib/offline/state";
 import {
-  READ_FILTER, UNREAD_FILTER, UNREAD_SECTION_SIZE, andFilters, isUnreadFirstView, mergeUnreadSection,
+  READ_FILTER, UNREAD_FILTER, andFilters, unreadSectionSize, isUnreadFirstView, mergeUnreadSection,
   openSectionRows, sectionFromUnreadRows, unreadSectionRowCount, withoutReached, type UnreadSection,
 } from "@/lib/unread-first";
 
@@ -1138,7 +1138,7 @@ async function loadUnreadSection(client: IJMAPClient, mailbox: Mailbox, get: Sto
   const result = await effectiveClient.getEmails(
     mailbox.originalId || mailbox.id,
     accountId,
-    UNREAD_SECTION_SIZE,
+    unreadSectionSize(useSettingsStore.getState().mvUnreadSectionSize),
     0,
     undefined,
     true,
@@ -4041,6 +4041,7 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
     crossView: null,
   })),
   fetchTagCounts: (client) => coalesceRefresh(client, 'tagCounts', async () => {
+    const epoch = currentStoreEpoch();
     try {
       const keywords = useSettingsStore.getState().emailKeywords;
       if (keywords.length === 0) {
@@ -4064,6 +4065,8 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
           counts[id] = { total: cur.total + c.total, unread: cur.unread + c.unread };
         }
       }
+      // Counted in an account that is no longer on screen.
+      if (currentStoreEpoch() !== epoch) return;
       set({ tagCounts: counts });
     } catch (error) {
       console.error('Failed to fetch tag counts:', error);
@@ -6358,7 +6361,16 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
     // a cleared keyword is removed (null), since a keyword map holds `true`
     // values only.
     const patch = Object.fromEntries(keys.map(key => [keywordPointer(key), changes[key] ? true : null]));
+    const epoch = currentStoreEpoch();
     await actionClient.batchUpdateKeywords([emailId], patch, accountId);
+
+    // An account switch can replace an unstamped row with another login's
+    // namesake. The write succeeded, but its local completion no longer owns
+    // these stores. Keep the confirmed outcome and hook without patching them.
+    if (currentStoreEpoch() !== epoch) {
+      void emailHooks.onEmailKeywordChange.emit({ emailIds: [emailId], ...keywordChangeLists(changes) });
+      return true;
+    }
 
     const previous = (context
       ? source?.email ?? get().emails.find(isTarget)
@@ -6382,12 +6394,27 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         : singleEmailMatcher(emailId, emailKey);
       // A message read outside the list changes only a row that is that message.
       if (source && !state.emails.some(isTarget) && !(state.selectedEmail && isTarget(state.selectedEmail))) return {};
-      // This patch replaces the whole keyword map, so it can flip $seen as well
-      // as labels. Only a genuine read-state change moves the tag unread counts.
-      const previous = state.emails.find(isTarget) ?? state.selectedEmail;
+      // Only this message can supply the old read state and folder membership.
+      const previous = state.emails.find(isTarget)
+        ?? (state.selectedEmail && isTarget(state.selectedEmail) ? state.selectedEmail : undefined);
       const wasRead = previous?.keywords?.$seen ?? false;
       const isRead = keywords.$seen ?? false;
-      const delta = wasRead === isRead ? 0 : (isRead ? -1 : 1);
+      const delta = !previous || wasRead === isRead ? 0 : (isRead ? -1 : 1);
+      // A confirmed keyword restore can change $seen too. Use the same folder
+      // counter convention as markAsRead, in the message's own login's list.
+      const mailboxPatch = previous && delta !== 0
+        ? applyMailboxCounterUpdate(state, {
+            ...previous,
+            sourceClientAccountId: previous.sourceClientAccountId ?? source?.clientAccountId
+              ?? state.viewingAccountId ?? undefined,
+          }, (mailbox) => emailInMailbox(previous, mailbox)
+            ? {
+                ...mailbox,
+                unreadEmails: Math.max(0, mailbox.unreadEmails + delta),
+                unreadThreads: Math.max(0, mailbox.unreadThreads + delta),
+              }
+            : mailbox)
+        : {};
 
       return {
         emails: state.emails.map(e =>
@@ -6396,6 +6423,7 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         selectedEmail: (!!state.selectedEmail && isTarget(state.selectedEmail))
           ? { ...state.selectedEmail, keywords: { ...keywords } }
           : state.selectedEmail,
+        ...mailboxPatch,
         tagCounts: applyTagCountReadDelta(state.tagCounts, [{ keywords, delta }]),
       };
     });
@@ -6403,7 +6431,7 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
 
   // Batch operations
   batchMarkAsRead: async (client, read, target): Promise<boolean> => {
-    const { emails } = get();
+    const { selectedEmailKeys } = get();
     const epoch = currentStoreEpoch();
     // The selection is keyed by owning account; JMAP takes the bare ids of
     // exactly those emails, never the keys and never a lookup by id (which
@@ -6422,6 +6450,9 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       return false;
     }
 
+    // A plugin may have yielded across an account switch. The writes below
+    // read the view's account, which is now another one's: send nothing.
+    if (currentStoreEpoch() !== epoch) return false;
     set({ isLoading: true, error: null });
     try {
       // Each write names the rows it covers: by key for the selection, so a
@@ -6482,7 +6513,15 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       const changed = (email: Email) => (targetIds ? changedIds.has(email.id) : changedKeys.has(emailKeyFor(email)));
       if (failure && (targetIds ? changedIds.size : changedKeys.size) === 0) throw failure;
 
-      // Update local state
+      // After an account switch the stores hold another account's mail: the
+      // write went through, but none of it is on screen any more.
+      if (currentStoreEpoch() !== epoch) {
+        if (changedIds.size > 0) void emailHooks.onEmailReadStateChange.emit({ emailIds: [...changedIds], read });
+        return true;
+      }
+
+      // Patch the rows on screen now: a folder opened meanwhile owns the list.
+      const { emails } = get();
       const updatedEmails = emails.map(email =>
         changed(email)
           ? { ...email, keywords: { ...email.keywords, $seen: read } }
@@ -6554,14 +6593,17 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         tagCounts,
         retainedInViewIds,
         threadEmailsCache,
-        // The user's own selection is not what a targeted call acted on.
-        selectedEmailKeys: target ? get().selectedEmailKeys : new Set(notFound),
+        // The user's own selection is not what a targeted call acted on, and
+        // one made since (in another folder) is newer than this action.
+        selectedEmailKeys: target || get().selectedEmailKeys !== selectedEmailKeys
+          ? get().selectedEmailKeys : new Set(notFound),
         isLoading: false,
         error: failure ? (failure instanceof Error ? failure.message : "Failed to update emails") : null,
       });
       if (changedIds.size > 0) void emailHooks.onEmailReadStateChange.emit({ emailIds: [...changedIds], read });
       refillAfterKeywordChange(get, client, ['$seen']);
     } catch (error) {
+      if (currentStoreEpoch() !== epoch) return false;
       set({
         error: error instanceof Error ? error.message : "Failed to update emails",
         isLoading: false

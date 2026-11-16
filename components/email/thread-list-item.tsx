@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { ListAttachmentChips, useListHasAttachment } from "./attachment-chips";
 import { VerificationCodeChip, useListVerificationCode } from "./verification-code-chip";
 import type { Attachment } from "@/lib/jmap/types";
+import { densityShowsAttachmentChips } from "@/lib/density";
 import type { LoadListAttachments } from "@/lib/list-attachments";
 import { SelectableAvatar } from "@/components/email/selectable-avatar";
 import { Paperclip, Star, Pin, Circle, ChevronRight, ChevronDown, Loader2, MessageSquare, CheckSquare, Square, Reply, Forward, CalendarClock, Folder, Archive, Trash2, MailOpen, ShieldAlert, MoreHorizontal } from "@/components/icons";
@@ -173,14 +174,15 @@ function RowChips({ email, loadAttachments, onOpenAttachment, mountainView, mvRo
   /** A one-line Mountain View row: the chips start under the subject, as in Gmail. */
   mvRow?: boolean;
 }) {
-  const showAttachmentChips = useSettingsStore((state) => state.showAttachmentChips);
+  const showAttachmentChips = useSettingsStore((state) => state.showAttachmentChips && densityShowsAttachmentChips(state.density));
   const variant = mountainView || mvRow ? "mountain-view" : "default";
   const code = useListVerificationCode(email);
   const leading = code ? <VerificationCodeChip code={code} variant={variant} /> : undefined;
   // The sender column is w-32 (lg:w-40) and the row line has gap-3 after it.
   const className = cn(variant === "mountain-view" ? "mt-2" : "mt-1.5", mvRow && "-mt-0.5 pb-2.5 ps-[8.75rem] lg:ps-[10.75rem]");
   // Most rows have no attachment: no loader for them, nor an empty chip row.
-  // With the chips turned off only the code is left (the paperclip stays).
+  // With the chips turned off, or in a compact density, only the code is left
+  // (the paperclip stays).
   const mayHaveAttachments = email.hasAttachment || (email.attachments?.length ?? 0) > 0;
   if (showAttachmentChips && onOpenAttachment && mayHaveAttachments) {
     return <ListAttachmentChips email={email} load={loadAttachments} onOpen={onOpenAttachment} leading={leading} variant={variant} max={variant === "mountain-view" ? 3 : 2} className={className} />;
@@ -193,9 +195,10 @@ function RowChips({ email, loadAttachments, onOpenAttachment, mountainView, mvRo
  * they sit on (see the [data-mv-row] rules in globals.css).
  */
 function mvHoverBackground(checked: boolean, unread: boolean, selected: boolean): string {
-  if (selected) return "bg-accent";
-  if (checked) return "bg-[var(--mv-nav-selected)]";
-  return unread ? "bg-background" : "bg-[var(--mv-row-read)]";
+  const own = checked ? "bg-[var(--mv-nav-selected)]" : unread ? "bg-background" : "bg-[var(--mv-row-read)]";
+  // The cursor fills the row in the dark theme only; the light one marks it
+  // with a bar and keeps the row's colour (globals.css, #1702).
+  return selected ? `${own} dark:bg-accent` : own;
 }
 
 /**
@@ -422,15 +425,19 @@ interface ThreadListItemProps {
   onToggleExpand: () => void;
   onCollapseAllThreads?: () => void;
   onEmailSelect: (email: Email) => void;
+  /** The row was ticked or unticked by hand: Mountain View's cursor moves there (#1701). */
+  onTick?: (email: Email) => void;
   onEmailDoubleClick?: (email: Email) => void;
   /** A mouse was pressed on the row: the click that follows will open it. */
   onPrefetch?: (email: Email) => void;
-  onContextMenu?: (e: React.MouseEvent, email: Email) => void;
+  /** A conversation row adds its thread key: its read and unread entries cover the conversation. */
+  onContextMenu?: (e: React.MouseEvent, email: Email, conversationKey?: string) => void;
   onOpenConversation?: (thread: ThreadGroup) => void;
   /** The reading pane shows the conversation: the row opens it there and never unfolds. */
   conversationInReader?: boolean;
   onToggleStar?: (email: Email) => void;
-  onMarkAsRead?: (email: Email, read: boolean) => void;
+  /** A conversation row passes all of its messages: the change covers them all (#1683). */
+  onMarkAsRead?: (email: Email, read: boolean, conversation?: Email[]) => void;
   onDelete?: (email: Email) => void;
   onArchive?: (email: Email) => void;
   onSetTag?: (emailId: string, tagId: string | null, emailKey?: string) => void;
@@ -446,6 +453,7 @@ interface SingleEmailItemProps {
   email: Email;
   selected: boolean;
   onClick: () => void;
+  onTick?: () => void;
   onDoubleClick?: () => void;
   onPrefetch?: () => void;
   onContextMenu?: (e: React.MouseEvent, email: Email) => void;
@@ -475,7 +483,7 @@ const SWIPE_ACTION_META: Record<Exclude<SwipeAction, 'none'>, { icon: AppIcon; b
 };
 
 const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
-  function SingleEmailItem({ email, selected, onClick, onDoubleClick, onPrefetch, onContextMenu, showPreview: showPreviewProp, rowTint, onToggleStar, onMarkAsRead, onDelete, onArchive, onSetTag, onMarkAsSpam, onUndoSpam, onOpenAttachment, loadAttachments, listFolder }, ref) {
+  function SingleEmailItem({ email, selected, onClick, onTick, onDoubleClick, onPrefetch, onContextMenu, showPreview: showPreviewProp, rowTint, onToggleStar, onMarkAsRead, onDelete, onArchive, onSetTag, onMarkAsSpam, onUndoSpam, onOpenAttachment, loadAttachments, listFolder }, ref) {
     const { viewer: t, batch: tBatch, hover: tHover, list: tStatus } = useRowTranslators()!;
     const tUnknown = t('unknown_sender');
     const tNoSubject = t('no_subject');
@@ -648,6 +656,7 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
       } else {
         toggleEmailSelection(email);
       }
+      onTick?.();
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {
@@ -678,11 +687,14 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         toggleEmailSelection(email);
+        onTick?.();
       } else if (e.shiftKey) {
         e.preventDefault();
         selectRangeEmails(email);
+        onTick?.();
       } else if (togglesOnClick) {
         toggleEmailSelection(email);
+        onTick?.();
       } else {
         // Mountain View keeps the ticked rows while a message is read, as
         // Gmail does, so selecting can carry on afterwards. (#1231)
@@ -714,7 +726,7 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
           selected,
           checked: isChecked,
           selectionMode: selecting,
-          onToggleCheck: () => toggleEmailSelection(email),
+          onToggleCheck: () => { toggleEmailSelection(email); onTick?.(); },
           onOpenMenu: onContextMenu ? handleContextMenu : undefined,
         })}
         className={cn(
@@ -1113,13 +1125,14 @@ const ThreadListItemRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
     // afresh for another one (see useRowSlots).
     if (thread.emailCount !== 1) return <ConversationRow key={thread.threadKey} {...props} ref={ref} />;
     const { latestEmail } = thread;
-    const { onEmailSelect, onEmailDoubleClick, onPrefetch, onToggleStar, onMarkAsRead, onDelete, onArchive, onSetTag, onMarkAsSpam, onUndoSpam, onOpenAttachment } = props;
+    const { onEmailSelect, onTick, onEmailDoubleClick, onPrefetch, onToggleStar, onMarkAsRead, onDelete, onArchive, onSetTag, onMarkAsSpam, onUndoSpam, onOpenAttachment } = props;
     return (
       <SingleEmailItem
         ref={ref}
         email={latestEmail}
         selected={props.selectedEmailKey === emailKeyFor(latestEmail)}
         onClick={() => onEmailSelect(latestEmail)}
+        onTick={onTick ? () => onTick(latestEmail) : undefined}
         onDoubleClick={onEmailDoubleClick ? () => onEmailDoubleClick(latestEmail) : undefined}
         onPrefetch={onPrefetch ? () => onPrefetch(latestEmail) : undefined}
         onContextMenu={props.onContextMenu}
@@ -1152,6 +1165,7 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
     onToggleExpand,
     onCollapseAllThreads,
     onEmailSelect,
+    onTick,
     onEmailDoubleClick,
     onPrefetch,
     onContextMenu,
@@ -1244,22 +1258,24 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
       useCallback((pos) => {
         onContextMenu?.(
           { preventDefault: () => {}, stopPropagation: () => {}, clientX: pos.clientX, clientY: pos.clientY } as React.MouseEvent,
-          latestEmail
+          latestEmail,
+          thread.threadKey,
         );
-      }, [onContextMenu, latestEmail]),
+      }, [onContextMenu, latestEmail, thread.threadKey]),
       isMobile
     );
     const threadLongPressHandlers = { onTouchStart: threadOnTouchStart, onTouchEnd: threadOnTouchEnd, onTouchMove: threadOnTouchMove, onTouchCancel: threadOnTouchCancel };
 
     // The same swipe as a single message's row (MAIL-27), on what the row's
-    // actions act on: the newest message.
+    // actions act on: the newest message, or for read and unread the whole
+    // conversation, which keeps the row bold while any of it is unread.
     const threadSwipeRightAction = useSettingsStore((state) => state.swipeRightAction);
     const threadSwipeLeftAction = useSettingsStore((state) => state.swipeLeftAction);
     const runThreadSwipe = (action: SwipeAction) => {
       switch (action) {
         case 'archive': onArchive?.(latestEmail); break;
         case 'delete': onDelete?.(latestEmail); break;
-        case 'markRead': onMarkAsRead?.(latestEmail, hasUnread); break;
+        case 'markRead': onMarkAsRead?.(latestEmail, hasUnread, thread.emails); break;
         case 'star': onToggleStar?.(latestEmail); break;
         case 'spam': onMarkAsSpam?.(latestEmail); break;
         default: break;
@@ -1337,12 +1353,14 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
         }
       });
       useEmailStore.setState({ selectedEmailKeys: newSelection, lastSelectedEmailKey: emailKeyFor(latestEmail) });
+      onTick?.(latestEmail);
     };
 
     const handleThreadCheckboxClick = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (e.shiftKey) {
         selectRangeEmails(latestEmail);
+        onTick?.(latestEmail);
         return;
       }
       toggleThreadSelection();
@@ -1357,11 +1375,13 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
         e.preventDefault();
         // Ctrl+Click: toggle selection for all thread emails
         thread.emails.forEach(em => toggleEmailSelection(em));
+        onTick?.(latestEmail);
         return;
       }
       if (e.shiftKey) {
         e.preventDefault();
         selectRangeEmails(latestEmail);
+        onTick?.(latestEmail);
         return;
       }
 
@@ -1400,7 +1420,7 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {
-      onContextMenu?.(e, latestEmail);
+      onContextMenu?.(e, latestEmail, thread.threadKey);
     };
 
     const threadSubject = latestEmail.subject || tNoSubject;
@@ -1892,9 +1912,10 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
             <div role="gridcell">
             <EmailHoverActions
               email={latestEmail}
+              unread={hasUnread}
               backgroundClassName={rowTint ? rowTint : mvRow ? mvHoverBackground(isChecked, hasUnread, isSelected) : ((isSelected || isChecked) ? "bg-accent" : "bg-muted")}
               onToggleStar={onToggleStar ? () => onToggleStar(latestEmail) : undefined}
-              onMarkAsRead={onMarkAsRead ? (read) => onMarkAsRead(latestEmail, read) : undefined}
+              onMarkAsRead={onMarkAsRead ? (read) => onMarkAsRead(latestEmail, read, thread.emails) : undefined}
               onDelete={onDelete ? () => onDelete(latestEmail) : undefined}
               onArchive={onArchive ? () => onArchive(latestEmail) : undefined}
               onSetTag={onSetTag ? (color) => onSetTag(latestEmail.id, color, emailKeyFor(latestEmail)) : undefined}

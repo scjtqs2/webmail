@@ -158,6 +158,7 @@
     "settings": "Paramètres",
     "admin": "Admin",
     "files": "Fichiers",
+    "tasks": "Tâches",
     "loading_mailboxes": "Chargement des boîtes mail...",
     "push_connected": "Mises à jour en temps réel actives",
     "push_disconnected": "Mises à jour en temps réel inactives",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Effacer la mise en forme",
       "undo": "Annuler",
       "redo": "Rétablir",
+      "cell_background": "Arrière-plan de cellule",
       "add_row_above": "Insérer une ligne au-dessus",
       "add_row_below": "Insérer une ligne en dessous",
       "add_column_before": "Insérer une colonne avant",
@@ -1726,6 +1728,13 @@
         "label": "Sélecteur de compte en haut de la barre latérale",
         "description": "Affiche le sélecteur de compte au-dessus des dossiers et le bouton rond Composer sur la liste des messages. Désactivez cette option pour placer Composer au-dessus des dossiers."
       },
+      "compose_placement": {
+        "label": "Bouton Composer",
+        "description": "Où se trouve le bouton Composer sur un ordinateur. Sur un téléphone, il est toujours sur la liste des messages.",
+        "floating": "Sur la liste des messages",
+        "sidebar": "En haut de la barre des dossiers",
+        "rail": "En haut de la barre de navigation"
+      },
       "show_rail_account_list": {
         "label": "Afficher les avatars de compte sur la barre de navigation",
         "description": "Afficher les cercles de comptes individuels en bas de la barre de navigation pour un changement rapide, avec un bouton de déconnexion en dessous."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Type de boîte de réception",
-        "description": "« Non lus en premier » affiche vos 25 messages non lus les plus récents dans une section au-dessus du reste de la boîte",
+        "description": "« Non lus en premier » affiche vos messages non lus les plus récents dans une section au-dessus du reste de la boîte",
         "default": "Par défaut",
         "unread_first": "Non lus en premier"
+      },
+      "unread_section_size": {
+        "label": "Messages non lus affichés",
+        "description": "Combien de vos messages non lus les plus récents la section « Non lus en premier » affiche",
+        "5": "5 messages",
+        "10": "10 messages",
+        "15": "15 messages",
+        "20": "20 messages",
+        "25": "25 messages",
+        "50": "50 messages"
       },
       "clear_search_on_folder_change": {
         "label": "Effacer la recherche lors du changement de dossier",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "Activer le chiffrement avec cette clé",
         "configure_title": "Activer le chiffrement avec cette clé",
         "enable_button": "Activer",
+        "in_use": "Utilisée",
         "disable_tooltip": "Désactiver le chiffrement",
         "disable_title": "Désactiver le chiffrement au repos ?",
         "disable_message": "Les nouveaux e-mails seront désormais stockés sans chiffrement.",
@@ -2797,7 +2817,9 @@
       },
       "settings_sync": {
         "label": "Synchronisation des paramètres",
-        "description": "Synchronisez vos paramètres entre navigateurs et appareils"
+        "description": "Synchronisez vos paramètres entre navigateurs et appareils",
+        "replaced": "{count, plural, one {# paramètre de ce navigateur suit} other {# paramètres de ce navigateur suivent}} désormais votre compte.",
+        "keep_mine": "Utiliser ceux de ce navigateur"
       },
       "sender_favicons": {
         "label": "Favicons des expéditeurs",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Bloquer l'expéditeur} other {Bloquer # expéditeurs}}",
       "no_junk": "Ce compte n'a pas de dossier Indésirables",
       "create": "Créer une règle…",
+      "add_sender_to_rule": "Ajouter {sender} à une règle",
+      "sender_already_present": "Déjà dans cette règle",
+      "no_rule_fits": "Aucune règle à compléter",
       "manage": "Gérer les règles",
       "senders_count": "{count, plural, one {# expéditeur} other {# expéditeurs}}",
       "cross_account": "Sélectionnez des messages d'un seul compte",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Tant que vous ne le modifiez pas, ce réglage suit la disposition : désactivé quand la liste et le message sont côte à côte, activé sinon."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Affiche le sélecteur de compte au-dessus des dossiers, avec Composer en dessous. Désactivez cette option pour mettre Composer à sa place."
+    "sidebar_account_switcher_description": "Affiche le sélecteur de compte au-dessus des dossiers. Désactivez cette option pour changer de compte avec votre avatar dans la barre de navigation."
   },
   "mail_p2_conv": {
     "show_message": "Afficher le message",
@@ -4506,6 +4531,8 @@
       "role_label": "Rôle",
       "language_label": "Language",
       "related_default_label": "Related",
+      "related_unknown": "Contact inconnu",
+      "related_remove": "Retirer des contacts associés",
       "more_actions": "Plus d'actions",
       "age_years": "{count, plural, one {1 an} other {# ans}}",
       "years_since": "{count, plural, one {il y a 1 an} other {il y a # ans}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Heure de fin",
       "all_day_event": "Événement sur toute la journée",
       "calendar_select": "Calendrier",
+      "show_as": "Afficher comme",
+      "show_as_busy": "Occupé",
+      "show_as_free": "Libre",
+      "shown_free": "Affiché comme libre",
+      "visibility": "Visibilité",
+      "visibility_public": "Public",
+      "visibility_private": "Privé",
+      "visibility_secret": "Masqué",
+      "visibility_hint_public": "Les personnes avec qui vous partagez le calendrier voient les détails.",
+      "visibility_hint_private": "Les personnes avec qui vous partagez le calendrier ne voient que l'horaire.",
+      "visibility_hint_secret": "Les personnes avec qui vous partagez le calendrier ne voient pas l'événement, et le créneau reste libre.",
+      "visibility_series": "S'applique à toutes les occurrences.",
       "save": "Enregistrer",
       "cancel": "Annuler",
       "color": "Couleur"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Afficher une vue des tâches dans le calendrier pour gérer les choses à faire",
       "show_tasks_on_calendar": "Afficher les tâches dans le calendrier",
       "show_tasks_on_calendar_desc": "Afficher les tâches dans les vues mois, semaine et jour du calendrier",
+      "show_tasks_app": "Tâches dans une app à part",
+      "show_tasks_app_desc": "Donne aux tâches leur propre icône dans la barre des apps au lieu d'une vue du calendrier",
       "hover_preview": "Aperçu au survol",
       "hover_preview_desc": "Afficher un popover de détails au survol des événements du calendrier",
       "hover_preview_instant": "Instantané",

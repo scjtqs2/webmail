@@ -158,6 +158,7 @@
     "settings": "設定",
     "admin": "管理",
     "files": "檔案",
+    "tasks": "任務",
     "loading_mailboxes": "正在載入信件匣…",
     "push_connected": "即時更新已啟用",
     "push_disconnected": "即時更新未啟用",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "清除格式",
       "undo": "撤銷",
       "redo": "重做",
+      "cell_background": "儲存格背景色",
       "add_row_above": "在上方新增一列",
       "add_row_below": "在下方新增一列",
       "add_column_before": "在前方新增一欄",
@@ -1729,6 +1731,13 @@
         "label": "側邊欄頂端的帳號切換器",
         "description": "在信件匣上方顯示帳號切換器，並在郵件列表上顯示圓形的「寫郵件」按鈕。關閉後，「寫郵件」會改為顯示在信件匣上方。"
       },
+      "compose_placement": {
+        "label": "寫郵件按鈕",
+        "description": "在電腦上寫郵件按鈕的位置。手機上它一律位於郵件清單上方。",
+        "floating": "郵件清單上方",
+        "sidebar": "資料夾側邊欄頂端",
+        "rail": "導覽列頂端"
+      },
       "show_rail_account_list": {
         "label": "在導覽列顯示帳號頭像",
         "description": "在導覽列底部顯示各帳號的圓形頭像，方便快速切換，並在下方顯示登出按鈕。"
@@ -2008,9 +2017,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "收件匣類型",
-        "description": "「未讀優先」會在收件匣其餘郵件上方的獨立區塊中顯示最新的 25 封未讀郵件",
+        "description": "「未讀優先」會在收件匣其餘郵件上方的獨立區塊中顯示最新的未讀郵件",
         "default": "預設",
         "unread_first": "未讀優先"
+      },
+      "unread_section_size": {
+        "label": "顯示的未讀郵件數",
+        "description": "「未讀優先」區塊顯示多少封最新的未讀郵件",
+        "5": "5 封郵件",
+        "10": "10 封郵件",
+        "15": "15 封郵件",
+        "20": "20 封郵件",
+        "25": "25 封郵件",
+        "50": "50 封郵件"
       },
       "clear_search_on_folder_change": {
         "label": "切換資料夾時清除搜尋",
@@ -2562,6 +2581,7 @@
         "enable_tooltip": "使用此金鑰啟用加密",
         "configure_title": "使用此金鑰啟用加密",
         "enable_button": "啟用",
+        "in_use": "使用中",
         "disable_tooltip": "停用加密",
         "disable_title": "關閉靜態加密?",
         "disable_message": "從現在起,新郵件將不加密儲存。",
@@ -2804,7 +2824,9 @@
       },
       "settings_sync": {
         "label": "設定同步",
-        "description": "跨瀏覽器和裝置同步您的設定"
+        "description": "跨瀏覽器和裝置同步您的設定",
+        "replaced": "{count, plural, other {此瀏覽器中的 # 項設定}}現在跟隨您的帳戶。",
+        "keep_mine": "使用此瀏覽器的設定"
       },
       "sender_favicons": {
         "label": "寄件者圖示",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, =1 {封鎖寄件者} other {封鎖 # 位寄件者}}",
       "no_junk": "此帳號沒有垃圾郵件資料夾",
       "create": "建立規則…",
+      "add_sender_to_rule": "將 {sender} 加入規則",
+      "sender_already_present": "已在這項規則中",
+      "no_rule_fits": "沒有可加入的規則",
       "manage": "管理規則",
       "senders_count": "{count, plural, other {# 位寄件者}}",
       "cross_account": "請選取同一個帳號中的郵件",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "在您變更之前，此項會依版面配置而定：清單與郵件並排顯示時關閉，其他情況下開啟。"
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "在信件匣上方顯示帳號切換器，下方是「寫郵件」。關閉後，「寫郵件」會顯示在帳號切換器的位置。"
+    "sidebar_account_switcher_description": "在資料夾上方顯示帳號切換器。關閉後，以導覽列上的頭像切換帳號。"
   },
   "mail_p2_conv": {
     "show_message": "顯示郵件",
@@ -4508,6 +4533,8 @@
       "role_label": "角色",
       "language_label": "語言",
       "related_default_label": "相關聯絡人",
+      "related_unknown": "未知的聯絡人",
+      "related_remove": "從相關聯絡人中移除",
       "more_actions": "更多動作",
       "age_years": "{count} 歲",
       "years_since": "{count} 年"
@@ -4874,6 +4901,18 @@
       "end_time": "結束時間",
       "all_day_event": "全天活動",
       "calendar_select": "行事曆",
+      "show_as": "顯示為",
+      "show_as_busy": "忙碌",
+      "show_as_free": "有空",
+      "shown_free": "顯示為有空",
+      "visibility": "可見度",
+      "visibility_public": "公開",
+      "visibility_private": "私人",
+      "visibility_secret": "隱藏",
+      "visibility_hint_public": "與你共用行事曆的人可以看到詳細資料。",
+      "visibility_hint_private": "與你共用行事曆的人只能看到時間。",
+      "visibility_hint_secret": "與你共用行事曆的人看不到此活動，該時間也會顯示為有空。",
+      "visibility_series": "套用到所有重複。",
       "save": "儲存",
       "cancel": "取消",
       "color": "顏色"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "在行事曆中顯示任務檢視以管理待辦事項",
       "show_tasks_on_calendar": "在行事曆上顯示任務",
       "show_tasks_on_calendar_desc": "在行事曆的月／週／日檢視中顯示任務",
+      "show_tasks_app": "將工作設為獨立應用程式",
+      "show_tasks_app_desc": "工作在應用程式列中有自己的圖示，而不是行事曆中的一個檢視",
       "hover_preview": "活動游標暫留預覽",
       "hover_preview_desc": "游標移至行事曆活動上方時顯示詳細資料浮動視窗",
       "hover_preview_instant": "立即",

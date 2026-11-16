@@ -158,6 +158,7 @@
     "settings": "Settings",
     "admin": "Admin",
     "files": "Files",
+    "tasks": "Tasks",
     "loading_mailboxes": "Loading mailboxes...",
     "push_connected": "Real-time updates active",
     "push_disconnected": "Real-time updates inactive",
@@ -1230,6 +1231,7 @@
       "clear_formatting": "Clear formatting",
       "undo": "Undo",
       "redo": "Redo",
+      "cell_background": "Cell background",
       "add_row_above": "Add row above",
       "add_row_below": "Add row below",
       "add_column_before": "Add column before",
@@ -1729,6 +1731,13 @@
         "label": "Account switcher at the top of the sidebar",
         "description": "Show the account switcher above the folders and the round Compose button over the message list. Turn this off to put Compose above the folders instead."
       },
+      "compose_placement": {
+        "label": "Compose button",
+        "description": "Where the Compose button sits on a computer. Phones always show it over the message list.",
+        "floating": "Over the message list",
+        "sidebar": "Top of the folder sidebar",
+        "rail": "Top of the navigation rail"
+      },
       "show_rail_account_list": {
         "label": "Show account avatars on the navigation rail",
         "description": "Display individual account circles at the bottom of the navigation rail for quick switching, with a sign-out button below."
@@ -2008,9 +2017,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Inbox type",
-        "description": "Unread first shows your 25 newest unread messages in a section above the rest of the inbox",
+        "description": "Unread first shows your newest unread messages in a section above the rest of the inbox",
         "default": "Default",
         "unread_first": "Unread first"
+      },
+      "unread_section_size": {
+        "label": "Unread messages shown",
+        "description": "How many of your newest unread messages the Unread first section shows",
+        "5": "5 messages",
+        "10": "10 messages",
+        "15": "15 messages",
+        "20": "20 messages",
+        "25": "25 messages",
+        "50": "50 messages"
       },
       "clear_search_on_folder_change": {
         "label": "Clear search when switching folders",
@@ -2107,7 +2126,7 @@
       },
       "show_attachment_chips": {
         "label": "Show attachments in the list",
-        "description": "Show attached files under each message, to open them from the list. The paperclip shows either way."
+        "description": "Show attached files under each message, to open them from the list. Compact and extra compact rows show only the paperclip."
       },
       "show_tag_chips": {
         "label": "Show tags in the list",
@@ -2562,6 +2581,7 @@
         "enable_tooltip": "Enable encryption with this key",
         "configure_title": "Enable encryption with this key",
         "enable_button": "Enable",
+        "in_use": "In use",
         "disable_tooltip": "Disable encryption",
         "disable_title": "Turn off encryption at rest?",
         "disable_message": "New mail is stored without encryption from now on.",
@@ -2804,7 +2824,9 @@
       },
       "settings_sync": {
         "label": "Settings sync",
-        "description": "Sync your settings across browsers and devices"
+        "description": "Sync your settings across browsers and devices",
+        "replaced": "{count, plural, one {# setting in this browser now follows} other {# settings in this browser now follow}} your account.",
+        "keep_mine": "Use this browser's"
       },
       "sender_favicons": {
         "label": "Sender favicons",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Block sender} other {Block # senders}}",
       "no_junk": "This account has no Junk folder",
       "create": "Create rule…",
+      "add_sender_to_rule": "Add {sender} to a rule",
+      "sender_already_present": "Already in this rule",
+      "no_rule_fits": "No rules to add to",
       "manage": "Manage rules",
       "senders_count": "{count, plural, one {# sender} other {# senders}}",
       "cross_account": "Select messages from one account",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Until you change it, this follows the layout: off when the list and the message are side by side, on otherwise."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Show the account switcher above the folders, with Compose under it. Turn this off to put Compose in its place."
+    "sidebar_account_switcher_description": "Show the account switcher above the folders. Turn this off to switch accounts with your avatar on the navigation rail."
   },
   "mail_p2_conv": {
     "show_message": "Show the message",
@@ -4508,6 +4533,8 @@
       "role_label": "Role",
       "language_label": "Language",
       "related_default_label": "Related",
+      "related_unknown": "Unknown contact",
+      "related_remove": "Remove from related contacts",
       "more_actions": "More actions",
       "age_years": "{count, plural, one {1 year old} other {# years old}}",
       "years_since": "{count, plural, one {1 year} other {# years}}"
@@ -4874,6 +4901,18 @@
       "end_time": "End time",
       "all_day_event": "All-day event",
       "calendar_select": "Calendar",
+      "show_as": "Show as",
+      "show_as_busy": "Busy",
+      "show_as_free": "Free",
+      "shown_free": "Shown as free",
+      "visibility": "Visibility",
+      "visibility_public": "Public",
+      "visibility_private": "Private",
+      "visibility_secret": "Hidden",
+      "visibility_hint_public": "People you share the calendar with see the details.",
+      "visibility_hint_private": "People you share the calendar with see only the time.",
+      "visibility_hint_secret": "People you share the calendar with don't see the event, and it doesn't block the time.",
+      "visibility_series": "Applies to every occurrence.",
       "save": "Save",
       "cancel": "Cancel",
       "color": "Color"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Show a tasks view in the calendar for managing to-dos",
       "show_tasks_on_calendar": "Show tasks on calendar",
       "show_tasks_on_calendar_desc": "Display tasks on the month, week and day calendar views",
+      "show_tasks_app": "Tasks as their own app",
+      "show_tasks_app_desc": "Give tasks their own icon in the app bar instead of a view in the calendar",
       "hover_preview": "Event hover preview",
       "hover_preview_desc": "Show a detail popover when hovering over calendar events",
       "hover_preview_instant": "Instant",

@@ -11,7 +11,17 @@ import { accountSecurityHooks } from '@/lib/plugin-hooks';
 // Security hooks fire only once the server confirmed the change, and carry no
 // secrets: never a password, TOTP seed or code, or an app password value.
 
-export type EncryptionType = 'Disabled' | 'Aes128' | 'Aes256';
+/**
+ * `Enabled` is the shape Stalwart 1.0.2 and later use: the cipher comes from
+ * the public key. `Aes128` / `Aes256` are the per-account cipher choice of
+ * Stalwart 1.0.0 and 1.0.1, which later versions reject.
+ */
+export type EncryptionType = 'Disabled' | 'Enabled' | 'Aes128' | 'Aes256';
+
+/** True for the per-account cipher types of Stalwart before 1.0.2. */
+export function isLegacyEncryptionType(type: EncryptionType): type is 'Aes128' | 'Aes256' {
+  return type === 'Aes128' || type === 'Aes256';
+}
 
 export interface EncryptionAtRestConfig {
   type: EncryptionType;
@@ -190,6 +200,9 @@ function ipsToMap(ips?: string[]): Record<string, true> | undefined {
   if (!ips || ips.length === 0) return undefined;
   return Object.fromEntries(ips.map((ip) => [ip, true]));
 }
+
+/** PublicKey properties Stalwart 1.0.2 and later take from the key itself. */
+const SERVER_SET_KEY_PROPERTIES = ['emailAddresses', 'expiresAt'];
 
 function emailsToMap(emails?: string[]): Record<string, true> | undefined {
   if (!emails || emails.length === 0) return undefined;
@@ -456,7 +469,8 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
       const settings = result.list?.[0];
       const enc = settings?.encryptionAtRest ?? {};
 
-      // The backend returns type via "@type" (e.g. "Disabled", "Aes128", "Aes256")
+      // The backend returns type via "@type": "Disabled", "Enabled" (Stalwart
+      // 1.0.2 and later), or "Aes128" / "Aes256" (1.0.0 and 1.0.1)
       const rawType = String(enc['@type'] ?? 'Disabled') as EncryptionType;
       const publicKeyId = typeof enc.publicKey === 'string' ? enc.publicKey : null;
       const encryptOnAppend = Boolean(enc.encryptOnAppend);
@@ -484,45 +498,55 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
     set({ isSaving: true, error: null });
     try {
       const { accountId, request } = getManagementContext();
-      let encryptionAtRestPayload: Record<string, unknown>;
 
+      type SetError = { type: string; description?: string; properties?: string[] };
+      const send = async (encryptionAtRest: Record<string, unknown>): Promise<SetError | undefined> => {
+        const responses = await request([
+          [
+            'x:AccountSettings/set',
+            { accountId, update: { singleton: { encryptionAtRest } } },
+            '0',
+          ],
+        ]);
+        const result = requireResult<{
+          updated?: Record<string, unknown>;
+          notUpdated?: Record<string, SetError>;
+        }>(responses, 'x:AccountSettings/set');
+        return result.notUpdated?.singleton;
+      };
+
+      let notUpdated: SetError | undefined;
       if (type === 'Disabled') {
-        encryptionAtRestPayload = {
-          '@type': 'Disabled',
-        };
+        notUpdated = await send({ '@type': 'Disabled' });
       } else {
         if (!publicKeyId) {
           throw new Error('A Public Key ID is required to enable encryption.');
         }
-        encryptionAtRestPayload = {
-          '@type': type,
+        // Stalwart 1.0.2 replaced the per-account cipher (Aes128 / Aes256)
+        // with `Enabled`, and the server does not say which version it runs.
+        // Use the shape the server last reported, `Enabled` when unknown, and
+        // retry once with the other shape when the server refuses the type.
+        const legacyType = isLegacyEncryptionType(type) ? type : 'Aes256';
+        const current = get().encryptionConfig.type;
+        const shapes: EncryptionType[] = isLegacyEncryptionType(current)
+          ? [legacyType, 'Enabled']
+          : ['Enabled', legacyType];
+        const payload = (shape: EncryptionType) => ({
+          '@type': shape,
           publicKey: publicKeyId,
           encryptOnAppend,
           allowSpamTraining,
-        };
+        });
+        const isTypeRefused = (err: SetError) =>
+          Boolean(err.properties?.includes('encryptionAtRest')) &&
+          (!err.description || err.description.includes('@type'));
+
+        notUpdated = await send(payload(shapes[0]));
+        if (notUpdated && isTypeRefused(notUpdated)) {
+          notUpdated = await send(payload(shapes[1]));
+        }
       }
 
-      const responses = await request([
-        [
-          'x:AccountSettings/set',
-          {
-            accountId,
-            update: {
-              singleton: {
-                encryptionAtRest: encryptionAtRestPayload,
-              },
-            },
-          },
-          '0',
-        ],
-      ]);
-
-      const result = requireResult<{
-        updated?: Record<string, unknown>;
-        notUpdated?: Record<string, { type: string; description?: string }>;
-      }>(responses, 'x:AccountSettings/set');
-
-      const notUpdated = result.notUpdated?.singleton;
       if (notUpdated) {
         throw new Error(notUpdated.description || notUpdated.type || 'Failed to update encryption settings');
       }
@@ -804,32 +828,45 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
       const createPayload: Record<string, unknown> = {
         description: input.description,
         key: input.key,
-        emailAddresses: emailsToMap(input.emailAddresses) ?? {},
       };
+
+      // Stalwart 1.0.2 and later read the addresses and the expiry from the
+      // key itself and refuse any value here ("Cannot modify server set
+      // property"), even an empty one. They are only sent when a caller names
+      // them, and both are dropped in one retry when the server refuses one
+      // (Stalwart names only the first refused property).
+      const emailAddresses = emailsToMap(input.emailAddresses);
+      if (emailAddresses) createPayload.emailAddresses = emailAddresses;
 
       if (input.expiresAt) {
         createPayload.expiresAt = input.expiresAt;
       }
 
-      const responses = await request([
-        [
-          'x:PublicKey/set',
-          {
-            accountId,
-            create: {
-              [tmpId]: createPayload,
-            },
-          },
-          '0',
-        ],
-      ]);
+      type SetError = { type: string; description?: string; properties?: string[] };
+      const send = async (payload: Record<string, unknown>) => {
+        const responses = await request([
+          ['x:PublicKey/set', { accountId, create: { [tmpId]: payload } }, '0'],
+        ]);
+        return requireResult<{
+          created?: Record<string, { id: string }>;
+          notCreated?: Record<string, SetError>;
+        }>(responses, 'x:PublicKey/set');
+      };
 
-      const result = requireResult<{
-        created?: Record<string, { id: string }>;
-        notCreated?: Record<string, { type: string; description?: string }>;
-      }>(responses, 'x:PublicKey/set');
+      let result = await send(createPayload);
+      let notCreated = result.notCreated?.[tmpId];
+      const refused = notCreated?.properties ?? [];
+      if (
+        notCreated?.type === 'invalidPatch' &&
+        refused.length > 0 &&
+        refused.every((p) => SERVER_SET_KEY_PROPERTIES.includes(p) && p in createPayload)
+      ) {
+        const retryPayload = { ...createPayload };
+        for (const p of SERVER_SET_KEY_PROPERTIES) delete retryPayload[p];
+        result = await send(retryPayload);
+        notCreated = result.notCreated?.[tmpId];
+      }
 
-      const notCreated = result.notCreated?.[tmpId];
       if (notCreated) {
         throw new Error(notCreated.description || notCreated.type || 'Failed to create public key');
       }

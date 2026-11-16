@@ -158,6 +158,7 @@
     "settings": "הגדרות",
     "admin": "מנהל מערכת",
     "files": "קבצים",
+    "tasks": "משימות",
     "loading_mailboxes": "טוען תיבות דואר...",
     "push_connected": "עדכונים בזמן אמת פעילים",
     "push_disconnected": "עדכונים בזמן אמת אינם פעילים",
@@ -1172,6 +1173,7 @@
       "clear_formatting": "ניקוי עיצוב",
       "undo": "ביטול",
       "redo": "ביצוע מחדש",
+      "cell_background": "רקע תא",
       "add_row_above": "הוספת שורה מעל",
       "add_row_below": "הוספת שורה מתחת",
       "add_column_before": "הוספת עמודה לפני",
@@ -1670,6 +1672,13 @@
         "label": "מחליף החשבונות בראש סרגל הצד",
         "description": "מציג את מחליף החשבונות מעל התיקיות ואת כפתור הכתיבה העגול מעל רשימת ההודעות. כבו את האפשרות כדי להציב את כפתור הכתיבה מעל התיקיות במקום זאת."
       },
+      "compose_placement": {
+        "label": "כפתור כתיבה",
+        "description": "איפה כפתור הכתיבה נמצא במחשב. בטלפון הוא תמיד מעל רשימת ההודעות.",
+        "floating": "מעל רשימת ההודעות",
+        "sidebar": "בראש סרגל התיקיות",
+        "rail": "בראש סרגל הניווט"
+      },
       "show_rail_account_list": {
         "label": "הצג אווטרים של חשבון על רכבת ניווט",
         "description": "הצג עיגולי חשבון בודדים בתחתית מסילת הניווט למעבר מהיר, עם לחצן יציאה למטה."
@@ -1949,9 +1958,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "סוג תיבת הדואר הנכנס",
-        "description": "\"לא נקראו תחילה\" מציג את 25 ההודעות החדשות ביותר שלא נקראו במקטע מעל שאר התיבה",
+        "description": "\"לא נקראו תחילה\" מציג את ההודעות החדשות ביותר שלא נקראו במקטע מעל שאר התיבה",
         "default": "ברירת מחדל",
         "unread_first": "לא נקראו תחילה"
+      },
+      "unread_section_size": {
+        "label": "הודעות שלא נקראו שמוצגות",
+        "description": "כמה מההודעות החדשות ביותר שלא נקראו מוצגות במקטע \"לא נקראו תחילה\"",
+        "5": "5 הודעות",
+        "10": "10 הודעות",
+        "15": "15 הודעות",
+        "20": "20 הודעות",
+        "25": "25 הודעות",
+        "50": "50 הודעות"
       },
       "clear_search_on_folder_change": {
         "label": "נקה את החיפוש בעת מעבר בין תיקיות",
@@ -2484,6 +2503,7 @@
         "enable_tooltip": "הפעל הצפנה עם מפתח זה",
         "configure_title": "הפעל הצפנה עם מפתח זה",
         "enable_button": "הפעל",
+        "in_use": "בשימוש",
         "disable_tooltip": "השבת הצפנה",
         "disable_title": "לכבות את ההצפנה במנוחה?",
         "disable_message": "דואר חדש יישמר מעכשיו ללא הצפנה.",
@@ -2741,7 +2761,9 @@
       },
       "settings_sync": {
         "label": "סנכרון הגדרות",
-        "description": "סנכרן את ההגדרות שלך בין דפדפנים ומכשירים"
+        "description": "סנכרן את ההגדרות שלך בין דפדפנים ומכשירים",
+        "replaced": "{count, plural, one {הגדרה אחת בדפדפן זה עוקבת} other {# הגדרות בדפדפן זה עוקבות}} כעת אחר החשבון שלך.",
+        "keep_mine": "שימוש בהגדרות של דפדפן זה"
       },
       "sender_favicons": {
         "label": "סמלים של השולח (ניסיוני)",
@@ -3913,6 +3935,9 @@
       "block": "{count, plural, one {חסום שולח} other {חסום # שולחים}}",
       "no_junk": "לחשבון זה אין תיקיית דואר זבל",
       "create": "צור כלל…",
+      "add_sender_to_rule": "הוספת {sender} לכלל",
+      "sender_already_present": "כבר נמצא בכלל הזה",
+      "no_rule_fits": "אין כללים להוסיף אליהם",
       "manage": "ניהול כללים",
       "senders_count": "{count, plural, one {שולח אחד} other {# שולחים}}",
       "cross_account": "בחר הודעות מחשבון אחד",
@@ -4008,7 +4033,7 @@
     "return_to_list_follows_layout": "כל עוד לא תשנו זאת, זה נקבע לפי הפריסה: כבוי כשהרשימה וההודעה זו לצד זו, ופועל בכל מצב אחר."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "מציג את מחליף החשבונות מעל התיקיות ואת כפתור הכתיבה מתחתיו. כבו את האפשרות כדי להציב את כפתור הכתיבה במקומו."
+    "sidebar_account_switcher_description": "הצג את מחליף החשבונות מעל התיקיות. כבה כדי להחליף חשבון דרך האווטר שלך בסרגל הניווט."
   },
   "mail_p2_conv": {
     "show_message": "הצגת ההודעה",
@@ -4374,6 +4399,8 @@
       "role_label": "תפקיד",
       "language_label": "שפה",
       "related_default_label": "קשור",
+      "related_unknown": "איש קשר לא ידוע",
+      "related_remove": "הסרה מאנשי הקשר הקשורים",
       "more_actions": "פעולות נוספות",
       "age_years": "{count, plural, one {בן שנה} other {בן # שנים}}",
       "years_since": "{count, plural, one {שנה} other {# שנים}}"
@@ -4745,6 +4772,18 @@
       "end_time": "שעת סיום",
       "all_day_event": "אירוע כל היום",
       "calendar_select": "לוּחַ שָׁנָה",
+      "show_as": "הצג כ",
+      "show_as_busy": "עסוק",
+      "show_as_free": "פנוי",
+      "shown_free": "מוצג כפנוי",
+      "visibility": "נראות",
+      "visibility_public": "ציבורי",
+      "visibility_private": "פרטי",
+      "visibility_secret": "מוסתר",
+      "visibility_hint_public": "מי שהלוח משותף איתו רואה את הפרטים.",
+      "visibility_hint_private": "מי שהלוח משותף איתו רואה רק את השעה.",
+      "visibility_hint_secret": "מי שהלוח משותף איתו לא רואה את האירוע, והזמן נשאר פנוי.",
+      "visibility_series": "חל על כל המופעים.",
       "save": "שמור",
       "cancel": "לְבַטֵל",
       "color": "צבע"
@@ -4930,6 +4969,8 @@
       "enable_tasks_desc": "הצג תצוגת משימות בלוח השנה לניהול מטלות",
       "show_tasks_on_calendar": "הצג משימות בלוח השנה",
       "show_tasks_on_calendar_desc": "הצג משימות בתצוגות החודש, השבוע והיום של היומן",
+      "show_tasks_app": "משימות כאפליקציה נפרדת",
+      "show_tasks_app_desc": "למשימות יש סמל משלהן בסרגל האפליקציות במקום תצוגה בלוח השנה",
       "hover_preview": "תצוגה מקדימה של ריחוף לאירוע",
       "hover_preview_desc": "הצג חלון קופץ לפרטי בעת ריחוף מעל אירועי לוח שנה",
       "hover_preview_instant": "מיידי",

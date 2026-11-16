@@ -158,6 +158,7 @@
     "settings": "설정",
     "admin": "관리자",
     "files": "파일",
+    "tasks": "할 일",
     "loading_mailboxes": "편지함을 불러오는 중...",
     "push_connected": "실시간 업데이트 켜짐",
     "push_disconnected": "실시간 업데이트 꺼짐",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "서식 지우기",
       "undo": "실행 취소",
       "redo": "다시 실행",
+      "cell_background": "셀 배경색",
       "add_row_above": "위에 행 추가",
       "add_row_below": "아래에 행 추가",
       "add_column_before": "앞에 열 추가",
@@ -1726,6 +1728,13 @@
         "label": "사이드바 상단의 계정 전환기",
         "description": "폴더 위에 계정 전환기를, 메일 목록 위에 둥근 메일 쓰기 버튼을 보여줘요. 끄면 메일 쓰기가 대신 폴더 위에 표시돼요."
       },
+      "compose_placement": {
+        "label": "메일 쓰기 버튼",
+        "description": "컴퓨터에서 메일 쓰기 버튼의 위치입니다. 휴대폰에서는 항상 메시지 목록 위에 있습니다.",
+        "floating": "메시지 목록 위",
+        "sidebar": "폴더 사이드바 상단",
+        "rail": "내비게이션 바 상단"
+      },
       "show_rail_account_list": {
         "label": "내비게이션 바에 계정 아바타 표시",
         "description": "내비게이션 바 아래에 계정 프로필을 표시해서 빠르게 전환할 수 있어요."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "받은편지함 유형",
-        "description": "'읽지 않은 메일 먼저'는 읽지 않은 최신 메일 25개를 받은편지함 나머지 위의 섹션에 표시합니다",
+        "description": "'읽지 않은 메일 먼저'는 읽지 않은 최신 메일을 받은편지함 나머지 위의 섹션에 표시합니다",
         "default": "기본",
         "unread_first": "읽지 않은 메일 먼저"
+      },
+      "unread_section_size": {
+        "label": "표시할 읽지 않은 메일 수",
+        "description": "'읽지 않은 메일 먼저' 섹션에 표시할 최신 읽지 않은 메일 수",
+        "5": "5개",
+        "10": "10개",
+        "15": "15개",
+        "20": "20개",
+        "25": "25개",
+        "50": "50개"
       },
       "clear_search_on_folder_change": {
         "label": "폴더 전환 시 검색 지우기",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "이 키로 암호화 사용",
         "configure_title": "이 키로 암호화 사용",
         "enable_button": "사용",
+        "in_use": "사용 중",
         "disable_tooltip": "암호화 사용 안 함",
         "disable_title": "저장 데이터 암호화를 끌까요?",
         "disable_message": "이제부터 새 메일은 암호화 없이 저장돼요.",
@@ -2797,7 +2817,9 @@
       },
       "settings_sync": {
         "label": "설정 동기화",
-        "description": "여러 브라우저나 기기에서 내 설정을 동기화해요"
+        "description": "여러 브라우저나 기기에서 내 설정을 동기화해요",
+        "replaced": "{count, plural, other {이 브라우저의 설정 #개}}가 이제 계정을 따릅니다.",
+        "keep_mine": "이 브라우저의 설정 사용"
       },
       "sender_favicons": {
         "label": "보낸 사람 파비콘",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, =1 {보낸 사람 차단} other {보낸 사람 #명 차단}}",
       "no_junk": "이 계정에는 스팸 폴더가 없어요",
       "create": "규칙 만들기…",
+      "add_sender_to_rule": "규칙에 추가: {sender}",
+      "sender_already_present": "이미 이 규칙에 있음",
+      "no_rule_fits": "추가할 수 있는 규칙이 없습니다",
       "manage": "규칙 관리",
       "senders_count": "{count, plural, other {보낸 사람 #명}}",
       "cross_account": "한 계정의 메일만 선택하세요",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "변경하기 전까지는 레이아웃을 따릅니다. 목록과 메시지가 나란히 있으면 꺼지고, 그 밖에는 켜집니다."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "폴더 위에 계정 전환기를, 그 아래에 메일 쓰기를 보여줘요. 끄면 계정 전환기 자리에 메일 쓰기가 표시돼요."
+    "sidebar_account_switcher_description": "폴더 위에 계정 전환기를 표시합니다. 끄면 내비게이션 바의 아바타로 계정을 전환합니다."
   },
   "mail_p2_conv": {
     "show_message": "메시지 보기",
@@ -4506,6 +4531,8 @@
       "role_label": "Role",
       "language_label": "Language",
       "related_default_label": "Related",
+      "related_unknown": "알 수 없는 연락처",
+      "related_remove": "관련 연락처에서 제거",
       "more_actions": "작업 더보기",
       "age_years": "{count}세",
       "years_since": "{count}년 전"
@@ -4874,6 +4901,18 @@
       "end_time": "종료 시간",
       "all_day_event": "하루 종일 일정",
       "calendar_select": "캘린더",
+      "show_as": "표시 방법",
+      "show_as_busy": "바쁨",
+      "show_as_free": "한가함",
+      "shown_free": "한가함으로 표시",
+      "visibility": "공개 범위",
+      "visibility_public": "공개",
+      "visibility_private": "비공개",
+      "visibility_secret": "숨김",
+      "visibility_hint_public": "캘린더를 공유한 사람에게 세부 정보가 보입니다.",
+      "visibility_hint_private": "캘린더를 공유한 사람에게 시간만 보입니다.",
+      "visibility_hint_secret": "캘린더를 공유한 사람에게 일정이 보이지 않으며, 시간도 비어 있는 것으로 표시됩니다.",
+      "visibility_series": "모든 반복 일정에 적용됩니다.",
       "save": "저장",
       "cancel": "취소",
       "color": "색상"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "캘린더에 할 일을 관리할 수 있는 메뉴를 추가해요",
       "show_tasks_on_calendar": "캘린더에 할 일 표시",
       "show_tasks_on_calendar_desc": "월간, 주간 및 일간 캘린더에 할 일을 보여줘요",
+      "show_tasks_app": "할 일을 별도 앱으로",
+      "show_tasks_app_desc": "할 일이 캘린더 보기 대신 앱 막대에 자체 아이콘을 갖습니다",
       "hover_preview": "마우스 호버 미리보기",
       "hover_preview_desc": "캘린더 일정 위에 마우스를 올리면 세부 정보 팝업을 띄워요",
       "hover_preview_instant": "즉시",

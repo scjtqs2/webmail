@@ -18,6 +18,8 @@ import type { FolderCountMode } from '@/lib/folder-counts';
 import { DEFAULT_FILES_SETTINGS, normalizeFilesSettings, type FilesSettings } from '@/lib/files-settings';
 import { orderForMailbox, sanitizeSortLevels, type MessageListOrderScope, type SortLevel } from '@/lib/message-list-order';
 import { isSearchDefaultScope, type SearchDefaultScope } from '@/lib/search-default-scope';
+import { UNREAD_SECTION_SIZE, isUnreadSectionSize } from '@/lib/unread-first';
+import { DEFAULT_COMPOSE_PLACEMENT, isComposePlacement, type ComposePlacement } from '@/lib/compose-placement';
 import { EMPTY_SIGNATURE_DETAILS, sanitizeSignatureDetails, type SignatureDetails } from '@/lib/org-signature';
 import {
   ACCESSIBILITY_DEFAULTS,
@@ -41,6 +43,7 @@ import {
   readStamps,
   type LocalSettingStamps,
 } from '@/lib/settings-sync-stamps';
+import { nextStamp } from '@/lib/settings-metadata-sync';
 import { getDesktopBridge } from '@/lib/desktop/bridge';
 import { forgetSignedOutChoices, signedOutChoices } from '@/lib/signed-out-choices';
 import { isValidKeywordDefinitionId, MAX_KEYWORD_LABEL_LENGTH } from '@/lib/keyword-nesting';
@@ -146,10 +149,106 @@ function saveLocalStamps(local: LocalSettingStamps): void {
 
 function markLocalChange(keys: string[]): void {
   const local = getLocalStamps();
+  const seen = readSeenSettingStamps();
   const now = Date.now();
+  let seenChanged = false;
   for (const key of keys) {
-    local.stamps[key] = now;
-    local.dirty[key] = now;
+    // Later than the stamp it replaces, even when that came from a device
+    // whose clock runs ahead: the change made here is the newer one.
+    const at = nextStamp(Math.max(local.stamps[key] ?? 0, seen[key] ?? 0), now);
+    local.stamps[key] = at;
+    local.dirty[key] = at;
+    if (key in seen) {
+      delete seen[key];
+      seenChanged = true;
+    }
+  }
+  saveLocalStamps(local);
+  if (seenChanged) writeSeenSettingStamps(seen);
+  metadataSyncHooks?.onLocalChange(keys);
+}
+
+// Newer stamps of the account's metadata that this browser saw but didn't
+// take (a value it can't use, a setting the admin pins): a change made here
+// is stamped after them (stores/settings-metadata-sync).
+const SETTINGS_SEEN_KEY = 'settings-sync-seen';
+
+function readSeenSettingStamps(): Record<string, number> {
+  try {
+    if (typeof window === 'undefined') return {};
+    return readStamps(JSON.parse(window.localStorage.getItem(SETTINGS_SEEN_KEY) ?? '{}'));
+  } catch {
+    return {};
+  }
+}
+
+function writeSeenSettingStamps(seen: Record<string, number>): void {
+  try {
+    if (typeof window === 'undefined') return;
+    if (Object.keys(seen).length > 0) window.localStorage.setItem(SETTINGS_SEEN_KEY, JSON.stringify(seen));
+    else window.localStorage.removeItem(SETTINGS_SEEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Note account stamps this browser saw but didn't take; drop the ones a taken stamp has passed. */
+export function noteSeenSettingStamps(seenNow: Record<string, number>, taken: Record<string, number>): void {
+  const seen = readSeenSettingStamps();
+  let changed = false;
+  for (const [key, at] of Object.entries(taken)) {
+    if (key in seen && seen[key] <= at) {
+      delete seen[key];
+      changed = true;
+    }
+  }
+  for (const [key, at] of Object.entries(seenNow)) {
+    if ((seen[key] ?? 0) >= at) continue;
+    seen[key] = at;
+    changed = true;
+  }
+  if (changed) writeSeenSettingStamps(seen);
+}
+
+// --- Settings in the account's metadata ----------------------------------------
+// stores/settings-metadata-sync keeps the settings the mobile app has in the
+// account's private Inbox metadata, next to /api/settings (lib/settings-metadata-sync).
+
+interface MetadataSyncHooks {
+  /** The user changed these settings here (they have a new stamp). */
+  onLocalChange: (keys: string[]) => void;
+  /** Sync was switched on or off, or moved to another account. */
+  onTargetChange: () => void;
+}
+
+let metadataSyncHooks: MetadataSyncHooks | null = null;
+
+export function registerMetadataSyncHooks(hooks: MetadataSyncHooks | null): void {
+  metadataSyncHooks = hooks;
+}
+
+/** The account the settings sync with now: null while sync is off, or switched off by the user. */
+export function settingsSyncTarget(): { username: string; serverUrl: string } | null {
+  if (!syncEnabled || !syncUsername || !syncServerUrl) return null;
+  if (useSettingsStore.getState().settingsSyncDisabled) return null;
+  return { username: syncUsername, serverUrl: syncServerUrl };
+}
+
+/** When each setting last changed, by name, as this browser knows it. */
+export function readLocalSettingStamps(): Record<string, number> {
+  return getLocalStamps().stamps;
+}
+
+/**
+ * Stamps of settings whose value here is already the account's: the stamp is
+ * taken over, nothing is marked to send.
+ */
+export function adoptSettingStamps(stamps: Record<string, number>): void {
+  if (Object.keys(stamps).length === 0) return;
+  const local = getLocalStamps();
+  for (const [key, at] of Object.entries(stamps)) {
+    local.stamps[key] = at;
+    if (key === 'theme') local.stamps.themeChosen = at;
   }
   saveLocalStamps(local);
 }
@@ -534,7 +633,7 @@ export function isWritingLanguage(value: unknown): value is string {
  * stored settings predate it. A first login on a device still takes them from
  * the server.
  */
-const CROSS_ACCOUNT_VIEW_KEYS = new Set<string>([
+export const CROSS_ACCOUNT_VIEW_KEYS = new Set<string>([
   'enableUnifiedMailbox',
   'includeGroupInUnified',
   'unifiedCrossAccount',
@@ -712,6 +811,8 @@ interface SettingsState extends AccessibilitySettings {
   density: Density;
   interfaceLayout: InterfaceLayout;
   mvInboxType: MvInboxType;
+  // How many unread messages the "Unread first" section shows (#1705).
+  mvUnreadSectionSize: number;
   // The folded sections of the "Unread first" inbox; per device.
   mvUnreadSectionCollapsed: boolean;
   mvEverythingElseCollapsed: boolean;
@@ -831,6 +932,8 @@ interface SettingsState extends AccessibilitySettings {
   // Calendar Tasks
   enableCalendarTasks: boolean;
   showTasksOnCalendar: boolean;
+  /** Tasks get an app of their own in the app rail, at /tasks (#1698), and leave the calendar's views. */
+  showTasksApp: boolean;
 
   // Contact Birthday Calendar
   showBirthdayCalendar: boolean;
@@ -876,9 +979,11 @@ interface SettingsState extends AccessibilitySettings {
   toolbarPosition: ToolbarPosition;
   showToolbarLabels: boolean;
   hideAccountSwitcher: boolean;
-  // The account switcher at the head of the folder sidebar, with the round
-  // Compose button over the list. Off puts Compose at the sidebar's head.
+  // The account switcher at the head of the folder sidebar. Off leaves the
+  // rail's avatar as the one switcher.
   sidebarAccountSwitcher: boolean;
+  // Where Compose sits on a desktop in the default layout.
+  composePlacement: ComposePlacement;
   showRailAccountList: boolean;
   proInterface: boolean;
   // Settings marked `advanced` (power-user and integrator rows) stay hidden
@@ -1074,6 +1179,13 @@ interface SettingsState extends AccessibilitySettings {
   disableSync: () => void;
   loadFromServer: (username: string, serverUrl: string) => Promise<boolean>;
   /**
+   * Take settings the account's metadata holds newer (stores/settings-metadata-sync):
+   * `values` by name, already checked with acceptMetadataSettingValue, and
+   * the names put back to their default. They count as chosen or not as they
+   * do there, keep the stamps they have there, and go up to /api/settings.
+   */
+  applyMetadataSettings: (values: Record<string, unknown>, resets: string[], stamps: Record<string, number>) => void;
+  /**
    * Called on a full sign-out: drops the settings and templates this browser
    * mirrored from an account's server copy, so the next person to sign in
    * does not start from them (#1185). Device-only settings are kept.
@@ -1095,6 +1207,7 @@ const DEFAULT_SETTINGS = {
   density: 'regular' as Density,
   interfaceLayout: 'default' as InterfaceLayout,
   mvInboxType: 'unread-first' as MvInboxType,
+  mvUnreadSectionSize: UNREAD_SECTION_SIZE,
   mvUnreadSectionCollapsed: false,
   mvEverythingElseCollapsed: false,
   // Settings > Accessibility (lib/accessibility-settings.ts)
@@ -1195,6 +1308,7 @@ const DEFAULT_SETTINGS = {
   // of their own to check.
   enableCalendarTasks: true,
   showTasksOnCalendar: true,
+  showTasksApp: false,
 
   // Contact Birthday Calendar
   showBirthdayCalendar: false,
@@ -1231,6 +1345,7 @@ const DEFAULT_SETTINGS = {
   showToolbarLabels: true,
   hideAccountSwitcher: false,
   sidebarAccountSwitcher: true,
+  composePlacement: DEFAULT_COMPOSE_PLACEMENT,
   showRailAccountList: false,
   proInterface: false,
   showAdvancedSettings: false,
@@ -1437,6 +1552,7 @@ function isAllowedPolicyValue(key: string, value: unknown, restriction?: Setting
   if (key === 'subAddressDelimiter' && !isValidSubAddressDelimiter(value as string)) return false;
   if (key === 'messageListOrderScope' && value !== 'inbox' && value !== 'all') return false;
   if (key === 'searchDefaultScope' && !isSearchDefaultScope(value)) return false;
+  if (key === 'composePlacement' && !isComposePlacement(value)) return false;
   if (key === 'calendarMonthTimedEvents' && !MONTH_TIMED_EVENT_STYLES.includes(value as MonthTimedEventStyle)) return false;
   if (!isAllowedAccessibilityValue(key, value)) return false;
   if (restriction && typeof restriction === 'object') {
@@ -1451,6 +1567,52 @@ function isAllowedPolicyValue(key: string, value: unknown, restriction?: Setting
     }
   }
   return true;
+}
+
+/** The built-in default of a setting, before any admin policy. */
+export function builtInSettingDefault(key: string): unknown {
+  return key === 'theme' ? 'system' : builtInDefault(key);
+}
+
+/** A sidebar app list from elsewhere, or null when it isn't one: http(s) links only. */
+function syncedSidebarApps(value: unknown): SidebarApp[] | null {
+  if (!Array.isArray(value)) return null;
+  const apps: SidebarApp[] = [];
+  for (const raw of value) {
+    if (!isPlainRecord(raw) || typeof raw.id !== 'string' || !raw.id || typeof raw.name !== 'string' || typeof raw.url !== 'string') return null;
+    try {
+      if (!['http:', 'https:'].includes(new URL(raw.url).protocol)) return null;
+    } catch {
+      return null;
+    }
+    apps.push({
+      id: raw.id,
+      name: raw.name,
+      url: raw.url,
+      icon: typeof raw.icon === 'string' && raw.icon ? raw.icon : 'Globe',
+      openMode: raw.openMode === 'inline' ? 'inline' : 'tab',
+      showOnMobile: raw.showOnMobile !== false,
+    });
+  }
+  return apps;
+}
+
+/**
+ * A value another client (the mobile app) keeps in the account's metadata
+ * for `key`, as this browser would store it, or undefined when it can't use
+ * it: the wrong type, or one the admin policy doesn't allow here. The values
+ * the settings pages offer are checked by the caller (lib/settings-schema,
+ * kept out of the first script); `checked` says it did for this setting.
+ */
+export function acceptMetadataSettingValue(key: string, value: unknown, checked: boolean): unknown {
+  if (key === 'theme') return value === 'light' || value === 'dark' || value === 'system' ? value : undefined;
+  if (!hasOwn(DEFAULT_SETTINGS, key) || key === 'explicitSettings' || DEVICE_LOCAL_SETTING_KEYS.has(key)) return undefined;
+  if (key === 'sidebarApps') return syncedSidebarApps(value) ?? undefined;
+  if (isPolicySettingKey(key)) {
+    const restriction = usePolicyStore.getState().policy.restrictions?.[key];
+    return isAllowedPolicyValue(key, value, restriction) ? value : undefined;
+  }
+  return checked ? value : undefined;
 }
 
 /**
@@ -1671,6 +1833,7 @@ export const useSettingsStore = create<SettingsState>()(
           density: state.density,
           interfaceLayout: state.interfaceLayout,
           mvInboxType: state.mvInboxType,
+          mvUnreadSectionSize: state.mvUnreadSectionSize,
           messageListOrder: state.messageListOrder,
           messageListOrderScope: state.messageListOrderScope,
           dateFormat: state.dateFormat,
@@ -1740,6 +1903,7 @@ export const useSettingsStore = create<SettingsState>()(
           calendarInvitationParsingEnabled: state.calendarInvitationParsingEnabled,
           enableCalendarTasks: state.enableCalendarTasks,
           showTasksOnCalendar: state.showTasksOnCalendar,
+          showTasksApp: state.showTasksApp,
           showBirthdayCalendar: state.showBirthdayCalendar,
           birthdayCalendarColor: state.birthdayCalendarColor,
           sharedCalendarColors: state.sharedCalendarColors,
@@ -1766,6 +1930,7 @@ export const useSettingsStore = create<SettingsState>()(
           toolbarPosition: state.toolbarPosition,
           hideAccountSwitcher: state.hideAccountSwitcher,
           sidebarAccountSwitcher: state.sidebarAccountSwitcher,
+          composePlacement: state.composePlacement,
           showRailAccountList: state.showRailAccountList,
           showAdvancedSettings: state.showAdvancedSettings,
           // proInterface is intentionally omitted - it's a per-device choice
@@ -2045,6 +2210,12 @@ export const useSettingsStore = create<SettingsState>()(
               if (key === 'messageListOrderScope' && settings[key] !== 'inbox' && settings[key] !== 'all') {
                 return;
               }
+              if (key === 'mvUnreadSectionSize' && !isUnreadSectionSize(settings[key])) {
+                return;
+              }
+              if (key === 'composePlacement' && !isComposePlacement(settings[key])) {
+                return;
+              }
               if (key === 'searchDefaultScope' && !isSearchDefaultScope(settings[key])) {
                 return;
               }
@@ -2287,6 +2458,7 @@ export const useSettingsStore = create<SettingsState>()(
           pushAfterLoad = false;
           if (!get().settingsSyncDisabled) requestSync?.();
         }
+        metadataSyncHooks?.onTargetChange();
       },
 
       flushSync: async () => {
@@ -2300,6 +2472,7 @@ export const useSettingsStore = create<SettingsState>()(
         syncServerUrl = null;
         takePendingSync();
         syncLog('Settings sync disabled');
+        metadataSyncHooks?.onTargetChange();
       },
 
       loadFromServer: async (username: string, serverUrl: string) => {
@@ -2391,6 +2564,48 @@ export const useSettingsStore = create<SettingsState>()(
         if (readSettingsOwner() === null || get().settingsSyncDisabled) return;
         resetSyncedState();
         writeSettingsOwner(null);
+      },
+
+      applyMetadataSettings: (values, resets, stamps) => {
+        const names = [...Object.keys(values), ...resets];
+        if (names.length === 0) return;
+        const dropped = new Set(resets);
+        unstampedWrites++;
+        try {
+          const patch: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(values)) {
+            if (key === 'theme') useThemeStore.getState().setTheme(value as 'light' | 'dark' | 'system', { chosen: true });
+            else patch[key] = value;
+          }
+          for (const key of resets) {
+            // A mode nobody chose leaves room for the operator's default.
+            if (key === 'theme') useThemeStore.getState().setTheme('system', { chosen: false });
+            else patch[key] = builtInDefault(key);
+          }
+          const explicit = new Set(get().explicitSettings.filter((key) => !dropped.has(key)));
+          for (const key of Object.keys(patch)) if (!dropped.has(key)) explicit.add(key);
+          set({ ...patch, explicitSettings: [...explicit] } as Partial<SettingsState>);
+          applyAdminPolicyPatch();
+        } finally {
+          unstampedWrites--;
+        }
+        applyVisualSettings();
+        // The browsers that sync through /api/settings get them too, with the
+        // stamps they have in the account.
+        const local = getLocalStamps();
+        for (const key of names) {
+          const at = stamps[key];
+          if (!at) continue;
+          local.stamps[key] = at;
+          local.dirty[key] = at;
+          if (key === 'theme') {
+            local.stamps.themeChosen = at;
+            local.dirty.themeChosen = at;
+          }
+        }
+        saveLocalStamps(local);
+        void settingsHooks.onSettingsSync.emit({ direction: 'pulled' });
+        if (!get().settingsSyncDisabled) requestSync?.();
       },
       };
     },
@@ -2759,11 +2974,24 @@ if (typeof window !== 'undefined') {
   const STAMPED_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
     (key) => key !== 'explicitSettings' && !DEVICE_LOCAL_SETTING_KEYS.has(key),
   ) as (keyof SettingsState)[];
-  const stampsPaused = () => isLoadingFromServer || unstampedWrites > 0;
+  const STAMPED_KEY_SET = new Set<string>(STAMPED_KEYS);
+  const stampsPaused =() => isLoadingFromServer || unstampedWrites > 0;
   useSettingsStore.subscribe((state, prev) => {
     if (stampsPaused() || !useSettingsStore.persist.hasHydrated()) return;
-    const changed = STAMPED_KEYS.filter((key) => state[key] !== prev[key]);
-    if (changed.length > 0) markLocalChange(changed as string[]);
+    // A setting the admin pins keeps the pinned value: a reset or an import
+    // changing it for a moment is not the user's change.
+    const locked = (key: string) => usePolicyStore.getState().isSettingLocked(key);
+    const changed: string[] = STAMPED_KEYS.filter((key) => state[key] !== prev[key] && !locked(key as string));
+    // A setting put back to its default that already had the default value
+    // changes only its "chosen" mark, and that is a change all the same.
+    if (state.explicitSettings !== prev.explicitSettings) {
+      const before = new Set(prev.explicitSettings);
+      const after = new Set(state.explicitSettings);
+      for (const key of new Set([...before, ...after])) {
+        if (before.has(key) !== after.has(key) && STAMPED_KEY_SET.has(key) && !changed.includes(key) && !locked(key)) changed.push(key);
+      }
+    }
+    if (changed.length > 0) markLocalChange(changed);
   });
   // A mode the user didn't choose is the operator's default, not a change.
   useThemeStore.subscribe((state, prev) => {
@@ -2826,6 +3054,7 @@ if (typeof window !== 'undefined') {
     const currentSyncDisabled = useSettingsStore.getState().settingsSyncDisabled;
     const syncToggleChanged = currentSyncDisabled !== prevSyncDisabled;
     prevSyncDisabled = currentSyncDisabled;
+    if (syncToggleChanged) metadataSyncHooks?.onTargetChange();
     // Skip sync if disabled, unless the toggle itself just changed
     if (currentSyncDisabled && !syncToggleChanged) return;
     triggerSync();

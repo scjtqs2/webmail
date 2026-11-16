@@ -7,6 +7,7 @@ import { linkUndoToast, recordUndo, runUndo } from "@/lib/undo-history";
 import { formatShortcutCombo } from "@/lib/shortcut-keys";
 import { emailKeyFor, KEYWORD_PREFIX, KEYWORD_PREFIX_LEGACY } from "@/lib/thread-utils";
 import { announce } from "@/lib/announce";
+import { currentStoreEpoch } from "@/lib/store-epoch";
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
 export const UNDO_TOAST_DURATION = 8000;
@@ -129,11 +130,15 @@ export async function markSelectionReadWithUndo(
   read: boolean,
   words: { success: string; error: string; labels: UndoLabels },
 ): Promise<void> {
+  const epoch = currentStoreEpoch();
   const points = keywordRestorePoints(resolveSelectedEmails(useEmailStore.getState()), ["$seen"], { $seen: read });
   await runBatchEmailAction(() => useEmailStore.getState().batchMarkAsRead(client, read), {
     success: words.success,
     error: words.error,
     undo: undoKeywordAction(client, points, words.labels),
+    // Switched to another account meanwhile: its error is not this action's
+    // outcome, and Undo would act on the other account's list.
+    isCurrent: () => currentStoreEpoch() === epoch,
   });
 }
 
@@ -244,7 +249,7 @@ export function toastWithUndo(title: string, undo: UndoToastAction | undefined, 
  */
 export async function runBatchEmailAction(
   run: () => Promise<boolean | void>,
-  messages: { success?: string; error: string; describeError?: (error: unknown) => string | undefined; undo?: ToastAction },
+  messages: { success?: string; error: string; describeError?: (error: unknown) => string | undefined; undo?: ToastAction; isCurrent?: () => boolean },
 ): Promise<void> {
   // An error left over from an earlier action is not this action's outcome.
   useEmailStore.setState({ error: null });
@@ -252,11 +257,14 @@ export async function runBatchEmailAction(
   try {
     ran = await run();
   } catch (error) {
+    if (messages.isCurrent?.() === false) return;
     console.error(messages.error, error);
     const detail = messages.describeError?.(error) ?? (error instanceof Error ? error.message : undefined);
     toast.error(messages.error, detail);
     return;
   }
+  // `isCurrent` false: the view this action ran in is gone, so is its feedback.
+  if (messages.isCurrent?.() === false) return;
   const storeError = useEmailStore.getState().error;
   if (storeError) {
     toast.error(messages.error, storeError);

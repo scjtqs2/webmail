@@ -158,6 +158,7 @@
     "settings": "Setări",
     "admin": "Admin",
     "files": "Fișiere",
+    "tasks": "Sarcini",
     "loading_mailboxes": "Se încarcă căsuțele poștale...",
     "push_connected": "Actualizări în timp real active",
     "push_disconnected": "Actualizări în timp real inactive",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Șterge formatarea",
       "undo": "Anulează",
       "redo": "Refă",
+      "cell_background": "Fundalul celulei",
       "add_row_above": "Adaugă rând deasupra",
       "add_row_below": "Adaugă rând dedesubt",
       "add_column_before": "Adaugă coloană înainte",
@@ -1729,6 +1731,13 @@
         "label": "Comutator de conturi în partea de sus a barei laterale",
         "description": "Afișează comutatorul de conturi deasupra folderelor și butonul rotund Compune peste lista de mesaje. Dezactivați pentru a pune Compune deasupra folderelor."
       },
+      "compose_placement": {
+        "label": "Butonul Compune",
+        "description": "Unde stă butonul Compune pe un computer. Pe telefon este mereu deasupra listei de mesaje.",
+        "floating": "Deasupra listei de mesaje",
+        "sidebar": "Sus în bara de dosare",
+        "rail": "Sus în bara de navigare"
+      },
       "show_rail_account_list": {
         "label": "Afișați avatarurile conturilor în bara de navigare",
         "description": "Afișați cercurile conturilor individuale în partea de jos a barei de navigare pentru comutarea rapidă, cu un buton de deconectare sub acestea."
@@ -2008,9 +2017,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Tipul inboxului",
-        "description": "„Întâi necitite” afișează cele mai noi 25 de mesaje necitite într-o secțiune deasupra restului inboxului",
+        "description": "„Întâi necitite” afișează cele mai noi mesaje necitite într-o secțiune deasupra restului inboxului",
         "default": "Implicit",
         "unread_first": "Întâi necitite"
+      },
+      "unread_section_size": {
+        "label": "Mesaje necitite afișate",
+        "description": "Câte dintre cele mai noi mesaje necitite afișează secțiunea „Întâi necitite”",
+        "5": "5 mesaje",
+        "10": "10 mesaje",
+        "15": "15 mesaje",
+        "20": "20 de mesaje",
+        "25": "25 de mesaje",
+        "50": "50 de mesaje"
       },
       "clear_search_on_folder_change": {
         "label": "Șterge căutarea la schimbarea folderului",
@@ -2562,6 +2581,7 @@
         "enable_tooltip": "Activați criptarea cu această cheie",
         "configure_title": "Activați criptarea cu această cheie",
         "enable_button": "Activați",
+        "in_use": "În uz",
         "disable_tooltip": "Dezactivați criptarea",
         "disable_title": "Dezactivați criptarea datelor stocate?",
         "disable_message": "E-mailurile noi vor fi stocate de acum fără criptare.",
@@ -2804,7 +2824,9 @@
       },
       "settings_sync": {
         "label": "Sincronizarea setărilor",
-        "description": "Sincronizați-vă setările între browsere și dispozitive"
+        "description": "Sincronizați-vă setările între browsere și dispozitive",
+        "replaced": "{count, plural, one {# setare din acest browser urmează} few {# setări din acest browser urmează} other {# de setări din acest browser urmează}} acum contul dvs.",
+        "keep_mine": "Folosește-le pe ale acestui browser"
       },
       "sender_favicons": {
         "label": "Favicon-uri ale expeditorului",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Blochează expeditorul} few {Blochează # expeditori} other {Blochează # de expeditori}}",
       "no_junk": "Acest cont nu are un dosar de spam",
       "create": "Creați o regulă…",
+      "add_sender_to_rule": "Adaugă la o regulă: {sender}",
+      "sender_already_present": "Este deja în această regulă",
+      "no_rule_fits": "Nu există reguli la care să adăugați",
       "manage": "Gestionați regulile",
       "senders_count": "{count, plural, one {# expeditor} few {# expeditori} other {# de expeditori}}",
       "cross_account": "Selectați mesaje dintr-un singur cont",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Cât timp nu îl modificați, urmează aspectul: dezactivat când lista și mesajul sunt unul lângă altul, activat în rest."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Afișează comutatorul de conturi deasupra folderelor, cu Compune sub el. Dezactivați pentru a pune Compune în locul lui."
+    "sidebar_account_switcher_description": "Afișează comutatorul de conturi deasupra dosarelor. Dezactivați pentru a schimba contul din avatarul de pe bara de navigare."
   },
   "mail_p2_conv": {
     "show_message": "Afișează mesajul",
@@ -4508,6 +4533,8 @@
       "role_label": "Rol",
       "language_label": "Limba",
       "related_default_label": "Legat de",
+      "related_unknown": "Contact necunoscut",
+      "related_remove": "Elimină din contactele asociate",
       "more_actions": "Alte acțiuni",
       "age_years": "{count, plural, one {1 an} few {# ani} other {# de ani}}",
       "years_since": "{count, plural, one {1 an} few {# ani} other {# de ani}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Ora de încheiere",
       "all_day_event": "Eveniment pe toată durata zilei",
       "calendar_select": "Calendar",
+      "show_as": "Afișează ca",
+      "show_as_busy": "Ocupat",
+      "show_as_free": "Liber",
+      "shown_free": "Afișat ca liber",
+      "visibility": "Vizibilitate",
+      "visibility_public": "Public",
+      "visibility_private": "Privat",
+      "visibility_secret": "Ascuns",
+      "visibility_hint_public": "Persoanele cu care partajezi calendarul văd detaliile.",
+      "visibility_hint_private": "Persoanele cu care partajezi calendarul văd doar ora.",
+      "visibility_hint_secret": "Persoanele cu care partajezi calendarul nu văd evenimentul, iar intervalul rămâne liber.",
+      "visibility_series": "Se aplică tuturor repetărilor.",
       "save": "Salvare",
       "cancel": "Anulează",
       "color": "Culoare"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Afișați o vizualizare a sarcinilor în calendar pentru gestionarea sarcinilor de îndeplinit",
       "show_tasks_on_calendar": "Afișați sarcinile în calendar",
       "show_tasks_on_calendar_desc": "Afișați sarcinile în vizualizările lunare, săptămânale și zilnice ale calendarului",
+      "show_tasks_app": "Sarcini ca aplicație separată",
+      "show_tasks_app_desc": "Sarcinile au propria pictogramă în bara de aplicații în loc de o vizualizare în calendar",
       "hover_preview": "Previzualizare la trecerea cursorului peste elemente",
       "hover_preview_desc": "Afișați o fereastră pop-up cu detalii atunci când treceți cu mouse-ul peste evenimentele din calendar",
       "hover_preview_instant": "Instant",

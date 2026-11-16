@@ -158,6 +158,7 @@
     "settings": "Beállítások",
     "admin": "Adminisztráció",
     "files": "Fájlok",
+    "tasks": "Feladatok",
     "loading_mailboxes": "Postafiókok betöltése...",
     "push_connected": "Valós idejű frissítések aktívak",
     "push_disconnected": "Valós idejű frissítések inaktívak",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Formázás törlése",
       "undo": "Visszavonás",
       "redo": "Újra",
+      "cell_background": "Cellaháttér",
       "add_row_above": "Sor beszúrása fölé",
       "add_row_below": "Sor beszúrása alá",
       "add_column_before": "Oszlop beszúrása elé",
@@ -1729,6 +1731,13 @@
         "label": "Fiókváltó az oldalsáv tetején",
         "description": "A fiókváltó a mappák fölött, a kerek Új levél gomb pedig az üzenetlista fölött jelenik meg. Kikapcsolva az Új levél gomb kerül a mappák fölé."
       },
+      "compose_placement": {
+        "label": "Új levél gomb",
+        "description": "Hol van az Új levél gomb számítógépen. Telefonon mindig az üzenetlista fölött van.",
+        "floating": "Az üzenetlista fölött",
+        "sidebar": "A mappasáv tetején",
+        "rail": "A navigációs sáv tetején"
+      },
       "show_rail_account_list": {
         "label": "Fiók avatárok mutatása a navigációs sávon",
         "description": "Egyedi fiókkörök megjelenítése a navigációs sáv alján a gyors váltáshoz, kijelentkezés gombbal alatta."
@@ -2008,9 +2017,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Beérkezett üzenetek típusa",
-        "description": "Az „Olvasatlanok elöl” a 25 legújabb olvasatlan üzenetet külön szakaszban mutatja a többi üzenet felett",
+        "description": "Az „Olvasatlanok elöl” a legújabb olvasatlan üzeneteket külön szakaszban mutatja a többi üzenet felett",
         "default": "Alapértelmezett",
         "unread_first": "Olvasatlanok elöl"
+      },
+      "unread_section_size": {
+        "label": "Megjelenített olvasatlan üzenetek",
+        "description": "Hány legújabb olvasatlan üzenetet mutasson az „Olvasatlanok elöl” szakasz",
+        "5": "5 üzenet",
+        "10": "10 üzenet",
+        "15": "15 üzenet",
+        "20": "20 üzenet",
+        "25": "25 üzenet",
+        "50": "50 üzenet"
       },
       "clear_search_on_folder_change": {
         "label": "Keresés törlése mappaváltáskor",
@@ -2558,6 +2577,7 @@
         "enable_tooltip": "Titkosítás engedélyezése ezzel a kulccsal",
         "configure_title": "Titkosítás engedélyezése ezzel a kulccsal",
         "enable_button": "Engedélyezés",
+        "in_use": "Használatban",
         "disable_tooltip": "Titkosítás letiltása",
         "disable_title": "Kikapcsolja a tárolt adatok titkosítását?",
         "disable_message": "Az új leveleket mostantól titkosítás nélkül tárolja a szerver.",
@@ -2800,7 +2820,9 @@
       },
       "settings_sync": {
         "label": "Beállítások szinkronizálása",
-        "description": "Beállítások szinkronizálása a böngészők és eszközök között"
+        "description": "Beállítások szinkronizálása a böngészők és eszközök között",
+        "replaced": "{count, plural, one {# beállítás ebben a böngészőben} other {# beállítás ebben a böngészőben}} mostantól a fiókját követi.",
+        "keep_mine": "A böngésző sajátjainak használata"
       },
       "sender_favicons": {
         "label": "Feladó faviconok",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Feladó letiltása} other {# feladó letiltása}}",
       "no_junk": "Ebben a fiókban nincs Levélszemét mappa",
       "create": "Szabály létrehozása…",
+      "add_sender_to_rule": "Hozzáadás szabályhoz: {sender}",
+      "sender_already_present": "Már szerepel ebben a szabályban",
+      "no_rule_fits": "Nincs szabály, amelyhez hozzá lehetne adni",
       "manage": "Szabályok kezelése",
       "senders_count": "{count, plural, one {# feladó} other {# feladó}}",
       "cross_account": "Egyetlen fiók üzeneteit válaszd ki",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Amíg nem módosítja, az elrendezést követi: ki van kapcsolva, ha a lista és az üzenet egymás mellett van, egyébként be."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "A fiókváltó a mappák fölött jelenik meg, alatta az Új levél gombbal. Kikapcsolva az Új levél gomb kerül a helyére."
+    "sidebar_account_switcher_description": "Megjeleníti a fiókváltót a mappák fölött. Kikapcsolva a navigációs sávon lévő avatárral válthat fiókot."
   },
   "mail_p2_conv": {
     "show_message": "Üzenet megjelenítése",
@@ -4508,6 +4533,8 @@
       "role_label": "Szerepkör",
       "language_label": "Nyelv",
       "related_default_label": "Kapcsolódó",
+      "related_unknown": "Ismeretlen névjegy",
+      "related_remove": "Eltávolítás a kapcsolódó névjegyek közül",
       "more_actions": "További műveletek",
       "age_years": "{count, plural, one {1 éves} other {# éves}}",
       "years_since": "{count, plural, one {1 év} other {# év}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Befejező idő",
       "all_day_event": "Egész napos esemény",
       "calendar_select": "Naptár",
+      "show_as": "Megjelenítés",
+      "show_as_busy": "Foglalt",
+      "show_as_free": "Szabad",
+      "shown_free": "Szabadként jelenik meg",
+      "visibility": "Láthatóság",
+      "visibility_public": "Nyilvános",
+      "visibility_private": "Privát",
+      "visibility_secret": "Rejtett",
+      "visibility_hint_public": "Akikkel megosztja a naptárt, látják a részleteket.",
+      "visibility_hint_private": "Akikkel megosztja a naptárt, csak az időpontot látják.",
+      "visibility_hint_secret": "Akikkel megosztja a naptárt, nem látják az eseményt, és az idő szabad marad.",
+      "visibility_series": "Minden ismétlődésre vonatkozik.",
       "save": "Mentés",
       "cancel": "Mégse",
       "color": "Szín"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Feladatnézet mutatása a naptárban a teendők kezeléséhez",
       "show_tasks_on_calendar": "Feladatok mutatása a naptárban",
       "show_tasks_on_calendar_desc": "Feladatok mutatása a havi, heti és napi naptárnézetben",
+      "show_tasks_app": "Feladatok külön alkalmazásként",
+      "show_tasks_app_desc": "A feladatok saját ikont kapnak az alkalmazássávon a naptár nézete helyett",
       "hover_preview": "Esemény előnézet egérrel",
       "hover_preview_desc": "Részletes felugró ablak mutatása az események fölé húzva",
       "hover_preview_instant": "Azonnali",

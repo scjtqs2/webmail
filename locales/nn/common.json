@@ -158,6 +158,7 @@
     "settings": "Innstillingar",
     "admin": "Administrasjon",
     "files": "Filer",
+    "tasks": "Oppgåver",
     "loading_mailboxes": "Lastar inn postkassar...",
     "push_connected": "Sanntidsoppdateringar er aktive",
     "push_disconnected": "Sanntidsoppdateringar er inaktive",
@@ -1244,6 +1245,7 @@
       "add_column_after": "Legg til kolonne etter",
       "delete_row": "Slett rad",
       "delete_column": "Slett kolonne",
+      "cell_background": "Cellebakgrunn",
       "toggle_header_row": "Slå av eller på overskriftsrad",
       "delete_table": "Slett tabell",
       "pick_size": "Vel storleik",
@@ -1737,6 +1739,13 @@
         "label": "Kontobytar øvst i sidefeltet",
         "description": "Vis kontobytaren over mappene og den runde Skriv-knappen over meldingslista. Slå av for å setje Skriv over mappene i staden."
       },
+      "compose_placement": {
+        "label": "Skriv-knappen",
+        "description": "Kvar Skriv-knappen er på ei datamaskin. På telefonen ligg han alltid over meldingslista.",
+        "floating": "Over meldingslista",
+        "sidebar": "Øvst i mappefeltet",
+        "rail": "Øvst i navigasjonsfeltet"
+      },
       "show_rail_account_list": {
         "label": "Vis kontoavatarar i navigasjonsfeltet",
         "description": "Vis enkeltkontoar som sirklar nedst i navigasjonsfeltet for rask byting, med ein utloggingsknapp under."
@@ -2016,9 +2025,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Innbokstype",
-        "description": "Ulesne først viser dei 25 nyaste ulesne meldingane i ein seksjon over resten av innboksen",
+        "description": "Ulesne først viser dei nyaste ulesne meldingane i ein seksjon over resten av innboksen",
         "default": "Standard",
         "unread_first": "Ulesne først"
+      },
+      "unread_section_size": {
+        "label": "Ulesne meldingar som blir viste",
+        "description": "Kor mange av dei nyaste ulesne meldingane seksjonen Ulesne først viser",
+        "5": "5 meldingar",
+        "10": "10 meldingar",
+        "15": "15 meldingar",
+        "20": "20 meldingar",
+        "25": "25 meldingar",
+        "50": "50 meldingar"
       },
       "clear_search_on_folder_change": {
         "label": "Tøm søket når du byter mappe",
@@ -2570,6 +2589,7 @@
         "enable_tooltip": "Slå på kryptering med denne nøkkelen",
         "configure_title": "Slå på kryptering med denne nøkkelen",
         "enable_button": "Slå på",
+        "in_use": "I bruk",
         "disable_tooltip": "Slå av kryptering",
         "disable_title": "Slå av kryptering i kvile?",
         "disable_message": "Ny e-post vert lagra utan kryptering frå no av.",
@@ -2812,7 +2832,9 @@
       },
       "settings_sync": {
         "label": "Synkronisering av innstillingar",
-        "description": "Synkroniser innstillingane dine på tvers av nettlesarar og einingar"
+        "description": "Synkroniser innstillingane dine på tvers av nettlesarar og einingar",
+        "replaced": "{count, plural, one {# innstilling i denne nettlesaren følgjer} other {# innstillingar i denne nettlesaren følgjer}} no kontoen din.",
+        "keep_mine": "Bruk innstillingane til denne nettlesaren"
       },
       "sender_favicons": {
         "label": "Favikon for avsendarar",
@@ -3976,6 +3998,9 @@
       "block": "{count, plural, one {Blokker avsendar} other {Blokker # avsendarar}}",
       "no_junk": "Denne kontoen har inga søppelpostmappe",
       "create": "Opprett regel …",
+      "add_sender_to_rule": "Legg {sender} til i ein regel",
+      "sender_already_present": "Er allereie i denne regelen",
+      "no_rule_fits": "Ingen reglar å leggje til i",
       "manage": "Administrer reglar",
       "senders_count": "{count, plural, one {# avsendar} other {# avsendarar}}",
       "cross_account": "Vel meldingar frå éin konto",
@@ -4145,7 +4170,7 @@
     "return_to_list_follows_layout": "Til du endrar det, følgjer dette oppsettet: av når lista og meldinga står side om side, elles på."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Vis kontobytaren over mappene, med Skriv under. Slå av for å setje Skriv i staden."
+    "sidebar_account_switcher_description": "Vis kontobytaren over mappene. Slå av for å byte konto med avataren din i navigasjonsfeltet."
   },
   "mail_p2_conv": {
     "show_message": "Vis meldinga",
@@ -4516,6 +4541,8 @@
       "role_label": "Rolle",
       "language_label": "Språk",
       "related_default_label": "Relatert",
+      "related_unknown": "Ukjend kontakt",
+      "related_remove": "Fjern frå relaterte kontaktar",
       "more_actions": "Fleire handlingar",
       "age_years": "{count, plural, one {1 år gammal} other {# år gammal}}",
       "years_since": "{count, plural, one {1 år} other {# år}}"
@@ -4882,6 +4909,18 @@
       "end_time": "Sluttid",
       "all_day_event": "Heildagshending",
       "calendar_select": "Kalender",
+      "show_as": "Vis som",
+      "show_as_busy": "Oppteken",
+      "show_as_free": "Ledig",
+      "shown_free": "Blir vist som ledig",
+      "visibility": "Synlegheit",
+      "visibility_public": "Offentleg",
+      "visibility_private": "Privat",
+      "visibility_secret": "Gøymd",
+      "visibility_hint_public": "Dei du deler kalenderen med, ser detaljane.",
+      "visibility_hint_private": "Dei du deler kalenderen med, ser berre tidspunktet.",
+      "visibility_hint_secret": "Dei du deler kalenderen med, ser ikkje hendinga, og tida held seg ledig.",
+      "visibility_series": "Gjeld alle gjentakingar.",
       "save": "Lagre",
       "cancel": "Avbryt",
       "color": "Farge"
@@ -5067,6 +5106,8 @@
       "enable_tasks_desc": "Vis ei oppgåvevising i kalenderen for å handtere gjeremål",
       "show_tasks_on_calendar": "Vis oppgåver i kalenderen",
       "show_tasks_on_calendar_desc": "Vis oppgåver i månads-, veke- og dagvisingane i kalenderen",
+      "show_tasks_app": "Oppgåver som eiga app",
+      "show_tasks_app_desc": "Oppgåver får sitt eige ikon i app-linja i staden for ei vising i kalenderen",
       "hover_preview": "Førehandsvising av hending ved peiking",
       "hover_preview_desc": "Vis ei detaljboble når du peikar på kalenderhendingar",
       "hover_preview_instant": "Straks",

@@ -166,8 +166,9 @@ export const tabSearchEntries: Record<Tab, SettingsSearchEntry[]> = {
     { label: 'settings.appearance.toolbar_position.label' },
     { label: 'settings.appearance.toolbar_labels.label', when: 'notMountainView' },
     { label: 'settings.appearance.sections.sidebar' },
+    { label: 'settings.appearance.compose_placement.label', when: 'notMountainView' },
     { label: 'settings.appearance.colorful_sidebar_icons.label' },
-    { label: 'settings.appearance.show_folder_total_count.label' },
+    { label: 'settings.appearance.show_folder_total_count.label', when: 'notMountainView' },
     { label: 'print_styles.title' },
     { label: 'print_styles.style_label' },
     { label: 'settings.appearance.sections.experimental', advanced: true },
@@ -259,6 +260,7 @@ export const tabSearchEntries: Record<Tab, SettingsSearchEntry[]> = {
     { label: 'settings.email_behavior.swipe_right_action.label', when: 'touch' },
     { label: 'settings.email_behavior.swipe_left_action.label', when: 'touch' },
     { label: 'settings.email_behavior.inbox_type.label', when: 'mountainView' },
+    { label: 'settings.email_behavior.unread_section_size.label', when: 'mountainView' },
   ],
   reading: [
     { label: 'settings.email_behavior.mark_read.label' },

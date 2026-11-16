@@ -158,6 +158,7 @@
     "settings": "Configurações",
     "admin": "Admin",
     "files": "Arquivos",
+    "tasks": "Tarefas",
     "loading_mailboxes": "Carregando caixas de entrada...",
     "push_connected": "Atualizações em tempo real ativas",
     "push_disconnected": "Atualizações em tempo real inativas",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Limpar formatação",
       "undo": "Desfazer",
       "redo": "Refazer",
+      "cell_background": "Fundo da célula",
       "add_row_above": "Adicionar linha acima",
       "add_row_below": "Adicionar linha abaixo",
       "add_column_before": "Adicionar coluna antes",
@@ -1726,6 +1728,13 @@
         "label": "Seletor de conta no topo da barra lateral",
         "description": "Mostra o seletor de conta acima das pastas e o botão redondo Escrever sobre a lista de mensagens. Desative para colocar Escrever acima das pastas."
       },
+      "compose_placement": {
+        "label": "Botão Escrever",
+        "description": "Onde fica o botão Escrever num computador. No telemóvel fica sempre sobre a lista de mensagens.",
+        "floating": "Sobre a lista de mensagens",
+        "sidebar": "No topo da barra de pastas",
+        "rail": "No topo da barra de navegação"
+      },
       "show_rail_account_list": {
         "label": "Mostrar avatares de conta na barra de navegação",
         "description": "Exibir círculos de contas individuais na parte inferior da barra de navegação para troca rápida, com um botão de sair abaixo."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Tipo de caixa de entrada",
-        "description": "\"Não lidas primeiro\" mostra as suas 25 mensagens não lidas mais recentes numa secção acima do resto da caixa",
+        "description": "\"Não lidas primeiro\" mostra as suas mensagens não lidas mais recentes numa secção acima do resto da caixa",
         "default": "Predefinido",
         "unread_first": "Não lidas primeiro"
+      },
+      "unread_section_size": {
+        "label": "Mensagens não lidas mostradas",
+        "description": "Quantas das suas mensagens não lidas mais recentes a secção \"Não lidas primeiro\" mostra",
+        "5": "5 mensagens",
+        "10": "10 mensagens",
+        "15": "15 mensagens",
+        "20": "20 mensagens",
+        "25": "25 mensagens",
+        "50": "50 mensagens"
       },
       "clear_search_on_folder_change": {
         "label": "Limpar a pesquisa ao mudar de pasta",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "Ativar criptografia com esta chave",
         "configure_title": "Ativar criptografia com esta chave",
         "enable_button": "Ativar",
+        "in_use": "Em uso",
         "disable_tooltip": "Desativar criptografia",
         "disable_title": "Desativar a encriptação em repouso?",
         "disable_message": "A partir de agora, o correio novo é guardado sem encriptação.",
@@ -2797,7 +2817,9 @@
       },
       "settings_sync": {
         "label": "Sincronização de configurações",
-        "description": "Sincronize suas configurações entre navegadores e dispositivos"
+        "description": "Sincronize suas configurações entre navegadores e dispositivos",
+        "replaced": "{count, plural, one {# definição neste navegador segue} other {# definições neste navegador seguem}} agora a sua conta.",
+        "keep_mine": "Usar as deste navegador"
       },
       "sender_favicons": {
         "label": "Favicons de remetente",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Bloquear remetente} other {Bloquear # remetentes}}",
       "no_junk": "Esta conta não tem pasta de spam",
       "create": "Criar regra…",
+      "add_sender_to_rule": "Adicionar {sender} a uma regra",
+      "sender_already_present": "Já está nesta regra",
+      "no_rule_fits": "Não há regras às quais adicionar",
       "manage": "Gerenciar regras",
       "senders_count": "{count, plural, one {# remetente} other {# remetentes}}",
       "cross_account": "Selecione mensagens de uma única conta",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Enquanto não alterar, segue o layout: desligado quando a lista e a mensagem estão lado a lado, ligado nos outros casos."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Mostra o seletor de conta acima das pastas, com Escrever por baixo. Desative para colocar Escrever no lugar dele."
+    "sidebar_account_switcher_description": "Mostra o seletor de conta acima das pastas. Desative para mudar de conta com o seu avatar na barra de navegação."
   },
   "mail_p2_conv": {
     "show_message": "Mostrar a mensagem",
@@ -4506,6 +4531,8 @@
       "role_label": "Função",
       "language_label": "Idioma",
       "related_default_label": "Relacionado",
+      "related_unknown": "Contato desconhecido",
+      "related_remove": "Remover dos contatos relacionados",
       "more_actions": "Mais ações",
       "age_years": "{count, plural, one {1 ano} other {# anos}}",
       "years_since": "{count, plural, one {há 1 ano} other {há # anos}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Hora de término",
       "all_day_event": "Evento de dia inteiro",
       "calendar_select": "Calendário",
+      "show_as": "Mostrar como",
+      "show_as_busy": "Ocupado",
+      "show_as_free": "Livre",
+      "shown_free": "Mostrado como livre",
+      "visibility": "Visibilidade",
+      "visibility_public": "Público",
+      "visibility_private": "Privado",
+      "visibility_secret": "Oculto",
+      "visibility_hint_public": "As pessoas com quem partilha o calendário veem os detalhes.",
+      "visibility_hint_private": "As pessoas com quem partilha o calendário veem apenas a hora.",
+      "visibility_hint_secret": "As pessoas com quem partilha o calendário não veem o evento, e o horário fica livre.",
+      "visibility_series": "Aplica-se a todas as repetições.",
       "save": "Salvar",
       "cancel": "Cancelar",
       "color": "Cor"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Mostrar uma visualização de tarefas no calendário para gerenciar pendências",
       "show_tasks_on_calendar": "Mostrar tarefas no calendário",
       "show_tasks_on_calendar_desc": "Exibir tarefas nas visualizações mensal, semanal e diária do calendário",
+      "show_tasks_app": "Tarefas como app própria",
+      "show_tasks_app_desc": "As tarefas têm o seu próprio ícone na barra de apps em vez de uma vista do calendário",
       "hover_preview": "Pré-visualização ao passar o rato",
       "hover_preview_desc": "Mostrar um popover de detalhes ao passar o rato sobre eventos do calendário",
       "hover_preview_instant": "Instantâneo",

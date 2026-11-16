@@ -158,6 +158,7 @@
     "settings": "Ayarlar",
     "admin": "Yönetim",
     "files": "Dosyalar",
+    "tasks": "Görevler",
     "loading_mailboxes": "Posta kutuları yükleniyor...",
     "push_connected": "Anlık güncellemeler aktif",
     "push_disconnected": "Anlık güncellemeler devre dışı",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Biçimlendirmeyi temizle",
       "undo": "Geri al",
       "redo": "Yinele",
+      "cell_background": "Hücre arka planı",
       "add_row_above": "Üste satır ekle",
       "add_row_below": "Alta satır ekle",
       "add_column_before": "Öncesine sütun ekle",
@@ -1726,6 +1728,13 @@
         "label": "Kenar çubuğunun üstünde hesap değiştirici",
         "description": "Hesap değiştiriciyi klasörlerin üstünde, yuvarlak Yeni E-posta düğmesini ise ileti listesinin üzerinde gösterir. Kapatırsanız Yeni E-posta bunun yerine klasörlerin üstünde yer alır."
       },
+      "compose_placement": {
+        "label": "Yeni E-posta düğmesi",
+        "description": "Bilgisayarda Yeni E-posta düğmesinin yeri. Telefonda her zaman ileti listesinin üzerindedir.",
+        "floating": "İleti listesinin üzerinde",
+        "sidebar": "Klasör çubuğunun üstünde",
+        "rail": "Gezinme çubuğunun üstünde"
+      },
       "show_rail_account_list": {
         "label": "Gezinme Çubuğunda Hesap Avatarlarını Göster",
         "description": "Hızlı geçiş için gezinme çubuğunun altında ayrı hesap dairelerini ve altında oturumu kapat düğmesini görüntüleyin."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Gelen kutusu türü",
-        "description": "\"Önce okunmamışlar\", en yeni 25 okunmamış iletinizi gelen kutusunun geri kalanının üstündeki bir bölümde gösterir",
+        "description": "\"Önce okunmamışlar\", en yeni okunmamış iletilerinizi gelen kutusunun geri kalanının üstündeki bir bölümde gösterir",
         "default": "Varsayılan",
         "unread_first": "Önce okunmamışlar"
+      },
+      "unread_section_size": {
+        "label": "Gösterilen okunmamış iletiler",
+        "description": "\"Önce okunmamışlar\" bölümünün kaç yeni okunmamış ileti göstereceği",
+        "5": "5 ileti",
+        "10": "10 ileti",
+        "15": "15 ileti",
+        "20": "20 ileti",
+        "25": "25 ileti",
+        "50": "50 ileti"
       },
       "clear_search_on_folder_change": {
         "label": "Klasör değiştirirken aramayı temizle",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "Bu anahtarla şifrelemeyi etkinleştir",
         "configure_title": "Bu anahtarla şifrelemeyi etkinleştir",
         "enable_button": "Etkinleştir",
+        "in_use": "Kullanımda",
         "disable_tooltip": "Şifrelemeyi devre dışı bırak",
         "disable_title": "Bekleyen veri şifrelemesi kapatılsın mı?",
         "disable_message": "Yeni postalar bundan sonra şifrelenmeden saklanır.",
@@ -2797,7 +2817,9 @@
       },
       "settings_sync": {
         "label": "Ayar Senkronizasyonu",
-        "description": "Ayarlarınızı tarayıcılar ve cihazlar arasında senkronize edin"
+        "description": "Ayarlarınızı tarayıcılar ve cihazlar arasında senkronize edin",
+        "replaced": "{count, plural, one {Bu tarayıcıdaki # ayar} other {Bu tarayıcıdaki # ayar}} artık hesabınızı izliyor.",
+        "keep_mine": "Bu tarayıcınınkileri kullan"
       },
       "sender_favicons": {
         "label": "Gönderici Favorikonları",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Göndereni engelle} other {# göndereni engelle}}",
       "no_junk": "Bu hesapta istenmeyen posta klasörü yok",
       "create": "Kural oluştur…",
+      "add_sender_to_rule": "Bir kurala ekle: {sender}",
+      "sender_already_present": "Bu kuralda zaten var",
+      "no_rule_fits": "Eklenecek kural yok",
       "manage": "Kuralları yönet",
       "senders_count": "{count, plural, one {# gönderen} other {# gönderen}}",
       "cross_account": "Tek bir hesaptan iletiler seçin",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Siz değiştirene kadar bu ayar düzene göre belirlenir: liste ve ileti yan yanaysa kapalı, değilse açık."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Hesap değiştiriciyi klasörlerin üstünde, Yeni E-posta düğmesini de onun altında gösterir. Kapatırsanız Yeni E-posta onun yerinde yer alır."
+    "sidebar_account_switcher_description": "Hesap değiştiriciyi klasörlerin üstünde gösterir. Kapatırsanız hesabı gezinme çubuğundaki avatarınızla değiştirirsiniz."
   },
   "mail_p2_conv": {
     "show_message": "İletiyi göster",
@@ -4506,6 +4531,8 @@
       "role_label": "Rol",
       "language_label": "Dil",
       "related_default_label": "İlgili",
+      "related_unknown": "Bilinmeyen kişi",
+      "related_remove": "İlgili kişilerden kaldır",
       "more_actions": "Diğer işlemler",
       "age_years": "{count, plural, one {1 yaşında} other {# yaşında}}",
       "years_since": "{count, plural, one {1 yıl} other {# yıl}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Bitiş saati",
       "all_day_event": "Tüm gün etkinliği",
       "calendar_select": "Takvim",
+      "show_as": "Şöyle göster",
+      "show_as_busy": "Meşgul",
+      "show_as_free": "Boş",
+      "shown_free": "Boş olarak gösteriliyor",
+      "visibility": "Görünürlük",
+      "visibility_public": "Herkese açık",
+      "visibility_private": "Özel",
+      "visibility_secret": "Gizli",
+      "visibility_hint_public": "Takvimi paylaştığınız kişiler ayrıntıları görür.",
+      "visibility_hint_private": "Takvimi paylaştığınız kişiler yalnızca saati görür.",
+      "visibility_hint_secret": "Takvimi paylaştığınız kişiler etkinliği görmez ve zaman boş kalır.",
+      "visibility_series": "Tüm tekrarlara uygulanır.",
       "save": "Kaydet",
       "cancel": "İptal",
       "color": "Renk"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Yapılacaklar listesini yönetmek için takvimde görev görünümü göster",
       "show_tasks_on_calendar": "Görevleri takvimde göster",
       "show_tasks_on_calendar_desc": "Görevleri ay, hafta ve gün takvim görünümlerinde görüntüle",
+      "show_tasks_app": "Görevler ayrı uygulama olarak",
+      "show_tasks_app_desc": "Görevler, takvimdeki bir görünüm yerine uygulama çubuğunda kendi simgesini alır",
       "hover_preview": "Etkinlik üzerine gelme önizlemesi",
       "hover_preview_desc": "Takvim etkinliklerinin üzerine gelindiğinde ayrıntı açılır penceresi göster",
       "hover_preview_instant": "Anında",

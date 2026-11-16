@@ -158,6 +158,7 @@
     "settings": "Configuració",
     "admin": "Administració",
     "files": "Fitxers",
+    "tasks": "Tasques",
     "loading_mailboxes": "Carregant les bústies...",
     "push_connected": "Actualitzacions en temps real actives",
     "push_disconnected": "Actualitzacions en temps real inactives",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Neteja el format",
       "undo": "Desfés",
       "redo": "Refés",
+      "cell_background": "Fons de cel·la",
       "add_row_above": "Afegeix una fila a sobre",
       "add_row_below": "Afegeix una fila a sota",
       "add_column_before": "Afegeix una columna abans",
@@ -1729,6 +1731,13 @@
         "label": "Selector de comptes a la part superior de la barra lateral",
         "description": "Mostra el selector de comptes damunt de les carpetes i el botó rodó Redacta damunt de la llista de missatges. Desactiveu-ho per posar Redacta damunt de les carpetes."
       },
+      "compose_placement": {
+        "label": "Botó Redacta",
+        "description": "On és el botó Redacta en un ordinador. Al mòbil sempre és sobre la llista de missatges.",
+        "floating": "Sobre la llista de missatges",
+        "sidebar": "A dalt de la barra de carpetes",
+        "rail": "A dalt de la barra de navegació"
+      },
       "show_rail_account_list": {
         "label": "Mostra els avatars dels comptes a la barra de navegació",
         "description": "Mostra cercles individuals per a cada compte a la part inferior de la barra de navegació per canviar-hi ràpidament, amb un botó de tancament de sessió a sota."
@@ -2008,9 +2017,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Tipus de safata d'entrada",
-        "description": "«Primer els no llegits» mostra els 25 missatges no llegits més recents en una secció a sobre de la resta de la safata",
+        "description": "«Primer els no llegits» mostra els missatges no llegits més recents en una secció a sobre de la resta de la safata",
         "default": "Per defecte",
         "unread_first": "Primer els no llegits"
+      },
+      "unread_section_size": {
+        "label": "Missatges no llegits mostrats",
+        "description": "Quants dels missatges no llegits més recents mostra la secció «Primer els no llegits»",
+        "5": "5 missatges",
+        "10": "10 missatges",
+        "15": "15 missatges",
+        "20": "20 missatges",
+        "25": "25 missatges",
+        "50": "50 missatges"
       },
       "clear_search_on_folder_change": {
         "label": "Esborra la cerca en canviar de carpeta",
@@ -2562,6 +2581,7 @@
         "enable_tooltip": "Activa el xifratge amb aquesta clau",
         "configure_title": "Activa el xifratge amb aquesta clau",
         "enable_button": "Activa",
+        "in_use": "En ús",
         "disable_tooltip": "Desactiva el xifratge",
         "disable_title": "Voleu desactivar el xifratge en repòs?",
         "disable_message": "A partir d'ara, el correu nou es desa sense xifrar.",
@@ -2804,7 +2824,9 @@
       },
       "settings_sync": {
         "label": "Sincronització de la configuració",
-        "description": "Sincronitzeu la configuració entre navegadors i dispositius"
+        "description": "Sincronitzeu la configuració entre navegadors i dispositius",
+        "replaced": "{count, plural, one {# paràmetre d'aquest navegador segueix} other {# paràmetres d'aquest navegador segueixen}} ara el vostre compte.",
+        "keep_mine": "Utilitza els d'aquest navegador"
       },
       "sender_favicons": {
         "label": "Icones dels remitents",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Bloca el remitent} other {Bloca # remitents}}",
       "no_junk": "Aquest compte no té carpeta de correu brossa",
       "create": "Crea una regla…",
+      "add_sender_to_rule": "Afegeix {sender} a una regla",
+      "sender_already_present": "Ja és en aquesta regla",
+      "no_rule_fits": "No hi ha cap regla on afegir-lo",
       "manage": "Gestiona les regles",
       "senders_count": "{count, plural, one {# remitent} other {# remitents}}",
       "cross_account": "Selecciona missatges d'un sol compte",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Mentre no ho canviïs, segueix el disseny: desactivat quan la llista i el missatge són l'un al costat de l'altre, activat en els altres casos."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Mostra el selector de comptes damunt de les carpetes, amb Redacta a sota. Desactiveu-ho per posar Redacta al seu lloc."
+    "sidebar_account_switcher_description": "Mostra el selector de comptes sobre les carpetes. Desactiva-ho per canviar de compte amb el teu avatar a la barra de navegació."
   },
   "mail_p2_conv": {
     "show_message": "Mostra el missatge",
@@ -4508,6 +4533,8 @@
       "role_label": "Funció",
       "language_label": "Idioma",
       "related_default_label": "Relacionat",
+      "related_unknown": "Contacte desconegut",
+      "related_remove": "Treu dels contactes relacionats",
       "more_actions": "Més accions",
       "age_years": "{count, plural, one {1 any} other {# anys}}",
       "years_since": "{count, plural, one {1 any} other {# anys}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Hora de finalització",
       "all_day_event": "Esdeveniment de tot el dia",
       "calendar_select": "Calendari",
+      "show_as": "Mostra com a",
+      "show_as_busy": "Ocupat",
+      "show_as_free": "Lliure",
+      "shown_free": "Es mostra com a lliure",
+      "visibility": "Visibilitat",
+      "visibility_public": "Públic",
+      "visibility_private": "Privat",
+      "visibility_secret": "Ocult",
+      "visibility_hint_public": "Les persones amb qui comparteixes el calendari en veuen els detalls.",
+      "visibility_hint_private": "Les persones amb qui comparteixes el calendari només en veuen l'hora.",
+      "visibility_hint_secret": "Les persones amb qui comparteixes el calendari no veuen l'esdeveniment, i no bloqueja l'hora.",
+      "visibility_series": "S'aplica a totes les repeticions.",
       "save": "Desa",
       "cancel": "Cancel·la",
       "color": "Color"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Mostra una vista de tasques al calendari per gestionar pendents",
       "show_tasks_on_calendar": "Mostra les tasques al calendari",
       "show_tasks_on_calendar_desc": "Mostra les tasques a les vistes de mes, setmana i dia del calendari",
+      "show_tasks_app": "Tasques com a app pròpia",
+      "show_tasks_app_desc": "Les tasques tenen la seva pròpia icona a la barra d'apps en lloc d'una vista del calendari",
       "hover_preview": "Previsualització en passar el cursor",
       "hover_preview_desc": "Mostra una finestra emergent de detalls en passar el cursor per sobre dels esdeveniments",
       "hover_preview_instant": "Instantània",

@@ -31,7 +31,7 @@ import { emptyFolderLabelKey, emptyFolderPrompt } from "@/lib/empty-folder-text"
 import { usePluginSlotOffers } from "@/hooks/use-plugin-slot-offers";
 import { useAccountStore } from "@/stores/account-store";
 import { usePhishingReport } from "@/hooks/use-phishing-report";
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, type MouseEvent as ReactMouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { batchToastTitle, selectionRowCount } from "@/lib/selection-toast";
@@ -49,7 +49,7 @@ import { useIsEmbedded } from "@/hooks/use-is-embedded";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useListRowShape } from "@/hooks/use-list-row-shape";
 import { MailListRowsSkeleton, type MailRowShape } from "@/components/boot-skeleton/mail-skeleton";
-import type { Density } from "@/lib/density";
+import { densityShowsAttachmentChips, type Density } from "@/lib/density";
 import { useUIStore } from "@/stores/ui-store";
 import { useMessageListTabsStore } from "@/stores/message-list-tabs-store";
 import { emailKeyFor, groupEmailsByThread, sortThreadGroups, threadKeyFor, getEmailTagIds } from "@/lib/thread-utils";
@@ -120,7 +120,10 @@ interface EmailListProps {
   onClearSearch?: () => void;
   /** The empty Drafts folder's "Compose". */
   onCompose?: () => void;
-  onMarkAsRead?: (email: Email, read: boolean) => void;
+  /** A row was ticked or unticked by hand (checkbox, Ctrl/Shift+click, a click in selection mode). */
+  onRowTick?: (email: Email) => void;
+  /** `conversation`: every message of a conversation row, which the change covers. */
+  onMarkAsRead?: (email: Email, read: boolean, conversation?: Email[]) => void;
   onToggleStar?: (email: Email) => void;
   onTogglePinned?: (email: Email) => void;
   onDelete?: (email: Email) => void;
@@ -186,6 +189,12 @@ function LoadingSkeleton({ shape, density, preview }: { shape: MailRowShape; den
 /** No folded date groups. */
 const NO_GROUPS: ReadonlySet<string> = new Set();
 
+/**
+ * How long the last folder's rows stay on screen while the next folder loads
+ * before the skeleton rows replace them.
+ */
+const SWITCH_SKELETON_DELAY_MS = 300;
+
 /** Rows per page in simple mode's paged list. */
 const LIST_PAGE_SIZE = 50;
 
@@ -210,6 +219,7 @@ export function EmailList({
   onBatchForwardAsAttachment,
   onClearSearch,
   onCompose,
+  onRowTick,
   onMarkAsRead,
   onToggleStar,
   onTogglePinned,
@@ -244,6 +254,7 @@ export function EmailList({
   const mountainViewList = useSettingsStore((state) => state.interfaceLayout === 'mountain-view');
   const isDesktopPane = useIsDesktop();
   const isEmbeddedList = useIsEmbedded();
+  const floatingCompose = useSettingsStore((state) => state.composePlacement === 'floating');
   const undo = undoLabels(tNotifications);
   const tRemove = useTranslations('email_list.confirm_remove');
   const { client } = useAuthStore(useShallow((state) => ({ client: state.client })));
@@ -377,7 +388,7 @@ export function EmailList({
   // What the list shows: another folder, tag, account, unified view or
   // plugin tab, or another search, is another view.
   const searching = !!searchQuery.trim() || !isFilterEmpty(searchFilters);
-  const viewKey = JSON.stringify([
+  const placeKey = JSON.stringify([
     activeAccountId,
     viewingAccountId,
     selectedMailbox,
@@ -386,10 +397,36 @@ export function EmailList({
     isUnifiedView && (crossView ?? unifiedRole),
     isScheduledView,
     activeTabId,
+  ]);
+  const viewKey = JSON.stringify([
+    placeKey,
     // The scope only matters while a search runs; the dropdown alone does not
     // change the list.
     searching && [searchQuery, searchFilters, searchMailboxId],
   ]);
+
+  // Rows loaded for the folder (tag, account, view) that was open before
+  // belong to that folder. While the next one loads they stay as they are
+  // for a moment, so a quick switch shows no spinner, and then give way to
+  // the skeleton rows. A reload of the open folder (after a delete or move)
+  // keeps its rows under the loading overlay. A new search in the same
+  // folder counts as a reload: its results replace the old ones in place.
+  // Rows belong to the folder that was open when they arrived; the folder
+  // changes a moment before its load starts, with the old rows still shown.
+  const [shownRows, setShownRows] = useState({ emails, placeKey });
+  if (!isLoading && emails !== shownRows.emails) setShownRows({ emails, placeKey });
+  const switchingPlace = isLoading && emails.length > 0 && placeKey !== shownRows.placeKey;
+  const [skeletonPlaceKey, setSkeletonPlaceKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (!switchingPlace) {
+      setSkeletonPlaceKey(null);
+      return;
+    }
+    const timer = setTimeout(() => setSkeletonPlaceKey(placeKey), SWITCH_SKELETON_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [switchingPlace, placeKey]);
+  const showSkeleton = isLoading && (emails.length === 0 || (switchingPlace && skeletonPlaceKey === placeKey));
+  const showLoadingOverlay = isLoading && emails.length > 0 && !switchingPlace;
 
   // "Group by date": headers for Today, Yesterday, the weekdays, Last week,
   // Last month and Older, only while the list runs by date. Search, filter
@@ -479,6 +516,21 @@ export function EmailList({
   // the menu would go to that namesake instead.
   const contextMenuEmail = contextMenu.data
     ? emails.find((email) => emailKeyFor(email) === emailKeyFor(contextMenu.data!)) ?? contextMenu.data
+    : null;
+  // A conversation row's menu marks the whole conversation read or unread, and
+  // offers what its bold type says: unread while any message is (#1683).
+  const [menuConversationKey, setMenuConversationKey] = useState<string | null>(null);
+  const openRowContextMenu = useCallback((e: ReactMouseEvent, email: Email, conversationKey?: string) => {
+    setMenuConversationKey(conversationKey ?? null);
+    openContextMenu(e, email);
+  }, [openContextMenu]);
+  const openMenuFrom: typeof openContextMenuFrom = (...args) => {
+    setMenuConversationKey(null);
+    openContextMenuFrom(...args);
+  };
+  const contextMenuConversation = menuConversationKey && contextMenuEmail
+    ? allThreadGroups.find((group) => group.threadKey === menuConversationKey
+      && group.emails.some((email) => emailKeyFor(email) === emailKeyFor(contextMenuEmail))) ?? null
     : null;
   /**
    * Whose sender the menu's Rules entry uses: every selected message, or the
@@ -601,7 +653,7 @@ export function EmailList({
     const latest = item.thread.latestEmail;
     const emptyPreview = !cleanPreview(latest.preview) && !latest.searchSnippet?.preview;
     const hasCode = showVerificationCodes && !!listVerificationCode(latest);
-    const chips = hasCode || (showAttachmentChips && !!onOpenAttachment && listRowShowsChips(latest, loadAttachments));
+    const chips = hasCode || (showAttachmentChips && densityShowsAttachmentChips(density) && !!onOpenAttachment && listRowShowsChips(latest, loadAttachments));
     return { key: `${isFocusedMailLayout}|${density}|${fontSize}|${showPreview}|${emptyPreview}|${chips}`, emptyPreview, chips };
   }, [density, fontSize, isFocusedMailLayout, showPreview, showVerificationCodes, showAttachmentChips, items, onOpenAttachment, loadAttachments]);
   // The height rows of each kind measured at last. A new list (another
@@ -1167,9 +1219,10 @@ export function EmailList({
       }
       onEmailSelect?.(email);
     },
+    onTick: onRowTick,
     onEmailDoubleClick,
     onPrefetch: onEmailPrefetch,
-    onContextMenu: openContextMenu,
+    onContextMenu: openRowContextMenu,
     onOpenConversation,
     onToggleStar,
     onMarkAsRead,
@@ -1330,6 +1383,7 @@ export function EmailList({
           onToggleExpand={toggleExpandFor(thread.threadKey)}
           onCollapseAllThreads={rowHandlers.onCollapseAllThreads}
           onEmailSelect={rowHandlers.onEmailSelect}
+          onTick={rowHandlers.onTick}
           onEmailDoubleClick={rowHandlers.onEmailDoubleClick}
           onPrefetch={rowHandlers.onPrefetch}
           onContextMenu={rowHandlers.onContextMenu}
@@ -1390,13 +1444,13 @@ export function EmailList({
     `${items.length}:${renderedRows[0]?.index ?? -1}-${renderedRows[renderedRows.length - 1]?.index ?? -1}:${expandedThreadIds.size}:${paged ? page : -1}`,
   );
 
-  // Room under the last row for the round Compose button, which would otherwise
-  // sit on that row's actions. Only phones and Pro panes have that button:
-  // Mountain View and the desktop have Compose in the folder sidebar
-  // (mail-p3-11). A spacer and not padding on the list: padding is a minimum
-  // height the list can't go under, and on a short screen it pushed the rows
-  // over the tab bar.
-  const composeButtonRoom = !mountainViewList && (!isDesktopPane || isEmbeddedList) ? <div aria-hidden="true" className="h-20" /> : null;
+  // Room under the last row for the floating Compose button, which would
+  // otherwise sit on that row's actions. Phones and Pro panes always have that
+  // button, a desktop unless Compose is set to the folder sidebar or the app
+  // rail; Mountain View has Compose in its folder column. A spacer and not
+  // padding on the list: padding is a minimum height the list can't go under,
+  // and on a short screen it pushed the rows over the tab bar.
+  const composeButtonRoom = !mountainViewList && (!isDesktopPane || isEmbeddedList || floatingCompose) ? <div aria-hidden="true" className="h-20" /> : null;
 
   return (
     <RowTranslatorsProvider>
@@ -1464,7 +1518,7 @@ export function EmailList({
               disabled={isProcessing || selectedEmailsForRemoval.length === 0}
               onClick={(e) => {
                 const anchor = selectedEmailsForRemoval[0];
-                if (anchor) openContextMenuFrom(e.currentTarget, anchor, 'end');
+                if (anchor) openMenuFrom(e.currentTarget, anchor, 'end');
               }}
             >
               {isProcessing ? <Spinner size="sm" /> : <MoreVertical />}
@@ -1598,8 +1652,8 @@ export function EmailList({
         style={listColumns ? { scrollbarGutter: 'stable' } : undefined}
       >
         {/* Loading overlay */}
-        {isLoading && emails.length > 0 && (
-          <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center animate-in fade-in duration-150">
+        {showLoadingOverlay && (
+          <div data-testid="email-list-loading" className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center animate-in fade-in duration-150">
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/90 px-4 py-2 rounded-full shadow-sm border border-border">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>{t('loading')}</span>
@@ -1607,7 +1661,7 @@ export function EmailList({
           </div>
         )}
 
-        {isLoading && emails.length === 0 ? (
+        {showSkeleton ? (
           <div data-testid="email-list-skeleton">
             <LoadingSkeleton
               shape={isFocusedMailLayout ? (mountainViewList ? 'mv' : 'one-line') : 'stacked'}
@@ -1668,7 +1722,7 @@ export function EmailList({
               // Rows report where they are in the whole list (useListboxFocus);
               // -1 while more can still load.
               data-setsize={footerHasMore ? -1 : itemOfThread.length}
-              className={cn("transition-opacity duration-200", isLoading && "opacity-50")}
+              className={cn("transition-opacity duration-200", showLoadingOverlay && "opacity-50")}
               style={{
                 height: `${virtualizer.getTotalSize()}px`,
                 width: '100%',
@@ -1751,7 +1805,7 @@ export function EmailList({
             const anchor = selectedEmailsForRemoval[0];
             if (!anchor) return;
             setMenuSection('rules');
-            openContextMenuFrom(button, anchor, 'start');
+            openMenuFrom(button, anchor, 'start');
           }}
           shortcutOf={(entry) => (entry.key === 'star' ? undefined : shortcutOf(entry.key, entry.testId === 'ctx-mark-read'))}
           onMove={(button) => moveMenu.openContextMenuFrom(button, null, 'start')}
@@ -1759,7 +1813,7 @@ export function EmailList({
             const anchor = selectedEmailsForRemoval[0];
             if (!anchor) return;
             setMenuSection('more');
-            openContextMenuFrom(button, anchor, 'start');
+            openMenuFrom(button, anchor, 'start');
           }}
           onClear={clearSelection}
           tags={{ selectedIds: selectionTags.all, partialIds: selectionTags.some, scope: selectionTags.scope, onToggle: handleBatchToggleTag }}
@@ -1793,7 +1847,8 @@ export function EmailList({
             ? () => onFindFromSender({ name: contextMenuEmail!.from![0].name || '', email: contextMenuEmail!.from![0].email })
             : undefined}
           onBatchForwardAsAttachment={onBatchForwardAsAttachment}
-          onMarkAsRead={(read) => onMarkAsRead?.(contextMenuEmail!, read)}
+          unread={contextMenuConversation ? contextMenuConversation.hasUnread : undefined}
+          onMarkAsRead={(read) => onMarkAsRead?.(contextMenuEmail!, read, contextMenuConversation?.emails)}
           onToggleStar={() => onToggleStar?.(contextMenuEmail!)}
           onTogglePinned={onTogglePinned ? () => onTogglePinned(contextMenuEmail!) : undefined}
           onDelete={() => onDelete?.(contextMenuEmail!)}

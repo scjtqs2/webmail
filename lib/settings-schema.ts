@@ -26,6 +26,8 @@ import {
   UNLOCKABLE_SETTING_KEYS,
 } from '@/lib/accessibility-settings';
 import { locales } from '@/i18n/routing';
+import { UNREAD_SECTION_SIZES } from '@/lib/unread-first';
+import { COMPOSE_PLACEMENTS } from '@/lib/compose-placement';
 
 /** Which store holds the setting. */
 export type SettingsStoreName = 'settings' | 'theme' | 'locale' | 'calendar';
@@ -172,6 +174,8 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('colorfulSidebarIcons', 'appearance', `${AP}colorful_sidebar_icons.label`),
   bool('showFolderTotalCount', 'appearance', `${AP}show_folder_total_count.label`),
   bool('sidebarAccountSwitcher', 'appearance', `${AP}sidebar_account_switcher.label`),
+  choice('composePlacement', 'appearance', `${AP}compose_placement.label`,
+    opts(`${AP}compose_placement.`, COMPOSE_PLACEMENTS)),
   bool('showRailAccountList', 'appearance', `${AP}show_rail_account_list.label`),
   bool('proInterface', 'appearance', `${AP}pro_interface.label`),
   bool('enableUnifiedMailbox', 'appearance', `${AP}unified_mailbox.label`),
@@ -208,6 +212,8 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('listColumns', 'message_list', `${EB}list_columns.label`),
   choice('mvInboxType', 'message_list', `${EB}inbox_type.label`,
     opts(`${EB}inbox_type.`, ['default', 'unread-first'], { 'unread-first': 'unread_first' })),
+  choice('mvUnreadSectionSize', 'message_list', `${EB}unread_section_size.label`,
+    opts(`${EB}unread_section_size.`, UNREAD_SECTION_SIZES)),
   // A switch on the page: on = every folder.
   choice('messageListOrderScope', 'message_list', `${AP}message_list_order.scope.label`, [
     { value: 'inbox', label: OFF_LABEL },
@@ -338,6 +344,7 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('showBirthdayCalendar', 'calendar', `${CAL}show_birthday_calendar`),
   bool('enableCalendarTasks', 'calendar', `${CAL}enable_tasks`, { gate: 'calendarTasksEnabled' }),
   bool('showTasksOnCalendar', 'calendar', `${CAL}show_tasks_on_calendar`, { gate: 'calendarTasksEnabled' }),
+  bool('showTasksApp', 'calendar', `${CAL}show_tasks_app`, { gate: 'calendarTasksEnabled' }),
 
   // --- Contacts ---
   bool('groupContactsByLetter', 'contacts', 'settings.contacts.group_by_letter_label'),

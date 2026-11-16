@@ -158,6 +158,7 @@
     "settings": "Instellingen",
     "admin": "Admin",
     "files": "Bestanden",
+    "tasks": "Taken",
     "loading_mailboxes": "Mappen laden...",
     "push_connected": "Real-time updates actief",
     "push_disconnected": "Real-time updates inactief",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Opmaak wissen",
       "undo": "Ongedaan maken",
       "redo": "Opnieuw",
+      "cell_background": "Celachtergrond",
       "add_row_above": "Rij erboven toevoegen",
       "add_row_below": "Rij eronder toevoegen",
       "add_column_before": "Kolom ervoor toevoegen",
@@ -1726,6 +1728,13 @@
         "label": "Accountwisselaar boven in de zijbalk",
         "description": "Toont de accountwisselaar boven de mappen en de ronde knop Nieuw bericht boven de berichtenlijst. Zet dit uit om Nieuw bericht in plaats daarvan boven de mappen te zetten."
       },
+      "compose_placement": {
+        "label": "Knop Nieuw bericht",
+        "description": "Waar de knop Nieuw bericht op een computer staat. Op de telefoon staat hij altijd boven de berichtenlijst.",
+        "floating": "Boven de berichtenlijst",
+        "sidebar": "Boven in de mappenbalk",
+        "rail": "Boven in de navigatiebalk"
+      },
       "show_rail_account_list": {
         "label": "Accountavatars tonen op navigatiebalk",
         "description": "Toon individuele accountcirkels onderaan de navigatiebalk voor snel wisselen, met een afmeldknop eronder."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Type inbox",
-        "description": "'Ongelezen eerst' toont je 25 nieuwste ongelezen berichten in een sectie boven de rest van de inbox",
+        "description": "'Ongelezen eerst' toont je nieuwste ongelezen berichten in een sectie boven de rest van de inbox",
         "default": "Standaard",
         "unread_first": "Ongelezen eerst"
+      },
+      "unread_section_size": {
+        "label": "Getoonde ongelezen berichten",
+        "description": "Hoeveel van je nieuwste ongelezen berichten de sectie 'Ongelezen eerst' toont",
+        "5": "5 berichten",
+        "10": "10 berichten",
+        "15": "15 berichten",
+        "20": "20 berichten",
+        "25": "25 berichten",
+        "50": "50 berichten"
       },
       "clear_search_on_folder_change": {
         "label": "Zoekopdracht wissen bij wisselen van map",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "Versleuteling met deze sleutel inschakelen",
         "configure_title": "Versleuteling met deze sleutel inschakelen",
         "enable_button": "Inschakelen",
+        "in_use": "In gebruik",
         "disable_tooltip": "Versleuteling uitschakelen",
         "disable_title": "Versleuteling in rust uitschakelen?",
         "disable_message": "Nieuwe e-mail wordt vanaf nu onversleuteld opgeslagen.",
@@ -2797,7 +2817,9 @@
       },
       "settings_sync": {
         "label": "Instellingen synchroniseren",
-        "description": "Synchroniseer uw instellingen tussen browsers en apparaten"
+        "description": "Synchroniseer uw instellingen tussen browsers en apparaten",
+        "replaced": "{count, plural, one {# instelling in deze browser volgt} other {# instellingen in deze browser volgen}} nu je account.",
+        "keep_mine": "Die van deze browser gebruiken"
       },
       "sender_favicons": {
         "label": "Afzender-favicons",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, one {Afzender blokkeren} other {# afzenders blokkeren}}",
       "no_junk": "Dit account heeft geen map Ongewenst",
       "create": "Regel maken…",
+      "add_sender_to_rule": "{sender} aan een regel toevoegen",
+      "sender_already_present": "Staat al in deze regel",
+      "no_rule_fits": "Geen regels om aan toe te voegen",
       "manage": "Regels beheren",
       "senders_count": "{count, plural, one {# afzender} other {# afzenders}}",
       "cross_account": "Selecteer berichten uit één account",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Zolang je het niet wijzigt, volgt dit de indeling: uit als de lijst en het bericht naast elkaar staan, anders aan."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Toont de accountwisselaar boven de mappen, met Nieuw bericht eronder. Zet dit uit om Nieuw bericht op die plek te zetten."
+    "sidebar_account_switcher_description": "Toont de accountwisselaar boven de mappen. Zet dit uit om van account te wisselen met je avatar in de navigatiebalk."
   },
   "mail_p2_conv": {
     "show_message": "Bericht tonen",
@@ -4506,6 +4531,8 @@
       "role_label": "Role",
       "language_label": "Language",
       "related_default_label": "Related",
+      "related_unknown": "Onbekend contact",
+      "related_remove": "Verwijderen uit gerelateerde contacten",
       "more_actions": "Meer acties",
       "age_years": "{count, plural, one {1 jaar} other {# jaar}}",
       "years_since": "{count, plural, one {1 jaar geleden} other {# jaar geleden}}"
@@ -4874,6 +4901,18 @@
       "end_time": "Eindtijd",
       "all_day_event": "Hele dag evenement",
       "calendar_select": "Agenda",
+      "show_as": "Weergeven als",
+      "show_as_busy": "Bezet",
+      "show_as_free": "Vrij",
+      "shown_free": "Weergegeven als vrij",
+      "visibility": "Zichtbaarheid",
+      "visibility_public": "Openbaar",
+      "visibility_private": "Privé",
+      "visibility_secret": "Verborgen",
+      "visibility_hint_public": "Mensen met wie je de agenda deelt, zien de details.",
+      "visibility_hint_private": "Mensen met wie je de agenda deelt, zien alleen de tijd.",
+      "visibility_hint_secret": "Mensen met wie je de agenda deelt, zien de afspraak niet, en de tijd blijft vrij.",
+      "visibility_series": "Geldt voor alle herhalingen.",
       "save": "Opslaan",
       "cancel": "Annuleren",
       "color": "Kleur"
@@ -5059,6 +5098,8 @@
       "enable_tasks_desc": "Een takenweergave in de agenda tonen om to-do's te beheren",
       "show_tasks_on_calendar": "Taken in agenda tonen",
       "show_tasks_on_calendar_desc": "Taken tonen in de maand-, week- en dagweergave van de agenda",
+      "show_tasks_app": "Taken als eigen app",
+      "show_tasks_app_desc": "Taken krijgen een eigen pictogram in de appbalk in plaats van een weergave in de agenda",
       "hover_preview": "Voorvertoning bij hover",
       "hover_preview_desc": "Toon een detailpopover bij het hoveren over agenda-evenementen",
       "hover_preview_instant": "Direct",

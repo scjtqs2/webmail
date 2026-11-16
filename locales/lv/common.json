@@ -158,6 +158,7 @@
     "settings": "Iestatījumi",
     "admin": "Admin",
     "files": "Faili",
+    "tasks": "Uzdevumi",
     "loading_mailboxes": "Ielādē mapes...",
     "push_connected": "Reāllaika atjauninājumi ir aktīvi",
     "push_disconnected": "Reāllaika atjauninājumi nav aktīvi",
@@ -1228,6 +1229,7 @@
       "clear_formatting": "Notīrīt formatējumu",
       "undo": "Atsaukt",
       "redo": "Atkārtot",
+      "cell_background": "Šūnas fons",
       "add_row_above": "Pievienot rindu virs",
       "add_row_below": "Pievienot rindu zem",
       "add_column_before": "Pievienot kolonnu pirms",
@@ -1726,6 +1728,13 @@
         "label": "Kontu pārslēdzējs sānu joslas augšpusē",
         "description": "Rāda kontu pārslēdzēju virs mapēm un apaļo pogu Rakstīt virs ziņojumu saraksta. Izslēdziet, lai poga Rakstīt būtu virs mapēm."
       },
+      "compose_placement": {
+        "label": "Poga Rakstīt",
+        "description": "Kur poga Rakstīt atrodas datorā. Tālrunī tā vienmēr ir virs ziņojumu saraksta.",
+        "floating": "Virs ziņojumu saraksta",
+        "sidebar": "Mapju joslas augšpusē",
+        "rail": "Navigācijas joslas augšpusē"
+      },
       "show_rail_account_list": {
         "label": "Rādīt kontu avatarus navigācijas joslā",
         "description": "Rādīt kontu apļus navigācijas joslas apakšā ātrai pārslēgšanai."
@@ -2005,9 +2014,19 @@
     "email_behavior": {
       "inbox_type": {
         "label": "Iesūtnes veids",
-        "description": "“Vispirms nelasītie” rāda 25 jaunākos nelasītos ziņojumus atsevišķā sadaļā virs pārējās iesūtnes",
+        "description": "“Vispirms nelasītie” rāda jaunākos nelasītos ziņojumus atsevišķā sadaļā virs pārējās iesūtnes",
         "default": "Noklusējums",
         "unread_first": "Vispirms nelasītie"
+      },
+      "unread_section_size": {
+        "label": "Rādītās nelasītās vēstules",
+        "description": "Cik jaunāko nelasīto vēstuļu rāda sadaļa “Vispirms nelasītie”",
+        "5": "5 vēstules",
+        "10": "10 vēstules",
+        "15": "15 vēstules",
+        "20": "20 vēstules",
+        "25": "25 vēstules",
+        "50": "50 vēstules"
       },
       "clear_search_on_folder_change": {
         "label": "Notīrīt meklēšanu, mainot mapi",
@@ -2555,6 +2574,7 @@
         "enable_tooltip": "Ieslēgt šifrēšanu ar šo atslēgu",
         "configure_title": "Ieslēgt šifrēšanu ar šo atslēgu",
         "enable_button": "Ieslēgt",
+        "in_use": "Tiek lietota",
         "disable_tooltip": "Izslēgt šifrēšanu",
         "disable_title": "Izslēgt glabāto datu šifrēšanu?",
         "disable_message": "Jaunais pasts turpmāk tiks glabāts bez šifrēšanas.",
@@ -2778,7 +2798,9 @@
       },
       "settings_sync": {
         "label": "Iestatījumu sinhronizācija",
-        "description": "Sinhronizēt iestatījumus starp dažādiem pārlūkiem un ierīcēm"
+        "description": "Sinhronizēt iestatījumus starp dažādiem pārlūkiem un ierīcēm",
+        "replaced": "{count, plural, zero {# šīs pārlūkprogrammas iestatījumu tagad atbilst} one {# šīs pārlūkprogrammas iestatījums tagad atbilst} other {# šīs pārlūkprogrammas iestatījumi tagad atbilst}} jūsu kontam.",
+        "keep_mine": "Izmantot šīs pārlūkprogrammas iestatījumus"
       },
       "sender_favicons": {
         "label": "Sūtītāju ikonas",
@@ -3968,6 +3990,9 @@
       "block": "{count, plural, zero {Bloķēt # sūtītājus} one {Bloķēt sūtītāju} other {Bloķēt # sūtītājus}}",
       "no_junk": "Šim kontam nav mēstuļu mapes",
       "create": "Izveidot noteikumu…",
+      "add_sender_to_rule": "Pievienot kārtulai: {sender}",
+      "sender_already_present": "Jau ir šajā kārtulā",
+      "no_rule_fits": "Nav kārtulu, kurām pievienot",
       "manage": "Pārvaldīt noteikumus",
       "senders_count": "{count, plural, zero {# sūtītājiem} one {# sūtītāja} other {# sūtītājiem}}",
       "cross_account": "Izvēlieties vēstules no viena konta",
@@ -4137,7 +4162,7 @@
     "return_to_list_follows_layout": "Kamēr to nemaināt, tas seko izkārtojumam: izslēgts, ja saraksts un ziņa ir blakus, citādi ieslēgts."
   },
   "mail_p3_conv": {
-    "sidebar_account_switcher_description": "Rāda kontu pārslēdzēju virs mapēm un zem tā pogu Rakstīt. Izslēdziet, lai poga Rakstīt būtu tā vietā."
+    "sidebar_account_switcher_description": "Rāda kontu pārslēdzēju virs mapēm. Izslēdziet, lai kontu pārslēgtu ar savu avataru navigācijas joslā."
   },
   "mail_p2_conv": {
     "show_message": "Rādīt ziņojumu",
@@ -4498,6 +4523,8 @@
       "role_label": "Role",
       "language_label": "Language",
       "related_default_label": "Related",
+      "related_unknown": "Nezināms kontakts",
+      "related_remove": "Noņemt no saistītajiem kontaktiem",
       "more_actions": "Citas darbības",
       "age_years": "{count, plural, one {1 gads} other {# gadi}}",
       "years_since": "{count, plural, one {pirms 1 gada} other {pirms # gadiem}}"
@@ -4873,6 +4900,18 @@
       "end_time": "Beigu laiks",
       "all_day_event": "Visas dienas pasākums",
       "calendar_select": "Kalendārs",
+      "show_as": "Rādīt kā",
+      "show_as_busy": "Aizņemts",
+      "show_as_free": "Brīvs",
+      "shown_free": "Tiek rādīts kā brīvs",
+      "visibility": "Redzamība",
+      "visibility_public": "Publisks",
+      "visibility_private": "Privāts",
+      "visibility_secret": "Slēpts",
+      "visibility_hint_public": "Cilvēki, ar kuriem kopīgojat kalendāru, redz detaļas.",
+      "visibility_hint_private": "Cilvēki, ar kuriem kopīgojat kalendāru, redz tikai laiku.",
+      "visibility_hint_secret": "Cilvēki, ar kuriem kopīgojat kalendāru, notikumu neredz, un laiks paliek brīvs.",
+      "visibility_series": "Attiecas uz visiem atkārtojumiem.",
       "save": "Saglabāt",
       "cancel": "Atcelt",
       "color": "Krāsa"
@@ -5058,6 +5097,8 @@
       "enable_tasks_desc": "Rādīt uzdevumu sadaļu kalendārā",
       "show_tasks_on_calendar": "Rādīt uzdevumus kalendārā",
       "show_tasks_on_calendar_desc": "Rādīt uzdevumus mēneša, nedēļas un dienas skatā",
+      "show_tasks_app": "Uzdevumi kā atsevišķa lietotne",
+      "show_tasks_app_desc": "Uzdevumiem ir sava ikona lietotņu joslā, nevis skats kalendārā",
       "hover_preview": "Priekšskatījums uzvirzot",
       "hover_preview_desc": "Rādīt informāciju, uzvirzot kursoru uz pasākuma",
       "hover_preview_instant": "Uzreiz",
