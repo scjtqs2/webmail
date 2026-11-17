@@ -1347,6 +1347,7 @@
     "success": "Thành công",
     "cancel": "Hủy",
     "save": "Lưu",
+    "ready_to_save": "Sẵn sàng để lưu",
     "delete": "Xóa",
     "edit": "Chỉnh sửa",
     "close": "Đóng",
@@ -1839,6 +1840,8 @@
       "title": "Nhãn thư",
       "description": "Tạo thẻ để sắp xếp thư. Các thẻ được lưu cùng thư trên máy chủ.",
       "add_keyword": "Nhãn mới",
+      "sort_az": "Sắp xếp A–Z",
+      "sorted": "Đã sắp xếp nhãn A–Z",
       "empty": "Chưa có nhãn nào.",
       "label_field": "Tên hiển thị",
       "label_placeholder": "Ví dụ: Công việc, Cá nhân, Khẩn cấp",
@@ -3042,6 +3045,7 @@
         "from": "Từ",
         "to": "Đến",
         "cc": "Cc",
+        "delivered_to": "Đã gửi tới",
         "subject": "Tiêu đề",
         "header": "Trường tiêu đề tùy chỉnh",
         "size": "Kích thước",
@@ -3181,7 +3185,44 @@
       "apply_existing_none": "Chưa có thư nào trong {folder} khớp với quy tắc này.",
       "period_status_scheduled": "Theo lịch trình",
       "period_status_active": "Hoạt động",
-      "period_status_expired": "Hết hạn"
+      "period_status_expired": "Hết hạn",
+      "editor": {
+        "if": "Nếu đúng với",
+        "match_all": "tất cả",
+        "match_any": "một trong các",
+        "of_conditions": "điều kiện này",
+        "match_type": "Những điều kiện cần đúng",
+        "condition_number": "Điều kiện {number}",
+        "comparison": "So sánh",
+        "size_unit": "Đơn vị",
+        "has_attachment": "Có tệp đính kèm",
+        "attachment_type": "Tệp đính kèm loại",
+        "size_units": {
+          "bytes": "byte",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Tiếp tục áp dụng các quy tắc khác",
+        "skip_rule": "Bỏ qua quy tắc này",
+        "matching": "{count, plural, =0 {Không có thư nào khớp} other {# thư khớp}}",
+        "matching_partial": "{count, plural, =0 {Không có thư gần đây nào khớp} other {#+ thư khớp}}",
+        "checking": "Đang tìm thư khớp…",
+        "tags": "Thẻ",
+        "attachment_type_invalid": "Nhập phần mở rộng tệp, ví dụ pdf",
+        "action_conflict": "Không thể kết hợp Hủy và Từ chối với Di chuyển, Sao chép hoặc Giữ, cũng như với nhau",
+        "apply_to": "Áp dụng cho",
+        "apply_new": "Chỉ thư mới",
+        "apply_folder": "Thư mới và {folder}",
+        "apply_folder_count": "Thư mới và {folder} ({count})",
+        "apply_all": "Thư mới và tất cả thư",
+        "apply_all_count": "Thư mới và tất cả thư ({count})",
+        "applying": "Đang áp dụng “{name}”…",
+        "trash_title": "Chuyển thư hiện có vào Thùng rác?",
+        "trash_confirm": "{count, plural, other {Thao tác này chuyển # thư hiện có vào Thùng rác.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Thao tác này chuyển mọi thư hiện có khớp với quy tắc vào Thùng rác.} other {Thao tác này chuyển #+ thư hiện có vào Thùng rác.}}",
+        "trash_button": "Lưu và chuyển vào Thùng rác",
+        "delivered_to_new_only": "Quy tắc này chỉ áp dụng cho thư mới. Thư đã gửi tới không giữ lại địa chỉ mà nó được gửi tới."
+      }
     },
     "templates": {
       "title": "Mẫu email",
@@ -4013,6 +4054,7 @@
       "load_failed": "Không thể tải quy tắc",
       "none": "Chưa có quy tắc nào",
       "new_mail_only": "Chỉ dành cho thư mới",
+      "cannot_run": "Chỉ có thể chạy trên thư hiện có các quy tắc di chuyển, sao chép, đánh dấu đã đọc, gắn dấu sao, gắn thẻ hoặc hủy, và chỉ khi chúng không kiểm tra nội dung thư, \"Đã gửi tới\" hay biểu thức chính quy.",
       "running": "Đang chạy \"{name}\" trên {folder}…"
     },
     "find_emails_from": "Tìm email từ {name}"
@@ -4049,6 +4091,8 @@
     "mark_all_confirm_message": "Đánh dấu mọi thư chưa đọc trong tài khoản cá nhân của bạn là đã đọc?",
     "empty_all_confirm_title": "Dọn sạch Thùng rác của tất cả tài khoản",
     "empty_all_confirm_message": "Xóa vĩnh viễn {count, plural, other {tất cả # thư}} trong Thùng rác của mọi tài khoản của bạn? Không thể hoàn tác.",
+    "empty_all_confirm_shared": "Bao gồm cả các tài khoản được chia sẻ {accounts}.",
+    "empty_all_confirm_kept": "Thùng rác của {accounts} được giữ nguyên vì bạn không có quyền xóa ở đó.",
     "toast_emptied_all": "Đã dọn sạch Thùng rác trên tất cả tài khoản",
     "toast_error_empty_all_partial": "Đã dọn Thùng rác, nhưng một số tài khoản bị lỗi",
     "toast_error_empty_all": "Không thể dọn sạch Thùng rác",
@@ -4925,6 +4969,10 @@
       "visibility_hint_private": "Những người bạn chia sẻ lịch chỉ thấy thời gian.",
       "visibility_hint_secret": "Những người bạn chia sẻ lịch sẽ không thấy sự kiện, và thời gian vẫn trống.",
       "visibility_series": "Áp dụng cho mọi lần lặp lại.",
+      "color_calendar": "Dùng màu của lịch",
+      "overlap": "Trùng với {title} ({details})",
+      "overlap_plain": "Trùng với {title}",
+      "overlap_more": "Và {count} sự kiện khác",
       "save": "Lưu",
       "cancel": "Hủy",
       "color": "Màu sắc"
@@ -5449,7 +5497,12 @@
     "task_list_not_in_calendar": "{name} (danh sách việc cần làm, không hiện trong lịch)",
     "copy_to_account": "Sao chép sang {address}",
     "copied_to_account": "Đã sao chép sang {address}",
-    "delete_original": "Xóa bản gốc"
+    "delete_original": "Xóa bản gốc",
+    "copy_to_calendar": "Sao chép vào lịch…",
+    "copy_to_calendar_title": "Sao chép vào lịch",
+    "copy_to_calendar_hint": "Bản sao là sự kiện của riêng bạn. Thay đổi ở bản gốc không ảnh hưởng đến nó.",
+    "copy_button": "Sao chép",
+    "copied_to_calendar": "Đã sao chép vào {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Thay đổi này cần kết nối với máy chủ. Hiện chỉ thay đổi sự kiện này, hoặc thử lại khi bạn trực tuyến trở lại."

@@ -1335,6 +1335,7 @@
     "success": "成功",
     "cancel": "キャンセル",
     "save": "保存",
+    "ready_to_save": "保存の準備ができました",
     "delete": "削除",
     "edit": "編集",
     "close": "閉じる",
@@ -1824,6 +1825,8 @@
       "title": "メールラベル",
       "description": "ラベルを作ってメッセージを整理します。ラベルはメッセージと一緒にサーバーに保存されます。",
       "add_keyword": "ラベルを追加",
+      "sort_az": "名前順に並べ替え",
+      "sorted": "ラベルを名前順に並べ替えました",
       "empty": "ラベルはまだありません。",
       "label_field": "表示名",
       "label_placeholder": "例：仕事、個人、緊急",
@@ -3023,6 +3026,7 @@
         "from": "差出人",
         "to": "宛先",
         "cc": "Cc",
+        "delivered_to": "配信先",
         "subject": "件名",
         "header": "カスタムヘッダー",
         "size": "サイズ",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "{folder} にこのルールに合うメッセージはまだありません。",
       "period_status_scheduled": "予定",
       "period_status_active": "有効",
-      "period_status_expired": "期限切れ"
+      "period_status_expired": "期限切れ",
+      "editor": {
+        "if": "次の",
+        "match_all": "すべて",
+        "match_any": "いずれか",
+        "of_conditions": "の条件に一致する場合",
+        "match_type": "一致させる条件",
+        "condition_number": "条件 {number}",
+        "comparison": "比較",
+        "size_unit": "単位",
+        "has_attachment": "添付ファイルあり",
+        "attachment_type": "添付ファイルの種類",
+        "size_units": {
+          "bytes": "バイト",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "ほかのルールも適用する",
+        "skip_rule": "このルールをスキップ",
+        "matching": "{count, plural, =0 {一致するメールはありません} other {# 件のメールが一致}}",
+        "matching_partial": "{count, plural, =0 {一致する最近のメールはありません} other {# 件以上のメールが一致}}",
+        "checking": "一致するメールを検索しています…",
+        "tags": "ラベル",
+        "attachment_type_invalid": "pdf などのファイル拡張子を入力してください",
+        "action_conflict": "サイレント削除と拒否は、移動・コピー・保持とも、互いにも組み合わせられません",
+        "apply_to": "適用先",
+        "apply_new": "新着メールのみ",
+        "apply_folder": "新着メールと{folder}",
+        "apply_folder_count": "新着メールと{folder}（{count}）",
+        "apply_all": "新着メールとすべてのメール",
+        "apply_all_count": "新着メールとすべてのメール（{count}）",
+        "applying": "「{name}」を適用しています…",
+        "trash_title": "既存のメールをゴミ箱に移動しますか？",
+        "trash_confirm": "{count, plural, other {既存のメール # 件がゴミ箱に移動されます。}}",
+        "trash_confirm_partial": "{count, plural, =0 {ルールに一致する既存のメールがすべてゴミ箱に移動されます。} other {既存のメール # 件以上がゴミ箱に移動されます。}}",
+        "trash_button": "保存してゴミ箱に移動",
+        "delivered_to_new_only": "このルールは新着メールにのみ適用されます。配信済みのメールには配信先アドレスが残りません。"
+      }
     },
     "templates": {
       "title": "メールテンプレート",
@@ -4001,6 +4042,7 @@
       "load_failed": "ルールを読み込めませんでした",
       "none": "ルールはまだありません",
       "new_mail_only": "新着メッセージのみ",
+      "cannot_run": "既存のメールに適用できるのは、移動・コピー・既読・スター・ラベル・破棄を実行するルールだけです。本文、配信先、正規表現を条件にするルールは適用できません。",
       "running": "{folder} で「{name}」を実行中…"
     },
     "find_emails_from": "{name} からのメールを検索"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "個人アカウントのすべての未読メッセージを既読にしますか？",
     "empty_all_confirm_title": "すべてのアカウントのゴミ箱を空にする",
     "empty_all_confirm_message": "すべてのアカウントのゴミ箱にある{count, plural, other {# 件のメッセージ}}をすべて完全に削除しますか？元に戻せません。",
+    "empty_all_confirm_shared": "共有アカウント {accounts} も対象です。",
+    "empty_all_confirm_kept": "{accounts} のゴミ箱は削除の権限がないため、そのまま残ります。",
     "toast_emptied_all": "すべてのアカウントでゴミ箱を空にしました",
     "toast_error_empty_all_partial": "ゴミ箱を空にしましたが、一部のアカウントで失敗しました",
     "toast_error_empty_all": "ゴミ箱を空にできませんでした",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "カレンダーを共有している相手には時間だけが表示されます。",
       "visibility_hint_secret": "カレンダーを共有している相手には表示されず、時間も空きのままになります。",
       "visibility_series": "すべての繰り返しに適用されます。",
+      "color_calendar": "カレンダーの色を使う",
+      "overlap": "{title}と重なっています（{details}）",
+      "overlap_plain": "{title}と重なっています",
+      "overlap_more": "ほか{count}件",
       "save": "保存",
       "cancel": "キャンセル",
       "color": "色"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name}（タスクリスト、カレンダーには表示されません）",
     "copy_to_account": "{address} にコピー",
     "copied_to_account": "{address} にコピーしました",
-    "delete_original": "元の予定を削除"
+    "delete_original": "元の予定を削除",
+    "copy_to_calendar": "カレンダーにコピー…",
+    "copy_to_calendar_title": "カレンダーにコピー",
+    "copy_to_calendar_hint": "コピーはあなた自身の予定になります。元の予定を変更してもコピーは変わりません。",
+    "copy_button": "コピー",
+    "copied_to_calendar": "{calendar}にコピーしました"
   },
   "calendar_offline": {
     "split_needs_server": "この変更にはサーバーへの接続が必要です。今はこの予定だけを変更するか、オンラインに戻ってからもう一度お試しください。"

@@ -7,6 +7,7 @@
     "success": "สำเร็จ",
     "cancel": "ยกเลิก",
     "save": "บันทึก",
+    "ready_to_save": "พร้อมบันทึก",
     "delete": "ลบ",
     "edit": "แก้ไข",
     "close": "ปิด",
@@ -1054,6 +1055,7 @@
       "load_failed": "ไม่สามารถโหลดกฎได้",
       "none": "ยังไม่มีกฎ",
       "new_mail_only": "สำหรับข้อความใหม่เท่านั้น",
+      "cannot_run": "ใช้กับข้อความที่มีอยู่ได้เฉพาะกฎที่ย้าย, คัดลอก, ทำเครื่องหมายว่าอ่านแล้ว, ติดดาว, ติดแท็ก หรือละทิ้ง และต้องไม่ตรวจสอบเนื้อหา, ส่งถึง หรือนิพจน์ทั่วไป",
       "running": "กำลังเรียกใช้ “{name}” บน {folder}…"
     },
     "find_emails_from": "ค้นหาอีเมลจาก {name}"
@@ -1090,6 +1092,8 @@
     "mark_all_confirm_message": "ต้องการทำเครื่องหมายข้อความที่ยังไม่อ่านทั้งหมดในบัญชีส่วนตัวของคุณว่าอ่านแล้วหรือไม่?",
     "empty_all_confirm_title": "ล้างถังขยะของทุกบัญชี",
     "empty_all_confirm_message": "ลบข้อความ {count, plural, other {ทั้ง # ฉบับ}} ในถังขยะของทุกบัญชีของคุณอย่างถาวรไหม ย้อนกลับไม่ได้",
+    "empty_all_confirm_shared": "รวมถึงบัญชีที่แชร์ {accounts} ด้วย",
+    "empty_all_confirm_kept": "ถังขยะของ {accounts} จะคงเดิม เพราะคุณไม่มีสิทธิ์ลบในนั้น",
     "toast_emptied_all": "ล้างถังขยะในทุกบัญชีแล้ว",
     "toast_error_empty_all_partial": "ล้างถังขยะแล้ว แต่บางบัญชีล้มเหลว",
     "toast_error_empty_all": "ล้างถังขยะไม่สำเร็จ",
@@ -4296,6 +4300,10 @@
       "visibility_hint_private": "ผู้ที่คุณแชร์ปฏิทินด้วยจะเห็นเฉพาะเวลา",
       "visibility_hint_secret": "ผู้ที่คุณแชร์ปฏิทินด้วยจะไม่เห็นกิจกรรมนี้ และเวลายังคงว่าง",
       "visibility_series": "ใช้กับทุกครั้งที่เกิดซ้ำ",
+      "color_calendar": "ใช้สีของปฏิทิน",
+      "overlap": "ซ้อนทับกับ {title} ({details})",
+      "overlap_plain": "ซ้อนทับกับ {title}",
+      "overlap_more": "และอีก {count} รายการ",
       "save": "บันทึก",
       "cancel": "ยกเลิก",
       "color": "สี"
@@ -4820,7 +4828,12 @@
     "task_list_not_in_calendar": "{name} (รายการงาน ไม่แสดงในปฏิทิน)",
     "copy_to_account": "คัดลอกไปที่ {address}",
     "copied_to_account": "คัดลอกไปที่ {address} แล้ว",
-    "delete_original": "ลบต้นฉบับ"
+    "delete_original": "ลบต้นฉบับ",
+    "copy_to_calendar": "คัดลอกไปยังปฏิทิน…",
+    "copy_to_calendar_title": "คัดลอกไปยังปฏิทิน",
+    "copy_to_calendar_hint": "สำเนาจะเป็นกิจกรรมของคุณเอง การแก้ไขต้นฉบับจะไม่เปลี่ยนสำเนา",
+    "copy_button": "คัดลอก",
+    "copied_to_calendar": "คัดลอกไปยัง {calendar} แล้ว"
   },
   "calendar_offline": {
     "split_needs_server": "การเปลี่ยนแปลงนี้ต้องเชื่อมต่อกับเซิร์ฟเวอร์ ตอนนี้เปลี่ยนเฉพาะกิจกรรมนี้ หรือลองอีกครั้งเมื่อกลับมาออนไลน์"
@@ -5112,6 +5125,8 @@
       "title": "แท็กอีเมล",
       "description": "สร้างแท็กเพื่อจัดเรียงข้อความของคุณ แท็กจะถูกบันทึกไว้กับข้อความบนเซิร์ฟเวอร์",
       "add_keyword": "เพิ่มแท็ก",
+      "sort_az": "เรียงตามตัวอักษร",
+      "sorted": "เรียงแท็กตามตัวอักษรแล้ว",
       "empty": "ยังไม่มีแท็ก",
       "label_field": "ชื่อที่แสดง",
       "label_placeholder": "เช่น งาน, ส่วนตัว, ด่วน",
@@ -6315,6 +6330,7 @@
         "from": "ผู้ส่ง (From)",
         "to": "ผู้รับ (To)",
         "cc": "สำเนา (Cc)",
+        "delivered_to": "ส่งถึง",
         "subject": "หัวข้อ",
         "header": "ส่วนหัวที่กำหนดเอง",
         "size": "ขนาด",
@@ -6454,7 +6470,44 @@
       "apply_existing_none": "ยังไม่มีข้อความใน {folder} ที่ตรงกับกฎนี้",
       "period_status_scheduled": "กำหนดเวลาแล้ว",
       "period_status_active": "ใช้งานอยู่",
-      "period_status_expired": "หมดอายุแล้ว"
+      "period_status_expired": "หมดอายุแล้ว",
+      "editor": {
+        "if": "หากตรงกับเงื่อนไข",
+        "match_all": "ทั้งหมด",
+        "match_any": "ข้อใดข้อหนึ่ง",
+        "of_conditions": "ต่อไปนี้",
+        "match_type": "เงื่อนไขที่ต้องตรง",
+        "condition_number": "เงื่อนไข {number}",
+        "comparison": "การเปรียบเทียบ",
+        "size_unit": "หน่วย",
+        "has_attachment": "มีไฟล์แนบ",
+        "attachment_type": "ไฟล์แนบประเภท",
+        "size_units": {
+          "bytes": "ไบต์",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "ใช้กฎอื่นต่อไป",
+        "skip_rule": "ข้ามกฎนี้",
+        "matching": "{count, plural, =0 {ไม่มีข้อความที่ตรงกัน} other {ตรงกัน # ข้อความ}}",
+        "matching_partial": "{count, plural, =0 {ไม่มีข้อความล่าสุดที่ตรงกัน} other {ตรงกัน # ข้อความขึ้นไป}}",
+        "checking": "กำลังค้นหาข้อความที่ตรงกัน…",
+        "tags": "แท็ก",
+        "attachment_type_invalid": "ป้อนนามสกุลไฟล์ เช่น pdf",
+        "action_conflict": "ละทิ้งและปฏิเสธใช้ร่วมกับย้าย คัดลอก หรือเก็บไว้ไม่ได้ และใช้ร่วมกันเองก็ไม่ได้",
+        "apply_to": "ใช้กับ",
+        "apply_new": "เฉพาะอีเมลใหม่",
+        "apply_folder": "อีเมลใหม่และ {folder}",
+        "apply_folder_count": "อีเมลใหม่และ {folder} ({count})",
+        "apply_all": "อีเมลใหม่และอีเมลทั้งหมด",
+        "apply_all_count": "อีเมลใหม่และอีเมลทั้งหมด ({count})",
+        "applying": "กำลังใช้ “{name}”…",
+        "trash_title": "ย้ายอีเมลที่มีอยู่ไปที่ถังขยะไหม",
+        "trash_confirm": "{count, plural, other {ข้อความที่มีอยู่ # ข้อความจะถูกย้ายไปที่ถังขยะ}}",
+        "trash_confirm_partial": "{count, plural, =0 {ข้อความที่มีอยู่ทุกข้อความที่ตรงกับกฎจะถูกย้ายไปที่ถังขยะ} other {ข้อความที่มีอยู่ # ข้อความขึ้นไปจะถูกย้ายไปที่ถังขยะ}}",
+        "trash_button": "บันทึกและย้ายไปที่ถังขยะ",
+        "delivered_to_new_only": "กฎนี้ใช้กับอีเมลใหม่เท่านั้น อีเมลที่ส่งถึงแล้วจะไม่เก็บที่อยู่ที่ส่งถึงไว้"
+      }
     },
     "templates": {
       "title": "เทมเพลตอีเมล",

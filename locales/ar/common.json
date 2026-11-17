@@ -1335,6 +1335,7 @@
     "success": "تم بنجاح",
     "cancel": "إلغاء",
     "save": "حفظ",
+    "ready_to_save": "جاهز للحفظ",
     "delete": "حذف",
     "edit": "تعديل",
     "close": "إغلاق",
@@ -1827,6 +1828,8 @@
       "title": "وسوم البريد",
       "description": "أنشئ وسومًا لترتيب رسائلك. تُحفظ الوسوم مع رسائلك على الخادم.",
       "add_keyword": "إضافة وسم",
+      "sort_az": "ترتيب أبجدي",
+      "sorted": "تم ترتيب الوسوم أبجديًا",
       "empty": "لا توجد وسوم بعد.",
       "label_field": "الاسم المعروض",
       "label_placeholder": "مثال: عمل، شخصي، عاجل",
@@ -3030,6 +3033,7 @@
         "from": "من",
         "to": "إلى",
         "cc": "نسخة",
+        "delivered_to": "سُلّمت إلى",
         "subject": "الموضوع",
         "header": "ترويسة مخصصة",
         "size": "الحجم",
@@ -3169,7 +3173,44 @@
       "apply_existing_none": "لا توجد رسالة في {folder} تطابق هذه القاعدة بعد.",
       "period_status_scheduled": "مجدولة",
       "period_status_active": "نشطة",
-      "period_status_expired": "منتهية"
+      "period_status_expired": "منتهية",
+      "editor": {
+        "if": "إذا تحقّق",
+        "match_all": "كلٌّ",
+        "match_any": "أيٌّ",
+        "of_conditions": "من هذه الشروط",
+        "match_type": "الشروط التي يجب أن تتحقق",
+        "condition_number": "الشرط {number}",
+        "comparison": "المقارنة",
+        "size_unit": "الوحدة",
+        "has_attachment": "يحتوي على مرفق",
+        "attachment_type": "مرفق من النوع",
+        "size_units": {
+          "bytes": "بايت",
+          "kb": "ك.ب",
+          "mb": "م.ب"
+        },
+        "continue_rules": "متابعة تطبيق القواعد الأخرى",
+        "skip_rule": "تخطي هذه القاعدة",
+        "matching": "{count, plural, =0 {لا توجد رسائل مطابقة} one {رسالة واحدة مطابقة} two {رسالتان مطابقتان} few {# رسائل مطابقة} many {# رسالة مطابقة} other {# رسالة مطابقة}}",
+        "matching_partial": "{count, plural, =0 {لا توجد رسائل حديثة مطابقة} other {# رسالة مطابقة على الأقل}}",
+        "checking": "جارٍ البحث عن الرسائل المطابقة…",
+        "tags": "الوسوم",
+        "attachment_type_invalid": "أدخل امتداد ملف، مثل pdf",
+        "action_conflict": "لا يمكن الجمع بين التجاهل والرفض، ولا بين أيٍّ منهما والنقل أو النسخ أو الإبقاء",
+        "apply_to": "تطبيق على",
+        "apply_new": "البريد الجديد فقط",
+        "apply_folder": "البريد الجديد و{folder}",
+        "apply_folder_count": "البريد الجديد و{folder} ({count})",
+        "apply_all": "البريد الجديد وكل البريد",
+        "apply_all_count": "البريد الجديد وكل البريد ({count})",
+        "applying": "جارٍ تطبيق «{name}»…",
+        "trash_title": "نقل البريد الموجود إلى المهملات؟",
+        "trash_confirm": "{count, plural, one {سيؤدي هذا إلى نقل رسالة موجودة واحدة إلى المهملات.} two {سيؤدي هذا إلى نقل رسالتين موجودتين إلى المهملات.} few {سيؤدي هذا إلى نقل # رسائل موجودة إلى المهملات.} many {سيؤدي هذا إلى نقل # رسالة موجودة إلى المهملات.} other {سيؤدي هذا إلى نقل # رسالة موجودة إلى المهملات.}}",
+        "trash_confirm_partial": "{count, plural, =0 {سيؤدي هذا إلى نقل كل رسالة موجودة تطابقها القاعدة إلى المهملات.} other {سيؤدي هذا إلى نقل # رسالة موجودة على الأقل إلى المهملات.}}",
+        "trash_button": "حفظ ونقل إلى المهملات",
+        "delivered_to_new_only": "تعمل هذه القاعدة على البريد الجديد فقط. لا يحتفظ البريد المُسلَّم بالعنوان الذي سُلّم إليه."
+      }
     },
     "templates": {
       "title": "قوالب البريد",
@@ -4001,6 +4042,7 @@
       "load_failed": "تعذّر تحميل القواعد",
       "none": "لا توجد قواعد بعد",
       "new_mail_only": "للرسائل الجديدة فقط",
+      "cannot_run": "لا يمكن تطبيق القواعد على الرسائل الموجودة إلا إذا كانت تنقل أو تنسخ أو تميّز كمقروءة أو بنجمة أو بوسم أو تتجاهل، وبشرط ألا تفحص النص أو «سُلّمت إلى» أو تعبيرًا نمطيًا.",
       "running": "جارٍ تشغيل «{name}» على {folder}…"
     },
     "find_emails_from": "البحث عن رسائل من {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "هل تريد تمييز كل رسالة غير مقروءة في حسابك الشخصي كمقروءة؟",
     "empty_all_confirm_title": "إفراغ سلة المحذوفات لجميع الحسابات",
     "empty_all_confirm_message": "حذف {count, plural, zero {الرسائل} one {الرسالة} two {الرسالتين} few {كل الرسائل الـ#} many {كل الرسائل الـ#} other {كل الرسائل الـ#}} في المهملات في جميع حساباتك نهائيًا؟ لا يمكن التراجع عن ذلك.",
+    "empty_all_confirm_shared": "يشمل ذلك الحسابات المشتركة {accounts}.",
+    "empty_all_confirm_kept": "تبقى سلة المهملات في {accounts} كما هي، لأنك لا تستطيع الحذف هناك.",
     "toast_emptied_all": "تم إفراغ سلة المحذوفات في جميع الحسابات",
     "toast_error_empty_all_partial": "تم إفراغ سلة المحذوفات، لكن فشلت بعض الحسابات",
     "toast_error_empty_all": "فشل إفراغ سلة المحذوفات",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "يرى من تشاركهم التقويم الوقت فقط.",
       "visibility_hint_secret": "لا يرى من تشاركهم التقويم هذا الحدث، ولا يحجز الوقت.",
       "visibility_series": "ينطبق على كل التكرارات.",
+      "color_calendar": "استخدام لون التقويم",
+      "overlap": "يتداخل مع {title} ({details})",
+      "overlap_plain": "يتداخل مع {title}",
+      "overlap_more": "و{count} أخرى",
       "save": "حفظ",
       "cancel": "إلغاء",
       "color": "اللون"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (قائمة مهام، لا تظهر في التقويم)",
     "copy_to_account": "نسخ إلى {address}",
     "copied_to_account": "تم النسخ إلى {address}",
-    "delete_original": "حذف الأصل"
+    "delete_original": "حذف الأصل",
+    "copy_to_calendar": "نسخ إلى تقويم…",
+    "copy_to_calendar_title": "نسخ إلى تقويم",
+    "copy_to_calendar_hint": "النسخة حدث خاص بك. تغييرات الأصل لا تؤثر فيها.",
+    "copy_button": "نسخ",
+    "copied_to_calendar": "تم النسخ إلى {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "يحتاج هذا التغيير إلى اتصال بالخادم. غيّر هذا الحدث فقط الآن، أو حاول مرة أخرى عند عودة الاتصال."

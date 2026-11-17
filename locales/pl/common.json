@@ -1335,6 +1335,7 @@
     "success": "Sukces",
     "cancel": "Anuluj",
     "save": "Zapisz",
+    "ready_to_save": "Gotowe do zapisania",
     "delete": "Usuń",
     "edit": "Edytuj",
     "close": "Zamknij",
@@ -1824,6 +1825,8 @@
       "title": "Etykiety e-mail",
       "description": "Twórz etykiety, aby porządkować wiadomości. Etykiety są zapisywane razem z wiadomościami na serwerze.",
       "add_keyword": "Dodaj etykietę",
+      "sort_az": "Sortuj A–Z",
+      "sorted": "Etykiety posortowane A–Z",
       "empty": "Nie ma jeszcze etykiet.",
       "label_field": "Nazwa wyświetlana",
       "label_placeholder": "np. Praca, Osobiste, Pilne",
@@ -3023,6 +3026,7 @@
         "from": "Od",
         "to": "Do",
         "cc": "DW",
+        "delivered_to": "Dostarczono do",
         "subject": "Temat",
         "header": "Niestandardowy nagłówek",
         "size": "Rozmiar",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "Żadna wiadomość w folderze {folder} nie pasuje jeszcze do tej reguły.",
       "period_status_scheduled": "zaplanowana",
       "period_status_active": "aktywna",
-      "period_status_expired": "wygasła"
+      "period_status_expired": "wygasła",
+      "editor": {
+        "if": "Jeśli spełniony jest",
+        "match_all": "każdy",
+        "match_any": "dowolny",
+        "of_conditions": "z tych warunków",
+        "match_type": "Które warunki muszą być spełnione",
+        "condition_number": "Warunek {number}",
+        "comparison": "Porównanie",
+        "size_unit": "Jednostka",
+        "has_attachment": "Ma załącznik",
+        "attachment_type": "Załącznik typu",
+        "size_units": {
+          "bytes": "bajtów",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Stosuj dalej pozostałe reguły",
+        "skip_rule": "Pomiń tę regułę",
+        "matching": "{count, plural, =0 {Żadna wiadomość nie pasuje} one {Pasuje # wiadomość} few {Pasują # wiadomości} many {Pasuje # wiadomości} other {Pasuje # wiadomości}}",
+        "matching_partial": "{count, plural, =0 {Żadna z ostatnich wiadomości nie pasuje} other {Pasuje #+ wiadomości}}",
+        "checking": "Szukanie pasujących wiadomości…",
+        "tags": "Etykiety",
+        "attachment_type_invalid": "Wpisz rozszerzenie pliku, na przykład pdf",
+        "action_conflict": "Odrzuć i Odrzuć z wiadomością nie łączą się z Przenieś, Kopiuj ani Pozostaw, ani ze sobą",
+        "apply_to": "Zastosuj do",
+        "apply_new": "Tylko nowej poczty",
+        "apply_folder": "Nowej poczty i folderu {folder}",
+        "apply_folder_count": "Nowej poczty i folderu {folder} ({count})",
+        "apply_all": "Nowej i całej poczty",
+        "apply_all_count": "Nowej i całej poczty ({count})",
+        "applying": "Stosowanie reguły „{name}”…",
+        "trash_title": "Przenieść istniejącą pocztę do kosza?",
+        "trash_confirm": "{count, plural, one {Spowoduje to przeniesienie # istniejącej wiadomości do kosza.} few {Spowoduje to przeniesienie # istniejących wiadomości do kosza.} many {Spowoduje to przeniesienie # istniejących wiadomości do kosza.} other {Spowoduje to przeniesienie # istniejącej wiadomości do kosza.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Spowoduje to przeniesienie do kosza każdej istniejącej wiadomości, do której pasuje reguła.} other {Spowoduje to przeniesienie #+ istniejących wiadomości do kosza.}}",
+        "trash_button": "Zapisz i przenieś do kosza",
+        "delivered_to_new_only": "Ta reguła działa tylko na nową pocztę. Dostarczona poczta nie przechowuje adresu, na który została dostarczona."
+      }
     },
     "templates": {
       "title": "Szablony wiadomości e-mail",
@@ -4001,6 +4042,7 @@
       "load_failed": "Nie udało się wczytać reguł",
       "none": "Brak reguł",
       "new_mail_only": "Tylko dla nowych wiadomości",
+      "cannot_run": "Do istniejących wiadomości można zastosować tylko reguły, które przenoszą, kopiują, oznaczają jako przeczytane, gwiazdką lub etykietą albo odrzucają, i tylko jeśli nie sprawdzają treści, pola „Dostarczono do” ani wyrażenia regularnego.",
       "running": "Uruchamianie „{name}” w folderze {folder}…"
     },
     "find_emails_from": "Znajdź e-maile od {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Oznaczyć wszystkie nieprzeczytane wiadomości na koncie osobistym jako przeczytane?",
     "empty_all_confirm_title": "Opróżnij kosz we wszystkich kontach",
     "empty_all_confirm_message": "Trwale usunąć {count, plural, one {wiadomość} few {wszystkie # wiadomości} many {wszystkie # wiadomości} other {wszystkie # wiadomości}} z kosza we wszystkich Twoich kontach? Nie można tego cofnąć.",
+    "empty_all_confirm_shared": "Dotyczy to także kont udostępnionych {accounts}.",
+    "empty_all_confirm_kept": "Kosz konta {accounts} zostaje bez zmian, bo nie możesz w nim usuwać.",
     "toast_emptied_all": "Opróżniono kosz we wszystkich kontach",
     "toast_error_empty_all_partial": "Opróżniono kosz, ale niektóre konta się nie powiodły",
     "toast_error_empty_all": "Nie udało się opróżnić kosza",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Osoby, którym udostępniasz kalendarz, widzą tylko godzinę.",
       "visibility_hint_secret": "Osoby, którym udostępniasz kalendarz, nie widzą wydarzenia, a czas pozostaje wolny.",
       "visibility_series": "Dotyczy wszystkich powtórzeń.",
+      "color_calendar": "Użyj koloru kalendarza",
+      "overlap": "Nakłada się na {title} ({details})",
+      "overlap_plain": "Nakłada się na {title}",
+      "overlap_more": "I jeszcze {count}",
       "save": "Zapisz",
       "cancel": "Anuluj",
       "color": "Kolor"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (lista zadań, niewidoczna w kalendarzu)",
     "copy_to_account": "Kopiuj do {address}",
     "copied_to_account": "Skopiowano do {address}",
-    "delete_original": "Usuń oryginał"
+    "delete_original": "Usuń oryginał",
+    "copy_to_calendar": "Kopiuj do kalendarza…",
+    "copy_to_calendar_title": "Kopiuj do kalendarza",
+    "copy_to_calendar_hint": "Kopia jest Twoim własnym wydarzeniem. Zmiany w oryginale jej nie zmieniają.",
+    "copy_button": "Kopiuj",
+    "copied_to_calendar": "Skopiowano do: {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Ta zmiana wymaga połączenia z serwerem. Na razie zmień tylko to wydarzenie albo spróbuj ponownie, gdy wrócisz do trybu online."

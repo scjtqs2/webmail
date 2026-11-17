@@ -1335,6 +1335,7 @@
     "success": "Úspěch",
     "cancel": "Zrušit",
     "save": "Uložit",
+    "ready_to_save": "Připraveno k uložení",
     "delete": "Odstranit",
     "edit": "Upravit",
     "close": "Zavřít",
@@ -1824,6 +1825,8 @@
       "title": "E-mailové štítky",
       "description": "Vytvořte štítky pro třídění zpráv. Štítky se ukládají se zprávami na serveru.",
       "add_keyword": "Přidat štítek",
+      "sort_az": "Seřadit A–Z",
+      "sorted": "Štítky seřazeny A–Z",
       "empty": "Zatím nemáte žádné štítky.",
       "label_field": "Zobrazovaný název",
       "label_placeholder": "např. Práce, Osobní, Naliehavé",
@@ -3023,6 +3026,7 @@
         "from": "Od",
         "to": "Komu",
         "cc": "Kopie",
+        "delivered_to": "Doručeno na",
         "subject": "Předmět",
         "header": "Vlastní hlavička",
         "size": "Velikost",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "Tomuto pravidlu zatím neodpovídá žádná zpráva ve složce {folder}.",
       "period_status_scheduled": "naplánováno",
       "period_status_active": "aktivní",
-      "period_status_expired": "vypršelo"
+      "period_status_expired": "vypršelo",
+      "editor": {
+        "if": "Pokud platí",
+        "match_all": "každá",
+        "match_any": "kterákoli",
+        "of_conditions": "z těchto podmínek",
+        "match_type": "Které podmínky musí platit",
+        "condition_number": "Podmínka {number}",
+        "comparison": "Porovnání",
+        "size_unit": "Jednotka",
+        "has_attachment": "Má přílohu",
+        "attachment_type": "Příloha typu",
+        "size_units": {
+          "bytes": "bajtů",
+          "kb": "kB",
+          "mb": "MB"
+        },
+        "continue_rules": "Pokračovat dalšími pravidly",
+        "skip_rule": "Přeskočit toto pravidlo",
+        "matching": "{count, plural, =0 {Žádná zpráva neodpovídá} one {Odpovídá # zpráva} few {Odpovídají # zprávy} many {Odpovídá # zprávy} other {Odpovídá # zpráv}}",
+        "matching_partial": "{count, plural, =0 {Žádná nedávná zpráva neodpovídá} other {Odpovídá #+ zpráv}}",
+        "checking": "Hledá se odpovídající pošta…",
+        "tags": "Štítky",
+        "attachment_type_invalid": "Zadejte příponu souboru, například pdf",
+        "action_conflict": "Zahodit a Odmítnout nejde kombinovat s Přesunout, Kopírovat ani Ponechat, ani spolu navzájem",
+        "apply_to": "Použít na",
+        "apply_new": "Jen novou poštu",
+        "apply_folder": "Novou poštu a {folder}",
+        "apply_folder_count": "Novou poštu a {folder} ({count})",
+        "apply_all": "Novou i veškerou poštu",
+        "apply_all_count": "Novou i veškerou poštu ({count})",
+        "applying": "Používá se „{name}“…",
+        "trash_title": "Přesunout existující poštu do koše?",
+        "trash_confirm": "{count, plural, one {Tím se přesune # existující zpráva do koše.} few {Tím se přesunou # existující zprávy do koše.} many {Tím se přesune # existující zprávy do koše.} other {Tím se přesune # existujících zpráv do koše.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Tím se přesune do koše každá existující zpráva, které pravidlo odpovídá.} other {Tím se přesune #+ existujících zpráv do koše.}}",
+        "trash_button": "Uložit a přesunout do koše",
+        "delivered_to_new_only": "Toto pravidlo platí jen pro novou poštu. Doručená pošta si adresu, na kterou byla doručena, neuchovává."
+      }
     },
     "templates": {
       "title": "E-mailové šablony",
@@ -4001,6 +4042,7 @@
       "load_failed": "Pravidla se nepodařilo načíst",
       "none": "Zatím žádná pravidla",
       "new_mail_only": "Pouze pro nové zprávy",
+      "cannot_run": "Na existující zprávy lze použít jen pravidla, která přesouvají, kopírují, označují jako přečtené, hvězdičkou nebo štítkem nebo zahazují, a jen pokud nekontrolují tělo zprávy, „Doručeno na“ ani regulární výraz.",
       "running": "Spouštění „{name}“ ve složce {folder}…"
     },
     "find_emails_from": "Najít e-maily od {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Označit všechny nepřečtené zprávy ve vašem osobním účtu jako přečtené?",
     "empty_all_confirm_title": "Vyprázdnit koš pro všechny účty",
     "empty_all_confirm_message": "Trvale smazat {count, plural, one {zprávu} few {všechny # zprávy} many {všech # zprávy} other {všech # zpráv}} v koši všech vašich účtů? Nelze to vrátit zpět.",
+    "empty_all_confirm_shared": "Týká se to i sdílených účtů {accounts}.",
+    "empty_all_confirm_kept": "Koš účtu {accounts} zůstane, jak je, protože v něm nemůžete mazat.",
     "toast_emptied_all": "Koš byl vyprázdněn ve všech účtech",
     "toast_error_empty_all_partial": "Koš byl vyprázdněn, ale u některých účtů se to nezdařilo",
     "toast_error_empty_all": "Vyprázdnění koše se nezdařilo",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Lidé, se kterými kalendář sdílíte, vidí jen čas.",
       "visibility_hint_secret": "Lidé, se kterými kalendář sdílíte, událost nevidí a čas zůstane volný.",
       "visibility_series": "Platí pro všechny výskyty.",
+      "color_calendar": "Použít barvu kalendáře",
+      "overlap": "Překrývá se s {title} ({details})",
+      "overlap_plain": "Překrývá se s {title}",
+      "overlap_more": "A další: {count}",
       "save": "Uložit",
       "cancel": "Zrušit",
       "color": "Barva"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (seznam úkolů, v kalendáři se nezobrazuje)",
     "copy_to_account": "Kopírovat do {address}",
     "copied_to_account": "Zkopírováno do {address}",
-    "delete_original": "Smazat originál"
+    "delete_original": "Smazat originál",
+    "copy_to_calendar": "Kopírovat do kalendáře…",
+    "copy_to_calendar_title": "Kopírovat do kalendáře",
+    "copy_to_calendar_hint": "Kopie je vaše vlastní událost. Změny originálu ji nezmění.",
+    "copy_button": "Kopírovat",
+    "copied_to_calendar": "Zkopírováno do {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Tato změna vyžaduje připojení k serveru. Prozatím změňte jen tuto událost, nebo to zkuste znovu po obnovení připojení."

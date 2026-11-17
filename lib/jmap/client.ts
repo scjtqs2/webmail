@@ -53,7 +53,7 @@ import { stalwartChangeId } from "./stalwart-state";
 import { downloadNameSegment } from "./download-name";
 import { getOfflineHooks, isNetworkFailure, OfflineUnavailableError, SendNotStartedError } from "./offline-hooks";
 import { toInertBlob } from "@/lib/file-preview";
-import { parseAuthenticationResults } from "@/lib/email-headers";
+import { authenticationResultsOnReceipt, isImportedMessage, parseAuthenticationResults, topAuthenticationResultsOnReceipt } from "@/lib/email-headers";
 import { IS_LITE_STALWART } from "@/lib/lite";
 import { toStorageQuota, type JMAPQuota, type StorageQuota } from "@/lib/quota";
 import { messagePriorityHeaders, type MessagePriority } from "@/lib/message-priority";
@@ -535,20 +535,40 @@ const EMAIL_LIST_PROPERTIES = [
   // (#1439). Stalwart answers header properties from the stored raw headers,
   // not the message blob.
   "header:Authentication-Results:all",
+  // Whose those results are: only the receiving server's count (#1740).
+  "header:Received:all",
 ] as const;
+
+function headerStrings(raw: unknown): string[] | undefined {
+  return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string") : undefined;
+}
 
 /**
  * Parse the Authentication-Results headers a list fetch asked for, as the
- * full message fetch does from `headers`, and drop the raw property.
+ * full message fetch does from `headers`, and drop the raw properties. Only
+ * results the receiving server wrote are kept (authenticationResultsOnReceipt
+ * when the row has its headers in order, else
+ * topAuthenticationResultsOnReceipt); the rest, and all of a message from an
+ * imported file, are left out and marked authenticationResultsIgnored. A row
+ * without the Received lines (the offline store keeps only what it synced)
+ * is judged by its results alone, as before.
  */
 function applyListAuthenticationResults(emails: Email[]): Email[] {
   for (const email of emails) {
     const record = email as unknown as Record<string, unknown>;
-    const raw = record["header:Authentication-Results:all"];
+    const headers = headerStrings(record["header:Authentication-Results:all"]);
+    const received = headerStrings(record["header:Received:all"]);
     delete record["header:Authentication-Results:all"];
-    if (!Array.isArray(raw)) continue;
-    const headers = raw.filter((value): value is string => typeof value === "string");
-    if (headers.length > 0) email.authenticationResults = parseAuthenticationResults(headers);
+    delete record["header:Received:all"];
+    if (!headers || headers.length === 0) continue;
+    const ordered = Array.isArray(email.headers) ? email.headers as unknown as JMAPEmailHeader[] : undefined;
+    const fromReceivingServer = !isImportedMessage(email) && (
+      ordered ? authenticationResultsOnReceipt(ordered)
+        : received ? topAuthenticationResultsOnReceipt(received, headers)
+          : true
+    );
+    if (fromReceivingServer) email.authenticationResults = parseAuthenticationResults(headers);
+    else email.authenticationResultsIgnored = true;
   }
   return emails;
 }
@@ -1638,6 +1658,8 @@ export class JMAPClient implements IJMAPClient {
    * and the refresh timer renews it a minute before it expires.
    */
   private static readonly AUTH_ACCEPTED_FRESH_MS = 30_000;
+  /** Renew this long before the token's stated expiry: clocks differ, and requests take time. */
+  private static readonly TOKEN_EXPIRY_MARGIN_MS = 10_000;
 
   private serverUrl: string;
   private username: string;
@@ -1646,6 +1668,13 @@ export class JMAPClient implements IJMAPClient {
   private authHeader: string;
   private authMode: 'basic' | 'bearer' = 'basic';
   private onTokenRefresh?: () => Promise<string | null>;
+  /**
+   * When the access token is to be renewed before a request (epoch ms): shortly
+   * before it runs out, 0 when that isn't known. The refresh timer can't be
+   * relied on for this: a backgrounded iOS PWA or a sleeping machine freezes
+   * it, and the app wakes with a dead token.
+   */
+  private tokenRenewAt = 0;
   /** When the server last answered a request without 401 (epoch ms). */
   private authAcceptedAt = 0;
   private onTotpRequired?: () => Promise<string | null>;
@@ -1754,11 +1783,12 @@ export class JMAPClient implements IJMAPClient {
     accessToken: string,
     username: string,
     onTokenRefresh?: () => Promise<string | null>,
+    expiresIn?: number,
   ): JMAPClient {
     const client = new JMAPClient(serverUrl, username, '');
     client.authMode = 'bearer';
-    client.authHeader = `Bearer ${accessToken}`;
     client.onTokenRefresh = onTokenRefresh;
+    client.updateAccessToken(accessToken, expiresIn);
     return client;
   }
 
@@ -1781,8 +1811,37 @@ export class JMAPClient implements IJMAPClient {
     return client;
   }
 
-  updateAccessToken(token: string): void {
-    this.authHeader = `Bearer ${token}`;
+  /** `expiresIn` in seconds, as the token endpoint gives it. Without it, a new token's expiry is unknown. */
+  updateAccessToken(token: string, expiresIn?: number): void {
+    const header = `Bearer ${token}`;
+    if (expiresIn && expiresIn > 0) {
+      // A token that lives only seconds would otherwise count as run out the
+      // moment it arrives, and every request would renew it again.
+      const lifetimeMs = expiresIn * 1000;
+      this.tokenRenewAt = Date.now() + lifetimeMs - Math.min(JMAPClient.TOKEN_EXPIRY_MARGIN_MS, lifetimeMs / 2);
+    } else if (header !== this.authHeader) this.tokenRenewAt = 0;
+    this.authHeader = header;
+  }
+
+  /** Whether the access token has run out, or is about to, and can be renewed. */
+  private tokenRunOut(): boolean {
+    return this.authMode === 'bearer' && !!this.onTokenRefresh && this.tokenRenewAt > 0
+      && Date.now() >= this.tokenRenewAt;
+  }
+
+  /**
+   * Renews an access token that has run out before a request goes out with it.
+   * Waking up, the app sends a burst of requests at once (push catch-up, sync,
+   * avatars); each one refused is a 401 in the server's logs, and enough of
+   * them in a second gets the address banned by fail2ban or CrowdSec (#1720).
+   * Concurrent callers share the one renewal (refreshAccessToken).
+   */
+  private async renewExpiredToken(): Promise<void> {
+    const token = await this.onTokenRefresh?.().catch(() => null);
+    if (token) this.updateAccessToken(token);
+    // No token (offline, a server error): the request goes out as before and a
+    // 401 renews it. Forget the expiry so each request doesn't ask again.
+    else this.tokenRenewAt = 0;
   }
 
   // Throws when the server does not answer: an empty result would read as
@@ -1959,8 +2018,12 @@ export class JMAPClient implements IJMAPClient {
       throw new RateLimitError(remaining);
     }
 
+    // Only awaited when there is something to renew, so any other request
+    // still starts in the same tick, as callers expect.
+    if (this.tokenRunOut()) await this.renewExpiredToken();
     const timeoutMs = opts?.timeoutMs ?? JMAPClient.REQUEST_TIMEOUT_MS;
-    const headers = { ...init?.headers as Record<string, string>, 'Authorization': this.authHeader };
+    const sentAuthHeader = this.authHeader;
+    const headers = { ...init?.headers as Record<string, string>, 'Authorization': sentAuthHeader };
     let response: Response;
 
     try {
@@ -1997,7 +2060,13 @@ export class JMAPClient implements IJMAPClient {
 
     let reauthRefused = false;
     if (response.status === 401) {
-      if (this.authMode === 'bearer' && this.onTokenRefresh) {
+      if (this.authMode === 'bearer' && this.authHeader !== sentAuthHeader) {
+        // Renewed while this request was on its way: the refusal was for the
+        // old token. Asking again would only spend another refresh.
+        const retryHeaders = { ...init?.headers as Record<string, string>, 'Authorization': this.authHeader };
+        response = await this.timedFetch(url, init, retryHeaders, timeoutMs);
+        reauthRefused = true;
+      } else if (this.authMode === 'bearer' && this.onTokenRefresh) {
         const newToken = await this.onTokenRefresh();
         if (newToken) {
           this.updateAccessToken(newToken);
@@ -3595,9 +3664,9 @@ export class JMAPClient implements IJMAPClient {
       size: parsed.size ?? 0,
     } as Email;
     addBodyMediaToAttachments(email);
-    if (email.headers) await this.parseEmailHeaders(email);
     // A message read from a file was never received by this server: whatever
     // its own Received and Authentication-Results lines say earns it nothing.
+    if (email.headers) await this.parseEmailHeaders(email, true);
     email.authenticationResultsOnReceipt = false;
     return email;
   }
@@ -3696,8 +3765,8 @@ export class JMAPClient implements IJMAPClient {
     }
   }
 
-  private async parseEmailHeaders(email: Email): Promise<void> {
-    const { authenticationResultsOnReceipt, parseAuthenticationResults, parseSpamScore, parseSpamLLM } = await import('@/lib/email-headers');
+  private async parseEmailHeaders(email: Email, fromFile = false): Promise<void> {
+    const { parseSpamScore, parseSpamLLM } = await import('@/lib/email-headers');
 
     let headersRecord: Record<string, string | string[]>;
     if (Array.isArray(email.headers)) {
@@ -3723,9 +3792,16 @@ export class JMAPClient implements IJMAPClient {
 
     const authResultsHeader = headersRecord['Authentication-Results'];
     if (authResultsHeader) {
-      // Keep the headers apart and in message order: the topmost one is the
-      // receiving server's own, the rest may be forged by the sender.
-      email.authenticationResults = parseAuthenticationResults(authResultsHeader);
+      // Only results the receiving server wrote give a verdict (#1740): any
+      // other server's, the sender's own or an imported file's give none.
+      if (email.authenticationResultsOnReceipt === true && !isImportedMessage(email) && !fromFile) {
+        // Keep the headers apart and in message order: the topmost one is the
+        // receiving server's own, the rest may be forged by the sender.
+        email.authenticationResults = parseAuthenticationResults(authResultsHeader);
+      } else {
+        delete email.authenticationResults;
+        email.authenticationResultsIgnored = true;
+      }
     }
 
     for (const headerName of ['X-Spam-Score', 'X-Spam-Status', 'X-Spam-Result', 'X-Rspamd-Score']) {
@@ -6567,6 +6643,8 @@ export class JMAPClient implements IJMAPClient {
    * that one omits credentials, and an expired token is refreshed there.
    */
   private async confirmTokenBeforeXhr(): Promise<void> {
+    // The upload doesn't go through authenticatedFetch: renew a run-out token here.
+    if (this.tokenRunOut()) await this.renewExpiredToken();
     if (JMAP_FETCH_CREDENTIALS !== 'omit' || this.authMode !== 'bearer' || !this.onTokenRefresh) return;
     if (Date.now() - this.authAcceptedAt < JMAPClient.AUTH_ACCEPTED_FRESH_MS) return;
     await this.request([['Core/echo', {}, '0']]);

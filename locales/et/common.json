@@ -1335,6 +1335,7 @@
     "success": "Õnnestus",
     "cancel": "Tühista",
     "save": "Salvesta",
+    "ready_to_save": "Salvestamiseks valmis",
     "delete": "Kustuta",
     "edit": "Muuda",
     "close": "Sulge",
@@ -1827,6 +1828,8 @@
       "title": "E-kirjade sildid",
       "description": "Loo sildid, et kirju sorteerida. Sildid salvestatakse koos kirjadega serveris.",
       "add_keyword": "Lisa silt",
+      "sort_az": "Sordi A–Z",
+      "sorted": "Sildid sorditud A–Z",
       "empty": "Silte veel pole.",
       "label_field": "Kuvatav nimi",
       "label_placeholder": "nt Töö, Isiklik, Kiireloomuline",
@@ -3030,6 +3033,7 @@
         "from": "Saatja",
         "to": "Saaja",
         "cc": "Koopia",
+        "delivered_to": "Kohale toimetatud aadressile",
         "subject": "Teema",
         "header": "Kohandatud päis",
         "size": "Suurus",
@@ -3169,7 +3173,44 @@
       "apply_existing_none": "Kaustas {folder} pole veel ühtegi kirja, mis selle reegliga sobiks.",
       "period_status_scheduled": "ajastatud",
       "period_status_active": "aktiivne",
-      "period_status_expired": "aegunud"
+      "period_status_expired": "aegunud",
+      "editor": {
+        "if": "Kui",
+        "match_all": "iga",
+        "match_any": "mõni",
+        "of_conditions": "neist tingimustest on täidetud",
+        "match_type": "Millised tingimused peavad olema täidetud",
+        "condition_number": "Tingimus {number}",
+        "comparison": "Võrdlus",
+        "size_unit": "Ühik",
+        "has_attachment": "On manusega",
+        "attachment_type": "Manuse tüüp",
+        "size_units": {
+          "bytes": "baiti",
+          "kb": "kB",
+          "mb": "MB"
+        },
+        "continue_rules": "Rakenda ka teisi reegleid",
+        "skip_rule": "Jäta see reegel vahele",
+        "matching": "{count, plural, =0 {Ükski kiri ei sobi} one {# kiri sobib} other {# kirja sobib}}",
+        "matching_partial": "{count, plural, =0 {Ükski hiljutine kiri ei sobi} other {#+ kirja sobib}}",
+        "checking": "Sobivate kirjade otsimine…",
+        "tags": "Sildid",
+        "attachment_type_invalid": "Sisesta failitüüp, näiteks pdf",
+        "action_conflict": "Hülgamist ja tagasilükkamist ei saa kombineerida liigutamise, kopeerimise ega jätmisega ega omavahel",
+        "apply_to": "Rakenda",
+        "apply_new": "Ainult uutele kirjadele",
+        "apply_folder": "Uutele kirjadele ja kaustale {folder}",
+        "apply_folder_count": "Uutele kirjadele ja kaustale {folder} ({count})",
+        "apply_all": "Uutele ja kõigile kirjadele",
+        "apply_all_count": "Uutele ja kõigile kirjadele ({count})",
+        "applying": "Reeglit „{name}“ rakendatakse…",
+        "trash_title": "Kas teisaldada olemasolevad kirjad prügikasti?",
+        "trash_confirm": "{count, plural, one {See teisaldab # olemasoleva kirja prügikasti.} other {See teisaldab # olemasolevat kirja prügikasti.}}",
+        "trash_confirm_partial": "{count, plural, =0 {See teisaldab prügikasti kõik olemasolevad kirjad, mis reegliga sobivad.} other {See teisaldab #+ olemasolevat kirja prügikasti.}}",
+        "trash_button": "Salvesta ja teisalda prügikasti",
+        "delivered_to_new_only": "See reegel toimib ainult uute kirjade puhul. Kohale toimetatud kiri ei säilita aadressi, kuhu see toimetati."
+      }
     },
     "templates": {
       "title": "E-kirjade mallid",
@@ -4001,6 +4042,7 @@
       "load_failed": "Reegleid ei õnnestunud laadida",
       "none": "Reegleid pole veel",
       "new_mail_only": "Ainult uutele kirjadele",
+      "cannot_run": "Olemasolevatele kirjadele saab rakendada ainult reegleid, mis liigutavad, kopeerivad, märgivad loetuks, tähistavad, sildistavad või hülgavad, ja ainult siis, kui need ei kontrolli sisu, välja „Kohale toimetatud aadressile“ ega regulaaravaldist.",
       "running": "Käivitan „{name}” kaustas {folder}…"
     },
     "find_emails_from": "Leia kirjad saatjalt {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Kas märkida kõik lugemata sõnumid sinu isiklikus kontos loetuks?",
     "empty_all_confirm_title": "Tühjenda kõigi kontode prügikast",
     "empty_all_confirm_message": "Kas kustutada kõigi sinu kontode prügikastist {count, plural, one {kiri} other {kõik # kirja}} jäädavalt? Seda ei saa tagasi võtta.",
+    "empty_all_confirm_shared": "See hõlmab ka jagatud kontosid {accounts}.",
+    "empty_all_confirm_kept": "Konto {accounts} prügikast jääb samaks, sest seal ei saa sa kustutada.",
     "toast_emptied_all": "Prügikast tühjendati kõigil kontodel",
     "toast_error_empty_all_partial": "Prügikast tühjendati, kuid mõne konto puhul see ebaõnnestus",
     "toast_error_empty_all": "Prügikasti tühjendamine ebaõnnestus",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Inimesed, kellega kalendrit jagad, näevad ainult aega.",
       "visibility_hint_secret": "Inimesed, kellega kalendrit jagad, sündmust ei näe ja aeg jääb vabaks.",
       "visibility_series": "Kehtib kõigile kordustele.",
+      "color_calendar": "Kasuta kalendri värvi",
+      "overlap": "Kattub sündmusega {title} ({details})",
+      "overlap_plain": "Kattub sündmusega {title}",
+      "overlap_more": "Ja veel {count}",
       "save": "Salvesta",
       "cancel": "Tühista",
       "color": "Värv"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (ülesannete loend, kalendris ei näidata)",
     "copy_to_account": "Kopeeri kontole {address}",
     "copied_to_account": "Kopeeritud kontole {address}",
-    "delete_original": "Kustuta originaal"
+    "delete_original": "Kustuta originaal",
+    "copy_to_calendar": "Kopeeri kalendrisse…",
+    "copy_to_calendar_title": "Kopeeri kalendrisse",
+    "copy_to_calendar_hint": "Koopia on sinu oma sündmus. Originaali muudatused seda ei muuda.",
+    "copy_button": "Kopeeri",
+    "copied_to_calendar": "Kopeeritud kalendrisse {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "See muudatus vajab ühendust serveriga. Muuda praegu ainult seda sündmust või proovi uuesti, kui oled taas võrgus."

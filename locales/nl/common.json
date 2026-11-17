@@ -1335,6 +1335,7 @@
     "success": "Geslaagd",
     "cancel": "Annuleren",
     "save": "Opslaan",
+    "ready_to_save": "Klaar om op te slaan",
     "delete": "Verwijderen",
     "edit": "Bewerken",
     "close": "Sluiten",
@@ -1824,6 +1825,8 @@
       "title": "E-maillabels",
       "description": "Maak labels om uw berichten te ordenen. De labels worden met uw berichten op de server opgeslagen.",
       "add_keyword": "Label toevoegen",
+      "sort_az": "Sorteren A–Z",
+      "sorted": "Labels gesorteerd van A tot Z",
       "empty": "Nog geen labels.",
       "label_field": "Weergavenaam",
       "label_placeholder": "bijv. Werk, Persoonlijk, Urgent",
@@ -3023,6 +3026,7 @@
         "from": "Van",
         "to": "Aan",
         "cc": "Cc",
+        "delivered_to": "Afgeleverd aan",
         "subject": "Onderwerp",
         "header": "Aangepaste header",
         "size": "Grootte",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "Nog geen bericht in {folder} past bij deze regel.",
       "period_status_scheduled": "gepland",
       "period_status_active": "actief",
-      "period_status_expired": "verlopen"
+      "period_status_expired": "verlopen",
+      "editor": {
+        "if": "Als",
+        "match_all": "elke",
+        "match_any": "een",
+        "of_conditions": "van deze voorwaarden klopt",
+        "match_type": "Welke voorwaarden moeten kloppen",
+        "condition_number": "Voorwaarde {number}",
+        "comparison": "Vergelijking",
+        "size_unit": "Eenheid",
+        "has_attachment": "Heeft een bijlage",
+        "attachment_type": "Bijlage van type",
+        "size_units": {
+          "bytes": "bytes",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Andere regels blijven toepassen",
+        "skip_rule": "Deze regel overslaan",
+        "matching": "{count, plural, =0 {Geen berichten komen overeen} one {# bericht komt overeen} other {# berichten komen overeen}}",
+        "matching_partial": "{count, plural, =0 {Geen recente berichten komen overeen} other {#+ berichten komen overeen}}",
+        "checking": "Overeenkomende berichten zoeken…",
+        "tags": "Labels",
+        "attachment_type_invalid": "Vul een bestandsextensie in, bijvoorbeeld pdf",
+        "action_conflict": "Stilletjes verwijderen en Afwijzen gaan niet samen met Verplaatsen, Kopiëren of Houden, en ook niet met elkaar",
+        "apply_to": "Toepassen op",
+        "apply_new": "Alleen nieuwe e-mail",
+        "apply_folder": "Nieuwe e-mail en {folder}",
+        "apply_folder_count": "Nieuwe e-mail en {folder} ({count})",
+        "apply_all": "Nieuwe en alle e-mail",
+        "apply_all_count": "Nieuwe en alle e-mail ({count})",
+        "applying": "‘{name}’ wordt toegepast…",
+        "trash_title": "Bestaande e-mail naar de prullenbak verplaatsen?",
+        "trash_confirm": "{count, plural, one {Hiermee gaat # bestaand bericht naar de prullenbak.} other {Hiermee gaan # bestaande berichten naar de prullenbak.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Hiermee gaat elk bestaand bericht waarop de regel past naar de prullenbak.} other {Hiermee gaan #+ bestaande berichten naar de prullenbak.}}",
+        "trash_button": "Opslaan en naar prullenbak verplaatsen",
+        "delivered_to_new_only": "Deze regel werkt alleen voor nieuwe e-mail. Afgeleverde e-mail bewaart het adres niet waaraan hij is afgeleverd."
+      }
     },
     "templates": {
       "title": "E-mailsjablonen",
@@ -4001,6 +4042,7 @@
       "load_failed": "De regels konden niet worden geladen",
       "none": "Nog geen regels",
       "new_mail_only": "Alleen voor nieuwe berichten",
+      "cannot_run": "Alleen regels die verplaatsen, kopiëren, als gelezen markeren, een ster geven, labelen of verwijderen kunnen op bestaande berichten worden toegepast, en alleen als ze de inhoud, 'Afgeleverd aan' of een reguliere expressie niet controleren.",
       "running": "\"{name}\" wordt uitgevoerd op {folder}…"
     },
     "find_emails_from": "E-mails van {name} zoeken"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Alle ongelezen berichten in uw persoonlijke account als gelezen markeren?",
     "empty_all_confirm_title": "Prullenbak legen voor alle accounts",
     "empty_all_confirm_message": "{count, plural, one {Het bericht} other {Alle # berichten}} in de prullenbak van al je accounts definitief verwijderen? Dit kan niet ongedaan worden.",
+    "empty_all_confirm_shared": "Dit geldt ook voor de gedeelde accounts {accounts}.",
+    "empty_all_confirm_kept": "De prullenbak van {accounts} blijft zoals hij is, omdat je daar niet mag verwijderen.",
     "toast_emptied_all": "Prullenbak geleegd voor alle accounts",
     "toast_error_empty_all_partial": "Prullenbak geleegd, maar sommige accounts zijn mislukt",
     "toast_error_empty_all": "Prullenbak legen mislukt",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Mensen met wie je de agenda deelt, zien alleen de tijd.",
       "visibility_hint_secret": "Mensen met wie je de agenda deelt, zien de afspraak niet, en de tijd blijft vrij.",
       "visibility_series": "Geldt voor alle herhalingen.",
+      "color_calendar": "Kleur van de agenda gebruiken",
+      "overlap": "Overlapt met {title} ({details})",
+      "overlap_plain": "Overlapt met {title}",
+      "overlap_more": "En nog {count}",
       "save": "Opslaan",
       "cancel": "Annuleren",
       "color": "Kleur"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (takenlijst, niet zichtbaar in de agenda)",
     "copy_to_account": "Kopiëren naar {address}",
     "copied_to_account": "Gekopieerd naar {address}",
-    "delete_original": "Origineel verwijderen"
+    "delete_original": "Origineel verwijderen",
+    "copy_to_calendar": "Kopiëren naar agenda…",
+    "copy_to_calendar_title": "Kopiëren naar agenda",
+    "copy_to_calendar_hint": "De kopie is je eigen afspraak. Wijzigingen in het origineel veranderen haar niet.",
+    "copy_button": "Kopiëren",
+    "copied_to_calendar": "Gekopieerd naar {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Voor deze wijziging is een verbinding met de server nodig. Wijzig voorlopig alleen deze afspraak, of probeer het opnieuw zodra je weer online bent."

@@ -1335,6 +1335,7 @@
     "success": "成功",
     "cancel": "取消",
     "save": "保存",
+    "ready_to_save": "已准备好保存",
     "delete": "删除",
     "edit": "编辑",
     "close": "关闭",
@@ -1824,6 +1825,8 @@
       "title": "电子邮件标签",
       "description": "创建标签来整理邮件。标签与邮件一起保存在服务器上。",
       "add_keyword": "添加标签",
+      "sort_az": "按名称排序",
+      "sorted": "已按名称排序标签",
       "empty": "暂无标签。",
       "label_field": "显示名称",
       "label_placeholder": "例如工作、个人、紧急",
@@ -3023,6 +3026,7 @@
         "from": "发件人",
         "to": "收件人",
         "cc": "抄送",
+        "delivered_to": "投递到",
         "subject": "主题",
         "header": "自定义标头",
         "size": "大小",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "{folder}中还没有符合此规则的邮件。",
       "period_status_scheduled": "未开始",
       "period_status_active": "生效中",
-      "period_status_expired": "已过期"
+      "period_status_expired": "已过期",
+      "editor": {
+        "if": "如果满足以下",
+        "match_all": "全部",
+        "match_any": "任一",
+        "of_conditions": "条件",
+        "match_type": "需要满足的条件",
+        "condition_number": "条件 {number}",
+        "comparison": "比较方式",
+        "size_unit": "单位",
+        "has_attachment": "有附件",
+        "attachment_type": "附件类型",
+        "size_units": {
+          "bytes": "字节",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "继续应用其他规则",
+        "skip_rule": "跳过此规则",
+        "matching": "{count, plural, =0 {没有匹配的邮件} other {# 封邮件匹配}}",
+        "matching_partial": "{count, plural, =0 {最近的邮件中没有匹配的} other {至少 # 封邮件匹配}}",
+        "checking": "正在查找匹配的邮件…",
+        "tags": "标签",
+        "attachment_type_invalid": "请输入文件扩展名，例如 pdf",
+        "action_conflict": "丢弃和拒绝不能与移动、复制或保留一起使用，也不能彼此同时使用",
+        "apply_to": "应用于",
+        "apply_new": "仅新邮件",
+        "apply_folder": "新邮件和{folder}",
+        "apply_folder_count": "新邮件和{folder}（{count}）",
+        "apply_all": "新邮件和所有邮件",
+        "apply_all_count": "新邮件和所有邮件（{count}）",
+        "applying": "正在应用“{name}”…",
+        "trash_title": "将现有邮件移到已删除？",
+        "trash_confirm": "{count, plural, other {这会将 # 封现有邮件移到已删除。}}",
+        "trash_confirm_partial": "{count, plural, =0 {这会将所有符合规则的现有邮件移到已删除。} other {这会将至少 # 封现有邮件移到已删除。}}",
+        "trash_button": "保存并移到已删除",
+        "delivered_to_new_only": "此规则仅适用于新邮件。已投递的邮件不会保留其投递地址。"
+      }
     },
     "templates": {
       "title": "邮件模板",
@@ -4001,6 +4042,7 @@
       "load_failed": "无法加载规则",
       "none": "暂无规则",
       "new_mail_only": "仅限新邮件",
+      "cannot_run": "只有执行移动、复制、标记为已读、加星标、添加标签或丢弃的规则才能应用于已有邮件，并且不能检查正文、投递到或正则表达式。",
       "running": "正在 {folder} 中运行“{name}”…"
     },
     "find_emails_from": "查找来自 {name} 的邮件"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "将您个人账户中的所有未读邮件标记为已读？",
     "empty_all_confirm_title": "清空所有账户的垃圾箱",
     "empty_all_confirm_message": "要永久删除你所有账户垃圾箱中的{count, plural, other {全部 # 封邮件}}吗？此操作无法撤销。",
+    "empty_all_confirm_shared": "这也包括共享账户 {accounts}。",
+    "empty_all_confirm_kept": "{accounts} 的废纸篓保持不变，因为你无权在那里删除。",
     "toast_emptied_all": "已清空所有账户的垃圾箱",
     "toast_error_empty_all_partial": "垃圾箱已清空，但部分账户失败",
     "toast_error_empty_all": "清空垃圾箱失败",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "与你共享日历的人只能看到时间。",
       "visibility_hint_secret": "与你共享日历的人看不到此活动，该时间也显示为空闲。",
       "visibility_series": "适用于所有重复。",
+      "color_calendar": "使用日历颜色",
+      "overlap": "与“{title}”时间重叠（{details}）",
+      "overlap_plain": "与“{title}”时间重叠",
+      "overlap_more": "另有 {count} 个",
       "save": "保存",
       "cancel": "取消",
       "color": "颜色"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name}（任务列表，不在日历中显示）",
     "copy_to_account": "复制到 {address}",
     "copied_to_account": "已复制到 {address}",
-    "delete_original": "删除原日程"
+    "delete_original": "删除原日程",
+    "copy_to_calendar": "复制到日历…",
+    "copy_to_calendar_title": "复制到日历",
+    "copy_to_calendar_hint": "副本是你自己的日程。原日程的更改不会影响它。",
+    "copy_button": "复制",
+    "copied_to_calendar": "已复制到 {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "此更改需要连接到服务器。请暂时只更改此日程，或在恢复联网后重试。"

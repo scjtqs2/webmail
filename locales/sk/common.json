@@ -1335,6 +1335,7 @@
     "success": "Úspešne",
     "cancel": "Zrušiť",
     "save": "Uložiť",
+    "ready_to_save": "Pripravené na uloženie",
     "delete": "Odstrániť",
     "edit": "Upraviť",
     "close": "Zavrieť",
@@ -1827,6 +1828,8 @@
       "title": "E-mailové štítky",
       "description": "Vytvorte štítky na triedenie správ. Štítky sa ukladajú so správami na serveri.",
       "add_keyword": "Pridať štítok",
+      "sort_az": "Zoradiť A–Z",
+      "sorted": "Štítky zoradené A–Z",
       "empty": "Zatiaľ nemáte žiadne štítky.",
       "label_field": "Zobrazovaný názov",
       "label_placeholder": "napr. Práca, Osobné, Naliehavé",
@@ -3030,6 +3033,7 @@
         "from": "Od",
         "to": "Komu",
         "cc": "Kópia",
+        "delivered_to": "Doručené na",
         "subject": "Predmet",
         "header": "Vlastná hlavička",
         "size": "Veľkosť",
@@ -3169,7 +3173,44 @@
       "apply_existing_none": "Tomuto pravidlu zatiaľ nezodpovedá žiadna správa v priečinku {folder}.",
       "period_status_scheduled": "naplánované",
       "period_status_active": "aktívne",
-      "period_status_expired": "uplynulo"
+      "period_status_expired": "uplynulo",
+      "editor": {
+        "if": "Ak platí",
+        "match_all": "každá",
+        "match_any": "ktorákoľvek",
+        "of_conditions": "z týchto podmienok",
+        "match_type": "Ktoré podmienky musia platiť",
+        "condition_number": "Podmienka {number}",
+        "comparison": "Porovnanie",
+        "size_unit": "Jednotka",
+        "has_attachment": "Má prílohu",
+        "attachment_type": "Príloha typu",
+        "size_units": {
+          "bytes": "bajtov",
+          "kb": "kB",
+          "mb": "MB"
+        },
+        "continue_rules": "Pokračovať ďalšími pravidlami",
+        "skip_rule": "Preskočiť toto pravidlo",
+        "matching": "{count, plural, =0 {Žiadna správa nezodpovedá} one {Zodpovedá # správa} few {Zodpovedajú # správy} many {Zodpovedá # správy} other {Zodpovedá # správ}}",
+        "matching_partial": "{count, plural, =0 {Žiadna nedávna správa nezodpovedá} other {Zodpovedá #+ správ}}",
+        "checking": "Hľadá sa zodpovedajúca pošta…",
+        "tags": "Štítky",
+        "attachment_type_invalid": "Zadajte príponu súboru, napríklad pdf",
+        "action_conflict": "Zahodiť a Odmietnuť sa nedajú kombinovať s Presunúť, Kopírovať ani Ponechať, ani navzájom",
+        "apply_to": "Použiť na",
+        "apply_new": "Len novú poštu",
+        "apply_folder": "Novú poštu a {folder}",
+        "apply_folder_count": "Novú poštu a {folder} ({count})",
+        "apply_all": "Novú aj všetku poštu",
+        "apply_all_count": "Novú aj všetku poštu ({count})",
+        "applying": "Používa sa „{name}“…",
+        "trash_title": "Presunúť existujúcu poštu do koša?",
+        "trash_confirm": "{count, plural, one {Tým sa presunie # existujúca správa do koša.} few {Tým sa presunú # existujúce správy do koša.} many {Tým sa presunie # existujúcej správy do koša.} other {Tým sa presunie # existujúcich správ do koša.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Tým sa presunie do koša každá existujúca správa, ktorej pravidlo zodpovedá.} other {Tým sa presunie #+ existujúcich správ do koša.}}",
+        "trash_button": "Uložiť a presunúť do koša",
+        "delivered_to_new_only": "Toto pravidlo platí len pre novú poštu. Doručená pošta si neuchováva adresu, na ktorú bola doručená."
+      }
     },
     "templates": {
       "title": "E-mailové šablóny",
@@ -4001,6 +4042,7 @@
       "load_failed": "Pravidlá sa nepodarilo načítať",
       "none": "Zatiaľ žiadne pravidlá",
       "new_mail_only": "Len pre nové správy",
+      "cannot_run": "Na existujúce správy možno použiť len pravidlá, ktoré presúvajú, kopírujú, označujú ako prečítané, hviezdičkou alebo štítkom alebo zahadzujú, a len ak nekontrolujú telo správy, „Doručené na“ ani regulárny výraz.",
       "running": "Spúšťa sa „{name}“ v priečinku {folder}…"
     },
     "find_emails_from": "Nájsť e-maily od {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Označiť každú neprečítanú správu vo vašom osobnom účte ako prečítanú?",
     "empty_all_confirm_title": "Vyprázdniť kôš pre všetky účty",
     "empty_all_confirm_message": "Natrvalo odstrániť {count, plural, one {správu} few {všetky # správy} many {všetkých # správy} other {všetkých # správ}} v koši všetkých vašich účtov? Nedá sa to vrátiť späť.",
+    "empty_all_confirm_shared": "Týka sa to aj zdieľaných účtov {accounts}.",
+    "empty_all_confirm_kept": "Kôš účtu {accounts} zostane, ako je, pretože v ňom nemôžete mazať.",
     "toast_emptied_all": "Kôš bol vyprázdnený vo všetkých účtoch",
     "toast_error_empty_all_partial": "Kôš bol vyprázdnený, no pri niektorých účtoch to zlyhalo",
     "toast_error_empty_all": "Vyprázdnenie koša zlyhalo",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Ľudia, s ktorými zdieľate kalendár, vidia len čas.",
       "visibility_hint_secret": "Ľudia, s ktorými zdieľate kalendár, udalosť nevidia a čas zostane voľný.",
       "visibility_series": "Platí pre všetky opakovania.",
+      "color_calendar": "Použiť farbu kalendára",
+      "overlap": "Prekrýva sa s {title} ({details})",
+      "overlap_plain": "Prekrýva sa s {title}",
+      "overlap_more": "A ďalšie: {count}",
       "save": "Uložiť",
       "cancel": "Zrušiť",
       "color": "Farba"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (zoznam úloh, v kalendári sa nezobrazuje)",
     "copy_to_account": "Kopírovať do {address}",
     "copied_to_account": "Skopírované do {address}",
-    "delete_original": "Odstrániť originál"
+    "delete_original": "Odstrániť originál",
+    "copy_to_calendar": "Kopírovať do kalendára…",
+    "copy_to_calendar_title": "Kopírovať do kalendára",
+    "copy_to_calendar_hint": "Kópia je vaša vlastná udalosť. Zmeny originálu ju nezmenia.",
+    "copy_button": "Kopírovať",
+    "copied_to_calendar": "Skopírované do {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Táto zmena vyžaduje pripojenie k serveru. Zatiaľ zmeňte iba túto udalosť alebo to skúste znova, keď budete online."

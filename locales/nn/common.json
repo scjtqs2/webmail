@@ -1343,6 +1343,7 @@
     "success": "Vellykka",
     "cancel": "Avbryt",
     "save": "Lagre",
+    "ready_to_save": "Klar til å lagrast",
     "delete": "Slett",
     "edit": "Rediger",
     "close": "Lukk",
@@ -1835,6 +1836,8 @@
       "title": "E-postetikettar",
       "description": "Lag etikettar for å sortere meldingane dine. Etikettane vert lagra saman med meldingane dine på tenaren.",
       "add_keyword": "Ny etikett",
+      "sort_az": "Sorter A–Å",
+      "sorted": "Etikettar sorterte A–Å",
       "empty": "Ingen etikettar enno.",
       "label_field": "Visingsnamn",
       "label_placeholder": "t.d. Arbeid, Privat, Hasteleg",
@@ -3038,6 +3041,7 @@
         "from": "Frå",
         "to": "Til",
         "cc": "Kopi",
+        "delivered_to": "Levert til",
         "subject": "Emne",
         "header": "Eige hovud",
         "size": "Storleik",
@@ -3177,7 +3181,44 @@
       "apply_existing_none": "Ingen melding i {folder} samsvarar med denne regelen enno.",
       "period_status_scheduled": "planlagd",
       "period_status_active": "aktiv",
-      "period_status_expired": "utgått"
+      "period_status_expired": "utgått",
+      "editor": {
+        "if": "Viss",
+        "match_all": "kvar",
+        "match_any": "éin",
+        "of_conditions": "av desse vilkåra er oppfylt",
+        "match_type": "Kva vilkår som må vere oppfylte",
+        "condition_number": "Vilkår {number}",
+        "comparison": "Samanlikning",
+        "size_unit": "Eining",
+        "has_attachment": "Har vedlegg",
+        "attachment_type": "Vedlegg av typen",
+        "size_units": {
+          "bytes": "byte",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Bruk òg andre reglar",
+        "skip_rule": "Hopp over denne regelen",
+        "matching": "{count, plural, =0 {Ingen meldingar passar} one {# melding passar} other {# meldingar passar}}",
+        "matching_partial": "{count, plural, =0 {Ingen nyare meldingar passar} other {#+ meldingar passar}}",
+        "checking": "Ser etter meldingar som passar…",
+        "tags": "Etikettar",
+        "attachment_type_invalid": "Skriv inn ein filtype, til dømes pdf",
+        "action_conflict": "Forkast og Avvis kan ikkje kombinerast med Flytt, Kopier eller Behald, eller med kvarandre",
+        "apply_to": "Bruk på",
+        "apply_new": "Berre ny e-post",
+        "apply_folder": "Ny e-post og {folder}",
+        "apply_folder_count": "Ny e-post og {folder} ({count})",
+        "apply_all": "Ny e-post og all e-post",
+        "apply_all_count": "Ny e-post og all e-post ({count})",
+        "applying": "Brukar «{name}»…",
+        "trash_title": "Flytte eksisterande e-post til papirkorga?",
+        "trash_confirm": "{count, plural, one {Dette flyttar # eksisterande melding til papirkorga.} other {Dette flyttar # eksisterande meldingar til papirkorga.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Dette flyttar alle eksisterande meldingar som regelen passar på, til papirkorga.} other {Dette flyttar #+ eksisterande meldingar til papirkorga.}}",
+        "trash_button": "Lagre og flytt til papirkorga",
+        "delivered_to_new_only": "Denne regelen verkar berre på ny e-post. Levert e-post tek ikkje vare på adressa han vart levert til."
+      }
     },
     "templates": {
       "title": "E-postmalar",
@@ -4009,6 +4050,7 @@
       "load_failed": "Klarte ikkje laste inn reglane",
       "none": "Ingen reglar enno",
       "new_mail_only": "Berre for nye meldingar",
+      "cannot_run": "Berre reglar som flyttar, kopierer, merkjer som lesen, stjernemerkjer, merkjer med etikett eller forkastar, kan køyrast på eksisterande meldingar, og berre om dei ikkje sjekkar meldingsteksten, «Levert til» eller eit regulært uttrykk.",
       "running": "Køyrer «{name}» på {folder}…"
     },
     "find_emails_from": "Finn e-post frå {name}"
@@ -4045,6 +4087,8 @@
     "mark_all_confirm_message": "Merke alle ulesne meldingar i den personlege kontoen din som lesne?",
     "empty_all_confirm_title": "Tøm papirkorga for alle kontoar",
     "empty_all_confirm_message": "Slette {count, plural, one {meldinga} other {alle # meldingane}} i papirkorga til alle kontoane dine for alltid? Du kan ikkje angre dette.",
+    "empty_all_confirm_shared": "Dette gjeld òg dei delte kontoane {accounts}.",
+    "empty_all_confirm_kept": "Papirkorga i {accounts} blir som ho er, fordi du ikkje kan slette der.",
     "toast_emptied_all": "Papirkorga er tømd på tvers av alle kontoar",
     "toast_error_empty_all_partial": "Papirkorga er tømd, men nokre kontoar feila",
     "toast_error_empty_all": "Klarte ikkje tømme papirkorga",
@@ -4921,6 +4965,10 @@
       "visibility_hint_private": "Dei du deler kalenderen med, ser berre tidspunktet.",
       "visibility_hint_secret": "Dei du deler kalenderen med, ser ikkje hendinga, og tida held seg ledig.",
       "visibility_series": "Gjeld alle gjentakingar.",
+      "color_calendar": "Bruk fargen til kalenderen",
+      "overlap": "Overlappar med {title} ({details})",
+      "overlap_plain": "Overlappar med {title}",
+      "overlap_more": "Og {count} til",
       "save": "Lagre",
       "cancel": "Avbryt",
       "color": "Farge"
@@ -5445,7 +5493,12 @@
     "task_list_not_in_calendar": "{name} (oppgåveliste, ikkje vist i kalenderen)",
     "copy_to_account": "Kopier til {address}",
     "copied_to_account": "Kopiert til {address}",
-    "delete_original": "Slett originalen"
+    "delete_original": "Slett originalen",
+    "copy_to_calendar": "Kopier til kalender…",
+    "copy_to_calendar_title": "Kopier til kalender",
+    "copy_to_calendar_hint": "Kopien er di eiga hending. Endringar i originalen endrar henne ikkje.",
+    "copy_button": "Kopier",
+    "copied_to_calendar": "Kopiert til {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Denne endringa krev tilkopling til tenaren. Endre berre denne hendinga for no, eller prøv igjen når du er på nett att."

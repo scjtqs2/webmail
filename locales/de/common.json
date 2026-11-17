@@ -1335,6 +1335,7 @@
     "success": "Erfolg",
     "cancel": "Abbrechen",
     "save": "Speichern",
+    "ready_to_save": "Bereit zum Speichern",
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "close": "Schließen",
@@ -1824,6 +1825,8 @@
       "title": "E-Mail-Labels",
       "description": "Erstellen Sie Labels, um Ihre E-Mails zu ordnen. Die Labels werden mit Ihren E-Mails auf dem Server gespeichert.",
       "add_keyword": "Label hinzufügen",
+      "sort_az": "A–Z sortieren",
+      "sorted": "Labels von A bis Z sortiert",
       "empty": "Noch keine Labels.",
       "label_field": "Anzeigename",
       "label_placeholder": "z.B. Arbeit, Privat, Dringend",
@@ -3023,6 +3026,7 @@
         "from": "Von",
         "to": "An",
         "cc": "Cc",
+        "delivered_to": "Zugestellt an",
         "subject": "Betreff",
         "header": "Benutzerdefinierter Header",
         "size": "Größe",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "Noch keine Nachricht in {folder} passt zu dieser Regel.",
       "period_status_scheduled": "geplant",
       "period_status_active": "aktiv",
-      "period_status_expired": "abgelaufen"
+      "period_status_expired": "abgelaufen",
+      "editor": {
+        "if": "Wenn",
+        "match_all": "jede",
+        "match_any": "eine",
+        "of_conditions": "dieser Bedingungen zutrifft",
+        "match_type": "Welche Bedingungen zutreffen müssen",
+        "condition_number": "Bedingung {number}",
+        "comparison": "Vergleich",
+        "size_unit": "Einheit",
+        "has_attachment": "Hat einen Anhang",
+        "attachment_type": "Anhang vom Typ",
+        "size_units": {
+          "bytes": "Byte",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Weitere Regeln anwenden",
+        "skip_rule": "Diese Regel überspringen",
+        "matching": "{count, plural, =0 {Keine Nachricht passt} one {# Nachricht passt} other {# Nachrichten passen}}",
+        "matching_partial": "{count, plural, =0 {Keine neuere Nachricht passt} other {#+ Nachrichten passen}}",
+        "checking": "Passende Nachrichten werden gesucht…",
+        "tags": "Labels",
+        "attachment_type_invalid": "Geben Sie eine Dateiendung ein, zum Beispiel pdf",
+        "action_conflict": "Lautlos löschen und Ablehnen lassen sich weder mit Verschieben, Kopieren oder Behalten noch miteinander kombinieren",
+        "apply_to": "Anwenden auf",
+        "apply_new": "Nur neue Nachrichten",
+        "apply_folder": "Neue Nachrichten und {folder}",
+        "apply_folder_count": "Neue Nachrichten und {folder} ({count})",
+        "apply_all": "Neue und alle vorhandenen Nachrichten",
+        "apply_all_count": "Neue und alle vorhandenen Nachrichten ({count})",
+        "applying": "„{name}“ wird angewendet…",
+        "trash_title": "Vorhandene Nachrichten in den Papierkorb verschieben?",
+        "trash_confirm": "{count, plural, one {Damit wird # vorhandene Nachricht in den Papierkorb verschoben.} other {Damit werden # vorhandene Nachrichten in den Papierkorb verschoben.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Damit wird jede vorhandene Nachricht, auf die die Regel passt, in den Papierkorb verschoben.} other {Damit werden #+ vorhandene Nachrichten in den Papierkorb verschoben.}}",
+        "trash_button": "Speichern und in den Papierkorb verschieben",
+        "delivered_to_new_only": "Diese Regel wirkt nur auf neue Nachrichten. Zugestellte Nachrichten behalten die Adresse nicht, an die sie zugestellt wurden."
+      }
     },
     "templates": {
       "title": "E-Mail-Vorlagen",
@@ -4001,6 +4042,7 @@
       "load_failed": "Die Regeln konnten nicht geladen werden",
       "none": "Noch keine Regeln",
       "new_mail_only": "Nur für neue Nachrichten",
+      "cannot_run": "Auf vorhandene Nachrichten lassen sich nur Regeln anwenden, die verschieben, kopieren, als gelesen markieren, mit Stern markieren, mit Label versehen oder löschen, und nur, wenn sie weder den Nachrichtentext noch „Zugestellt an“ noch einen regulären Ausdruck prüfen.",
       "running": "„{name}“ wird auf {folder} angewendet…"
     },
     "find_emails_from": "E-Mails von {name} finden"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Jede ungelesene Nachricht in Ihrem persönlichen Konto als gelesen markieren?",
     "empty_all_confirm_title": "Papierkorb für alle Konten leeren",
     "empty_all_confirm_message": "{count, plural, one {Die Nachricht} other {Alle # Nachrichten}} im Papierkorb aller Ihrer Konten endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "empty_all_confirm_shared": "Das gilt auch für die freigegebenen Konten {accounts}.",
+    "empty_all_confirm_kept": "Der Papierkorb von {accounts} bleibt, wie er ist, weil Sie dort nicht löschen dürfen.",
     "toast_emptied_all": "Papierkorb in allen Konten geleert",
     "toast_error_empty_all_partial": "Papierkorb geleert, aber bei einigen Konten fehlgeschlagen",
     "toast_error_empty_all": "Papierkorb konnte nicht geleert werden",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Personen, mit denen Sie den Kalender teilen, sehen nur die Uhrzeit.",
       "visibility_hint_secret": "Personen, mit denen Sie den Kalender teilen, sehen den Termin nicht, und die Zeit bleibt frei.",
       "visibility_series": "Gilt für alle Termine der Serie.",
+      "color_calendar": "Farbe des Kalenders verwenden",
+      "overlap": "Überschneidet sich mit {title} ({details})",
+      "overlap_plain": "Überschneidet sich mit {title}",
+      "overlap_more": "Und {count} weitere",
       "save": "Speichern",
       "cancel": "Abbrechen",
       "color": "Farbe"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (Aufgabenliste, nicht im Kalender sichtbar)",
     "copy_to_account": "In {address} kopieren",
     "copied_to_account": "In {address} kopiert",
-    "delete_original": "Original löschen"
+    "delete_original": "Original löschen",
+    "copy_to_calendar": "In Kalender kopieren…",
+    "copy_to_calendar_title": "In Kalender kopieren",
+    "copy_to_calendar_hint": "Die Kopie ist Ihr eigener Termin. Änderungen am Original ändern sie nicht.",
+    "copy_button": "Kopieren",
+    "copied_to_calendar": "In {calendar} kopiert"
   },
   "calendar_offline": {
     "split_needs_server": "Für diese Änderung ist eine Verbindung zum Server nötig. Ändern Sie vorerst nur diesen Termin, oder versuchen Sie es erneut, wenn Sie wieder online sind."

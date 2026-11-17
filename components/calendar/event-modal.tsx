@@ -14,12 +14,13 @@ import { findMeetingLink, locationAction, mapsUrl, primaryLocationName } from "@
 import { descriptionAsText, isHtmlDescription, plainDescriptionFields } from "@/lib/calendar-description";
 import { locationsWithName } from "@/lib/calendar-event-normalization";
 import { ParticipantStatusBadge } from "./rsvp-buttons";
-import { format, parseISO, addHours, isSameDay } from "date-fns";
+import { format, parseISO, addDays, addHours, isSameDay } from "date-fns";
 import type { CalendarEvent, Calendar, CalendarParticipant, CalendarEventAlert, CalendarRecurrenceRule } from "@/lib/jmap/types";
 import { AlertListEditor, AlertSummary, formatEventAlertsLabel } from "./alert-list-editor";
 import { alertRowToOffset, describeAlert, getCalendarDefaultAlerts, newAlertRow, withOwnAlertIds, type AlertAction, type AlertRow as EditableAlertRow, type AlertUnit } from "@/lib/calendar-alerts";
 import { RecurrenceEditor, buildRecurrenceSummary, isSimpleRecurrenceRule } from "./recurrence-editor";
-import { parseDuration, getEventColor } from "./event-card";
+import { parseDuration, getEventColor, sanitizeColor } from "./event-card";
+import { CalendarColorPicker } from "@/components/settings/calendar-management-settings";
 import { buildAllDayDuration, getEventDisplayEndDate, getEventEndDate, getEventStartDate, getPrimaryCalendarId } from "@/lib/calendar-utils";
 import { displayNow, fromDisplayDate, fromWallClock, getEffectiveTimeZone, parseLocalDateTime, toZonedDisplayDate } from "@/lib/timezone";
 import { TimeZonePicker } from "@/components/settings/time-zone-picker";
@@ -47,11 +48,13 @@ import { changesWhen, type EditorAttendee, type EventEditorState } from "@/lib/r
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { linkCallback } from "@/lib/plugin-sandbox/slot-callbacks";
 import { useSettingsStore } from "@/stores/settings-store";
-import { generateUUID } from "@/lib/utils";
+import { cn, generateUUID } from "@/lib/utils";
 import { useFormatEventDate } from "@/hooks/use-format-event-date";
 import { useCalendarLocale } from "@/hooks/use-calendar-locale";
 import { useIsPaneScoped } from "@/hooks/use-pane-context";
 import { useContactNameResolver } from "@/hooks/use-contact-name-resolver";
+import { useEventUserEmails } from "@/hooks/use-event-user-emails";
+import { findOverlappingEvents } from "@/lib/calendar-overlaps";
 import { confirmInvitationRecipients } from "@/lib/outgoing/external-recipients";
 import {
   calendarFormHooks,
@@ -113,6 +116,8 @@ interface EventModalProps {
   /** The server's maxParticipantsPerEvent, for a warning; null when not advertised. */
   maxParticipants?: number | null;
   isMobile?: boolean;
+  /** The events loaded in the calendar: the form says which of them share its time (#1685). */
+  overlapEvents?: CalendarEvent[];
 }
 
 /**
@@ -154,6 +159,15 @@ export function savedStatusFields(
   if (choice.freeBusyStatus !== (event.freeBusyStatus ?? "busy")) fields.freeBusyStatus = choice.freeBusyStatus;
   if (choice.privacy && choice.privacy !== (event.privacy ?? "public")) fields.privacy = choice.privacy;
   return fields;
+}
+
+/**
+ * What Show as starts at for a new event: an all-day one (a holiday, a
+ * birthday, a trip) doesn't block the day, a timed one does, as in Outlook
+ * and Google Calendar (#1684). Pure, for testing.
+ */
+export function defaultShowAs(allDay: boolean): CalendarEvent["freeBusyStatus"] {
+  return allDay ? "free" : "busy";
 }
 
 function formatDateInput(d: Date): string {
@@ -296,6 +310,7 @@ export function EventModal({
   isSubscriptionCalendar,
   maxParticipants = null,
   isMobile = false,
+  overlapEvents,
 }: EventModalProps) {
   const t = useTranslations("calendar");
   const paint = useCvdColor();
@@ -427,8 +442,19 @@ export function EventModal({
   const [endDate, setEndDate] = useState(formatDateInput(initialEndWall));
   const [endTime, setEndTime] = useState(formatTimeInput(initialEndWall));
   const [allDay, setAllDay] = useState(seed?.showWithoutTime || defaultAllDay || false);
-  const [freeBusyStatus, setFreeBusyStatus] = useState<CalendarEvent["freeBusyStatus"]>(seed?.freeBusyStatus ?? "busy");
+  // A new all-day event starts as free, a timed one as busy (#1684), until
+  // the user picks one under Show as.
+  const [freeBusyStatus, setFreeBusyStatus] = useState<CalendarEvent["freeBusyStatus"]>(
+    () => (seed ? seed.freeBusyStatus ?? "busy" : defaultShowAs(!!defaultAllDay)),
+  );
+  const showAsPickedRef = useRef(false);
+  const handleAllDayChange = (next: boolean) => {
+    setAllDay(next);
+    if (!seed && !showAsPickedRef.current) setFreeBusyStatus(defaultShowAs(next));
+  };
   const [privacy, setPrivacy] = useState<CalendarEvent["privacy"]>(seed?.privacy ?? "public");
+  // The event's own colour; null paints it in its calendar's (#1668).
+  const [color, setColor] = useState<string | null>(seed?.color || null);
   // The zone the fields are on: none for an all-day event.
   const fieldZone = allDay ? null : timeZone;
   // The form's times on the user's clock, beside another zone's.
@@ -609,10 +635,10 @@ export function EventModal({
   const formState = useMemo(() => ({
     title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone,
     calendarId, recurrence, customRule, useDefaultAlerts, alertRows, preservedAlerts, attendees, sendInvitations,
-    freeBusyStatus, privacy,
+    freeBusyStatus, privacy, color,
   }), [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone,
     calendarId, recurrence, customRule, useDefaultAlerts, alertRows, preservedAlerts, attendees, sendInvitations,
-    freeBusyStatus, privacy]);
+    freeBusyStatus, privacy, color]);
   const [initialForm] = useState(formState);
   const isDirty = mode === "edit" && JSON.stringify(formState) !== JSON.stringify(initialForm);
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
@@ -626,7 +652,7 @@ export function EventModal({
     setCalendarId(f.calendarId); setRecurrence(f.recurrence); setCustomRule(f.customRule); setShowRecurrenceEditor(false);
     setUseDefaultAlerts(f.useDefaultAlerts); setAlertRows(f.alertRows); setPreservedAlerts(f.preservedAlerts); setRefreshDefaults(false);
     setAttendees(f.attendees); setSendInvitations(f.sendInvitations);
-    setFreeBusyStatus(f.freeBusyStatus); setPrivacy(f.privacy);
+    setFreeBusyStatus(f.freeBusyStatus); setPrivacy(f.privacy); setColor(f.color); showAsPickedRef.current = false;
   }, [initialForm]);
 
   const { dialogProps: discardDialogProps, confirm: confirmDiscard } = useConfirmDialog();
@@ -721,6 +747,52 @@ export function EventModal({
     }, 250);
     return () => { cancelled = true; clearTimeout(t); };
   }, [title, description, startDate, startTime, endDate, endTime, allDay, location, virtualLocation, calendarId, event?.uid, attendees]);
+
+  // Loaded events that share the form's time (#1685): a notice, not a
+  // block. A free event takes no time, so it overlaps nothing.
+  const userEmailsForEvent = useEventUserEmails(currentUserEmails);
+  const overlaps = useMemo(() => {
+    if (mode !== "edit" || freeBusyStatus === "free" || !overlapEvents?.length) return [];
+    let window: { start: Date; end: Date; allDay: boolean };
+    if (allDay) {
+      const start = new Date(`${startDate}T00:00:00`);
+      const last = new Date(`${endDate}T00:00:00`);
+      window = { start, end: addDays(last < start ? start : last, 1), allDay: true };
+    } else {
+      // The fields are a wall clock in the form's zone, as for the grid preview.
+      const start = zoneWallToDisplay(new Date(`${startDate}T${startTime || "00:00"}:00`), fieldZone);
+      const end = zoneWallToDisplay(new Date(`${endDate}T${endTime || "00:00"}:00`), fieldZone);
+      window = { start, end: end < start ? addHours(start, 1) : end, allDay: false };
+    }
+    return findOverlappingEvents(window, overlapEvents, { excludeUid: event?.uid, userEmailsFor: userEmailsForEvent });
+  }, [mode, freeBusyStatus, overlapEvents, allDay, startDate, startTime, endDate, endTime, fieldZone, event?.uid, userEmailsForEvent]);
+  const overlapWarnings = useMemo<ConflictWarning[]>(() => {
+    const formDay = new Date(`${startDate}T00:00:00`);
+    const time = (d: Date) => format(d, timeDisplayFmt);
+    const shown: ConflictWarning[] = overlaps.slice(0, 3).map((other) => {
+      const details: string[] = [];
+      if (!other.showWithoutTime) {
+        const start = getEventStartDate(other);
+        const day = isSameDay(start, formDay) ? "" : `${new Intl.DateTimeFormat(locale, { weekday: "short" }).format(start)} `;
+        details.push(`${day}${time(start)}–${time(getEventEndDate(other))}`);
+      }
+      const otherCalendar = calendars.find((c) => other.calendarIds?.[c.id]);
+      if (otherCalendar) details.push(shownName.calendar(otherCalendar));
+      const otherTitle = other.title || t("events.no_title");
+      return {
+        key: `overlap:${other.id}`,
+        severity: "warning",
+        message: details.length > 0
+          ? t("form.overlap", { title: otherTitle, details: details.join(", ") })
+          : t("form.overlap_plain", { title: otherTitle }),
+      };
+    });
+    if (overlaps.length > 3) {
+      shown.push({ key: "overlap:more", severity: "warning", message: t("form.overlap_more", { count: overlaps.length - 3 }) });
+    }
+    return shown;
+  }, [overlaps, startDate, timeDisplayFmt, locale, calendars, shownName, t]);
+  const conflictWarnings = useMemo(() => [...overlapWarnings, ...pluginConflictWarnings], [overlapWarnings, pluginConflictWarnings]);
 
   // Plugins hear about an existing event opened for reading once per event,
   // and about the form each time it opens (new event, or view -> edit).
@@ -897,6 +969,8 @@ export function EventModal({
       calendarIds: { [calendarId]: true },
       ...savedStatusFields(event, { freeBusyStatus, privacy: privacyEditable ? privacy : undefined }),
     };
+    // Sent only when it changed; null goes back to the calendar's colour.
+    if (event ? color !== (event.color || null) : !!color) data.color = color;
 
     // On an existing event the empty string is how a description gets cleared, but
     // sending it on creation writes a `DESCRIPTION:` with nothing after it — which
@@ -1048,7 +1122,7 @@ export function EventModal({
       savingRef.current = false;
       setIsSaving(false);
     }
-  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone, initialForm, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, freeBusyStatus, privacy, privacyEditable, currentUserEmails, userIsOrganizer, resolveContactName, event, seed, eventDescription, onSave, isSaving, t]);
+  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone, initialForm, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, freeBusyStatus, privacy, privacyEditable, color, currentUserEmails, userIsOrganizer, resolveContactName, event, seed, eventDescription, onSave, isSaving, t]);
 
   // The user's own answer, and the owner's in a calendar shared with them
   // (lib/calendar-delegate.ts).
@@ -1426,7 +1500,7 @@ export function EventModal({
               type="checkbox"
               id="allDay"
               checked={allDay}
-              onChange={(e) => setAllDay(e.target.checked)}
+              onChange={(e) => handleAllDayChange(e.target.checked)}
               className="rounded border-input"
             />
             <label htmlFor="allDay" className="text-sm">{t("form.all_day_event")}</label>
@@ -1514,9 +1588,9 @@ export function EventModal({
             </div>
           )}
 
-          {pluginConflictWarnings.length > 0 && (
-            <div className="space-y-1.5">
-              {pluginConflictWarnings.map(w => (
+          {conflictWarnings.length > 0 && (
+            <div className="space-y-1.5" data-testid="event-conflict-warnings">
+              {conflictWarnings.map(w => (
                 <div
                   key={w.key}
                   className={
@@ -1603,7 +1677,7 @@ export function EventModal({
               <select
                 id={labelFor("show_as")}
                 value={freeBusyStatus}
-                onChange={(e) => setFreeBusyStatus(e.target.value as CalendarEvent["freeBusyStatus"])}
+                onChange={(e) => { showAsPickedRef.current = true; setFreeBusyStatus(e.target.value as CalendarEvent["freeBusyStatus"]); }}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-hidden"
               >
                 <option value="busy">{t("form.show_as_busy")}</option>
@@ -1634,6 +1708,31 @@ export function EventModal({
                 {recurrence !== "none" && <> {t("form.visibility_series")}</>}
               </p>
             )}
+          </div>
+
+          {/* The event's own colour, or its calendar's (#1668). */}
+          <div>
+            <span id={labelFor("color")} className="text-sm font-medium mb-1 block">{t("form.color")}</span>
+            <div role="group" aria-labelledby={labelFor("color")} className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <button
+                type="button"
+                onClick={() => setColor(null)}
+                aria-pressed={color === null}
+                data-testid="event-color-calendar"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border border-input px-2 py-1 text-sm hover:bg-muted transition-colors",
+                  color === null && "ring-2 ring-offset-1 ring-offset-background ring-foreground",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: paint(sanitizeColor(calendars.find((c) => c.id === calendarId)?.color)) }}
+                />
+                {t("form.color_calendar")}
+              </button>
+              <CalendarColorPicker value={color ?? ""} onChange={setColor} allowCustom />
+            </div>
           </div>
 
           <div>

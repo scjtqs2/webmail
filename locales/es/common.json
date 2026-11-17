@@ -1335,6 +1335,7 @@
     "success": "Éxito",
     "cancel": "Cancelar",
     "save": "Guardar",
+    "ready_to_save": "Listo para guardar",
     "delete": "Eliminar",
     "edit": "Editar",
     "close": "Cerrar",
@@ -1824,6 +1825,8 @@
       "title": "Etiquetas de correo",
       "description": "Crea etiquetas para ordenar tus mensajes. Las etiquetas se guardan con tus mensajes en el servidor.",
       "add_keyword": "Añadir etiqueta",
+      "sort_az": "Ordenar A–Z",
+      "sorted": "Etiquetas ordenadas de la A a la Z",
       "empty": "Todavía no hay etiquetas.",
       "label_field": "Nombre para mostrar",
       "label_placeholder": "ej. Trabajo, Personal, Urgente",
@@ -3023,6 +3026,7 @@
         "from": "De",
         "to": "Para",
         "cc": "Cc",
+        "delivered_to": "Entregado a",
         "subject": "Asunto",
         "header": "Encabezado personalizado",
         "size": "Tamaño",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "Ningún mensaje de {folder} coincide todavía con esta regla.",
       "period_status_scheduled": "programada",
       "period_status_active": "activa",
-      "period_status_expired": "caducada"
+      "period_status_expired": "caducada",
+      "editor": {
+        "if": "Si se cumple",
+        "match_all": "cada una",
+        "match_any": "alguna",
+        "of_conditions": "de estas condiciones",
+        "match_type": "Qué condiciones deben cumplirse",
+        "condition_number": "Condición {number}",
+        "comparison": "Comparación",
+        "size_unit": "Unidad",
+        "has_attachment": "Tiene un adjunto",
+        "attachment_type": "Adjunto de tipo",
+        "size_units": {
+          "bytes": "bytes",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Seguir aplicando las demás reglas",
+        "skip_rule": "Omitir esta regla",
+        "matching": "{count, plural, =0 {Ningún mensaje coincide} one {# mensaje coincide} other {# mensajes coinciden}}",
+        "matching_partial": "{count, plural, =0 {Ningún mensaje reciente coincide} other {#+ mensajes coinciden}}",
+        "checking": "Buscando correo que coincida…",
+        "tags": "Etiquetas",
+        "attachment_type_invalid": "Escribe una extensión de archivo, como pdf",
+        "action_conflict": "Descartar y Rechazar no se pueden combinar con Mover, Copiar o Mantener, ni entre sí",
+        "apply_to": "Aplicar a",
+        "apply_new": "Solo el correo nuevo",
+        "apply_folder": "El correo nuevo y {folder}",
+        "apply_folder_count": "El correo nuevo y {folder} ({count})",
+        "apply_all": "El correo nuevo y todo el correo",
+        "apply_all_count": "El correo nuevo y todo el correo ({count})",
+        "applying": "Aplicando «{name}»…",
+        "trash_title": "¿Mover el correo existente a la papelera?",
+        "trash_confirm": "{count, plural, one {Esto mueve # mensaje existente a la papelera.} other {Esto mueve # mensajes existentes a la papelera.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Esto mueve a la papelera todos los mensajes existentes que coinciden con la regla.} other {Esto mueve #+ mensajes existentes a la papelera.}}",
+        "trash_button": "Guardar y mover a la papelera",
+        "delivered_to_new_only": "Esta regla solo funciona con el correo nuevo. El correo entregado no guarda la dirección a la que se entregó."
+      }
     },
     "templates": {
       "title": "Plantillas de correo",
@@ -4001,6 +4042,7 @@
       "load_failed": "No se pudieron cargar las reglas",
       "none": "Aún no hay reglas",
       "new_mail_only": "Solo para mensajes nuevos",
+      "cannot_run": "Solo las reglas que mueven, copian, marcan como leído, destacan, etiquetan o descartan se pueden aplicar a mensajes existentes, y solo si no comprueban el cuerpo, «Entregado a» ni una expresión regular.",
       "running": "Ejecutando «{name}» en {folder}…"
     },
     "find_emails_from": "Buscar correos de {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "¿Marcar todos los mensajes no leídos de su cuenta personal como leídos?",
     "empty_all_confirm_title": "Vaciar la papelera de todas las cuentas",
     "empty_all_confirm_message": "¿Eliminar para siempre {count, plural, one {el mensaje} other {los # mensajes}} de la papelera de todas tus cuentas? No se puede deshacer.",
+    "empty_all_confirm_shared": "Esto incluye las cuentas compartidas {accounts}.",
+    "empty_all_confirm_kept": "La papelera de {accounts} se queda como está, porque no puedes eliminar ahí.",
     "toast_emptied_all": "Papelera vaciada en todas las cuentas",
     "toast_error_empty_all_partial": "Papelera vaciada, pero algunas cuentas fallaron",
     "toast_error_empty_all": "No se pudo vaciar la papelera",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Las personas con las que compartes el calendario solo ven la hora.",
       "visibility_hint_secret": "Las personas con las que compartes el calendario no ven el evento, y no bloquea la hora.",
       "visibility_series": "Se aplica a todas las repeticiones.",
+      "color_calendar": "Usar el color del calendario",
+      "overlap": "Se solapa con {title} ({details})",
+      "overlap_plain": "Se solapa con {title}",
+      "overlap_more": "Y {count} más",
       "save": "Guardar",
       "cancel": "Cancelar",
       "color": "Color"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (lista de tareas, no se muestra en el calendario)",
     "copy_to_account": "Copiar a {address}",
     "copied_to_account": "Copiado a {address}",
-    "delete_original": "Eliminar el original"
+    "delete_original": "Eliminar el original",
+    "copy_to_calendar": "Copiar a un calendario…",
+    "copy_to_calendar_title": "Copiar a un calendario",
+    "copy_to_calendar_hint": "La copia es un evento tuyo. Los cambios en el original no la modifican.",
+    "copy_button": "Copiar",
+    "copied_to_calendar": "Copiado en {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Este cambio necesita conexión con el servidor. Cambia solo este evento por ahora o inténtalo de nuevo cuando vuelvas a tener conexión."

@@ -1335,6 +1335,7 @@
     "success": "Succes",
     "cancel": "Anulează",
     "save": "Salvare",
+    "ready_to_save": "Gata de salvare",
     "delete": "Șterge",
     "edit": "Editare",
     "close": "Închide",
@@ -1827,6 +1828,8 @@
       "title": "Etichete de e-mail",
       "description": "Creați etichete pentru a vă sorta mesajele. Etichetele sunt salvate împreună cu mesajele pe server.",
       "add_keyword": "Adăugați etichetă",
+      "sort_az": "Sortați A–Z",
+      "sorted": "Etichetele au fost sortate A–Z",
       "empty": "Încă nu există etichete.",
       "label_field": "Nume afișat",
       "label_placeholder": "de ex. Serviciu, Personal, Urgent",
@@ -3030,6 +3033,7 @@
         "from": "De la",
         "to": "Către",
         "cc": "Cc",
+        "delivered_to": "Livrat la",
         "subject": "Subiect",
         "header": "Antet personalizat",
         "size": "Dimensiune",
@@ -3169,7 +3173,44 @@
       "apply_existing_none": "Niciun mesaj din {folder} nu se potrivește încă acestei reguli.",
       "period_status_scheduled": "programată",
       "period_status_active": "activă",
-      "period_status_expired": "expirată"
+      "period_status_expired": "expirată",
+      "editor": {
+        "if": "Dacă este îndeplinită",
+        "match_all": "fiecare",
+        "match_any": "oricare",
+        "of_conditions": "dintre aceste condiții",
+        "match_type": "Ce condiții trebuie îndeplinite",
+        "condition_number": "Condiția {number}",
+        "comparison": "Comparație",
+        "size_unit": "Unitate",
+        "has_attachment": "Are un atașament",
+        "attachment_type": "Atașament de tipul",
+        "size_units": {
+          "bytes": "octeți",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Continuă să aplici celelalte reguli",
+        "skip_rule": "Omite această regulă",
+        "matching": "{count, plural, =0 {Niciun mesaj nu se potrivește} one {Se potrivește # mesaj} few {Se potrivesc # mesaje} other {Se potrivesc # de mesaje}}",
+        "matching_partial": "{count, plural, =0 {Niciun mesaj recent nu se potrivește} other {Se potrivesc #+ mesaje}}",
+        "checking": "Se caută mesajele care se potrivesc…",
+        "tags": "Etichete",
+        "attachment_type_invalid": "Introduceți o extensie de fișier, de exemplu pdf",
+        "action_conflict": "Ignorarea și respingerea nu se pot combina cu mutarea, copierea sau păstrarea și nici între ele",
+        "apply_to": "Aplică la",
+        "apply_new": "Doar corespondența nouă",
+        "apply_folder": "Corespondența nouă și {folder}",
+        "apply_folder_count": "Corespondența nouă și {folder} ({count})",
+        "apply_all": "Corespondența nouă și toată corespondența",
+        "apply_all_count": "Corespondența nouă și toată corespondența ({count})",
+        "applying": "Se aplică „{name}”…",
+        "trash_title": "Mutați corespondența existentă în Coșul de gunoi?",
+        "trash_confirm": "{count, plural, one {Astfel, # mesaj existent este mutat în Coșul de gunoi.} few {Astfel, # mesaje existente sunt mutate în Coșul de gunoi.} other {Astfel, # de mesaje existente sunt mutate în Coșul de gunoi.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Astfel, fiecare mesaj existent care se potrivește regulii este mutat în Coșul de gunoi.} other {Astfel, #+ mesaje existente sunt mutate în Coșul de gunoi.}}",
+        "trash_button": "Salvați și mutați în Coșul de gunoi",
+        "delivered_to_new_only": "Această regulă funcționează doar pentru corespondența nouă. Corespondența livrată nu păstrează adresa la care a fost livrată."
+      }
     },
     "templates": {
       "title": "Șabloane de e-mail",
@@ -4001,6 +4042,7 @@
       "load_failed": "Regulile nu au putut fi încărcate",
       "none": "Nicio regulă încă",
       "new_mail_only": "Doar pentru mesajele noi",
+      "cannot_run": "Doar regulile care mută, copiază, marchează ca citit, marchează cu stea, etichetează sau ignoră pot fi aplicate mesajelor existente, și doar dacă nu verifică corpul mesajului, „Livrat la” sau o expresie regulată.",
       "running": "Se rulează „{name}” în {folder}…"
     },
     "find_emails_from": "Găsește e-mailurile de la {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Doriți să marcați toate mesajele necitite din contul dvs. personal ca fiind citite?",
     "empty_all_confirm_title": "Golește coșul de gunoi pentru toate conturile",
     "empty_all_confirm_message": "Ștergeți definitiv {count, plural, one {mesajul} few {toate cele # mesaje} other {toate cele # de mesaje}} din coșul de gunoi al tuturor conturilor dvs.? Nu se poate anula.",
+    "empty_all_confirm_shared": "Sunt incluse și conturile partajate {accounts}.",
+    "empty_all_confirm_kept": "Coșul de gunoi din {accounts} rămâne cum este, pentru că nu poți șterge acolo.",
     "toast_emptied_all": "Coșul de gunoi a fost golit pe toate conturile",
     "toast_error_empty_all_partial": "Coșul de gunoi a fost golit, dar unele conturi au eșuat",
     "toast_error_empty_all": "Golirea coșului de gunoi a eșuat",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Persoanele cu care partajezi calendarul văd doar ora.",
       "visibility_hint_secret": "Persoanele cu care partajezi calendarul nu văd evenimentul, iar intervalul rămâne liber.",
       "visibility_series": "Se aplică tuturor repetărilor.",
+      "color_calendar": "Folosește culoarea calendarului",
+      "overlap": "Se suprapune cu {title} ({details})",
+      "overlap_plain": "Se suprapune cu {title}",
+      "overlap_more": "Și încă {count}",
       "save": "Salvare",
       "cancel": "Anulează",
       "color": "Culoare"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (listă de sarcini, nu apare în calendar)",
     "copy_to_account": "Copiază în {address}",
     "copied_to_account": "Copiat în {address}",
-    "delete_original": "Șterge originalul"
+    "delete_original": "Șterge originalul",
+    "copy_to_calendar": "Copiază în calendar…",
+    "copy_to_calendar_title": "Copiază în calendar",
+    "copy_to_calendar_hint": "Copia este evenimentul dvs. Modificările originalului nu o schimbă.",
+    "copy_button": "Copiază",
+    "copied_to_calendar": "Copiat în {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Această modificare are nevoie de conexiune la server. Modifică deocamdată doar acest eveniment sau încearcă din nou când ești din nou online."

@@ -1335,6 +1335,7 @@
     "success": "Siker",
     "cancel": "Mégse",
     "save": "Mentés",
+    "ready_to_save": "Mentésre kész",
     "delete": "Törlés",
     "edit": "Szerkesztés",
     "close": "Bezárás",
@@ -1827,6 +1828,8 @@
       "title": "E-mail címkék",
       "description": "Hozzon létre címkéket az üzenetei rendezéséhez. A címkék az üzenetekkel együtt a szerveren tárolódnak.",
       "add_keyword": "Címke hozzáadása",
+      "sort_az": "Rendezés A–Z",
+      "sorted": "Címkék A–Z sorrendbe rendezve",
       "empty": "Még nincsenek címkék.",
       "label_field": "Megjelenített név",
       "label_placeholder": "pl. Munka, Személyes, Sürgős",
@@ -3026,6 +3029,7 @@
         "from": "Feladó",
         "to": "Címzett",
         "cc": "Másolat",
+        "delivered_to": "Kézbesítve ide",
         "subject": "Tárgy",
         "header": "Egyéni fejléc",
         "size": "Méret",
@@ -3165,7 +3169,44 @@
       "apply_existing_none": "Itt még egy üzenet sem felel meg ennek a szabálynak: {folder}.",
       "period_status_scheduled": "ütemezett",
       "period_status_active": "aktív",
-      "period_status_expired": "lejárt"
+      "period_status_expired": "lejárt",
+      "editor": {
+        "if": "Ha a feltételek közül",
+        "match_all": "mind",
+        "match_any": "bármelyik",
+        "of_conditions": "teljesül",
+        "match_type": "Mely feltételeknek kell teljesülniük",
+        "condition_number": "{number}. feltétel",
+        "comparison": "Összehasonlítás",
+        "size_unit": "Mértékegység",
+        "has_attachment": "Van melléklete",
+        "attachment_type": "Melléklet típusa",
+        "size_units": {
+          "bytes": "bájt",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "A többi szabály alkalmazása is",
+        "skip_rule": "A szabály kihagyása",
+        "matching": "{count, plural, =0 {Egy üzenet sem egyezik} one {# üzenet egyezik} other {# üzenet egyezik}}",
+        "matching_partial": "{count, plural, =0 {Egy friss üzenet sem egyezik} other {#+ üzenet egyezik}}",
+        "checking": "Egyező üzenetek keresése…",
+        "tags": "Címkék",
+        "attachment_type_invalid": "Adjon meg egy fájlkiterjesztést, például pdf",
+        "action_conflict": "Az elvetés és az elutasítás nem kombinálható az áthelyezéssel, a másolással vagy a megtartással, sem egymással",
+        "apply_to": "Alkalmazás",
+        "apply_new": "Csak az új levelekre",
+        "apply_folder": "Az új levelekre és ide: {folder}",
+        "apply_folder_count": "Az új levelekre és ide: {folder} ({count})",
+        "apply_all": "Az új és az összes levélre",
+        "apply_all_count": "Az új és az összes levélre ({count})",
+        "applying": "„{name}” alkalmazása…",
+        "trash_title": "Áthelyezi a meglévő leveleket a Kukába?",
+        "trash_confirm": "{count, plural, one {Ez # meglévő üzenetet helyez át a Kukába.} other {Ez # meglévő üzenetet helyez át a Kukába.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Ez minden meglévő üzenetet, amelyre a szabály illik, áthelyez a Kukába.} other {Ez #+ meglévő üzenetet helyez át a Kukába.}}",
+        "trash_button": "Mentés és áthelyezés a Kukába",
+        "delivered_to_new_only": "Ez a szabály csak az új levelekre vonatkozik. A kézbesített levél nem őrzi meg a címet, ahová kézbesítették."
+      }
     },
     "templates": {
       "title": "E-mail sablonok",
@@ -4001,6 +4042,7 @@
       "load_failed": "Nem sikerült betölteni a szabályokat",
       "none": "Még nincsenek szabályok",
       "new_mail_only": "Csak új üzenetekre",
+      "cannot_run": "Meglévő üzenetekre csak olyan szabály alkalmazható, amely áthelyez, másol, olvasottnak jelöl, csillagoz, címkéz vagy elvet, és csak ha nem a törzset, a „Kézbesítve ide” mezőt vagy reguláris kifejezést vizsgál.",
       "running": "„{name}” futtatása itt: {folder}…"
     },
     "find_emails_from": "{name} e-mailjeinek keresése"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Minden olvasatlan üzenetet olvasottnak jelölsz a személyes fiókodban?",
     "empty_all_confirm_title": "Kuka ürítése minden fiókban",
     "empty_all_confirm_message": "Véglegesen törli {count, plural, one {az üzenetet} other {mind a # üzenetet}} az összes fiókja kukájából? Ez nem vonható vissza.",
+    "empty_all_confirm_shared": "Ez a megosztott fiókokra is vonatkozik: {accounts}.",
+    "empty_all_confirm_kept": "A(z) {accounts} kukája változatlan marad, mert ott nem törölhetsz.",
     "toast_emptied_all": "A Kuka kiürült minden fiókban",
     "toast_error_empty_all_partial": "A Kuka kiürült, de néhány fióknál nem sikerült",
     "toast_error_empty_all": "Nem sikerült kiüríteni a Kukát",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Akikkel megosztja a naptárt, csak az időpontot látják.",
       "visibility_hint_secret": "Akikkel megosztja a naptárt, nem látják az eseményt, és az idő szabad marad.",
       "visibility_series": "Minden ismétlődésre vonatkozik.",
+      "color_calendar": "A naptár színének használata",
+      "overlap": "Ütközik ezzel: {title} ({details})",
+      "overlap_plain": "Ütközik ezzel: {title}",
+      "overlap_more": "És még {count}",
       "save": "Mentés",
       "cancel": "Mégse",
       "color": "Szín"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (feladatlista, a naptárban nem látszik)",
     "copy_to_account": "Másolás ide: {address}",
     "copied_to_account": "Átmásolva ide: {address}",
-    "delete_original": "Eredeti törlése"
+    "delete_original": "Eredeti törlése",
+    "copy_to_calendar": "Másolás naptárba…",
+    "copy_to_calendar_title": "Másolás naptárba",
+    "copy_to_calendar_hint": "A másolat a saját eseménye. Az eredeti módosításai nem változtatják meg.",
+    "copy_button": "Másolás",
+    "copied_to_calendar": "Átmásolva ide: {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Ehhez a módosításhoz kapcsolat kell a kiszolgálóval. Egyelőre csak ezt az eseményt módosítsa, vagy próbálja újra, ha ismét online lesz."

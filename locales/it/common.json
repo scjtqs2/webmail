@@ -1335,6 +1335,7 @@
     "success": "Successo",
     "cancel": "Annulla",
     "save": "Salva",
+    "ready_to_save": "Pronto da salvare",
     "delete": "Elimina",
     "edit": "Modifica",
     "close": "Chiudi",
@@ -1824,6 +1825,8 @@
       "title": "Etichette e-mail",
       "description": "Crea etichette per ordinare i messaggi. Le etichette vengono salvate con i messaggi sul server.",
       "add_keyword": "Aggiungi etichetta",
+      "sort_az": "Ordina A–Z",
+      "sorted": "Etichette ordinate dalla A alla Z",
       "empty": "Ancora nessuna etichetta.",
       "label_field": "Nome visualizzato",
       "label_placeholder": "es. Lavoro, Personale, Urgente",
@@ -3023,6 +3026,7 @@
         "from": "Da",
         "to": "A",
         "cc": "Cc",
+        "delivered_to": "Consegnato a",
         "subject": "Oggetto",
         "header": "Intestazione personalizzata",
         "size": "Dimensione",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "Nessun messaggio in {folder} corrisponde ancora a questa regola.",
       "period_status_scheduled": "programmata",
       "period_status_active": "attiva",
-      "period_status_expired": "scaduta"
+      "period_status_expired": "scaduta",
+      "editor": {
+        "if": "Se è soddisfatta",
+        "match_all": "ognuna",
+        "match_any": "una qualsiasi",
+        "of_conditions": "di queste condizioni",
+        "match_type": "Quali condizioni devono essere soddisfatte",
+        "condition_number": "Condizione {number}",
+        "comparison": "Confronto",
+        "size_unit": "Unità",
+        "has_attachment": "Ha un allegato",
+        "attachment_type": "Allegato di tipo",
+        "size_units": {
+          "bytes": "byte",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Continua ad applicare le altre regole",
+        "skip_rule": "Salta questa regola",
+        "matching": "{count, plural, =0 {Nessun messaggio corrisponde} one {# messaggio corrisponde} other {# messaggi corrispondono}}",
+        "matching_partial": "{count, plural, =0 {Nessun messaggio recente corrisponde} other {#+ messaggi corrispondono}}",
+        "checking": "Ricerca dei messaggi corrispondenti…",
+        "tags": "Etichette",
+        "attachment_type_invalid": "Inserisci un'estensione di file, ad esempio pdf",
+        "action_conflict": "Elimina silenziosamente e Rifiuta non si possono combinare con Sposta, Copia o Mantieni, né tra loro",
+        "apply_to": "Applica a",
+        "apply_new": "Solo la posta nuova",
+        "apply_folder": "La posta nuova e {folder}",
+        "apply_folder_count": "La posta nuova e {folder} ({count})",
+        "apply_all": "La posta nuova e tutta la posta",
+        "apply_all_count": "La posta nuova e tutta la posta ({count})",
+        "applying": "Applicazione di «{name}»…",
+        "trash_title": "Spostare la posta esistente nel cestino?",
+        "trash_confirm": "{count, plural, one {Così # messaggio esistente viene spostato nel cestino.} other {Così # messaggi esistenti vengono spostati nel cestino.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Così ogni messaggio esistente che corrisponde alla regola viene spostato nel cestino.} other {Così #+ messaggi esistenti vengono spostati nel cestino.}}",
+        "trash_button": "Salva e sposta nel cestino",
+        "delivered_to_new_only": "Questa regola vale solo per la posta nuova. La posta consegnata non conserva l'indirizzo a cui è stata consegnata."
+      }
     },
     "templates": {
       "title": "Modelli email",
@@ -4001,6 +4042,7 @@
       "load_failed": "Impossibile caricare le regole",
       "none": "Nessuna regola",
       "new_mail_only": "Solo per i nuovi messaggi",
+      "cannot_run": "Solo le regole che spostano, copiano, segnano come letto, contrassegnano con stella, etichettano o scartano si possono applicare ai messaggi esistenti, e solo se non controllano il corpo, «Consegnato a» o un'espressione regolare.",
       "running": "Esecuzione di «{name}» su {folder}…"
     },
     "find_emails_from": "Trova email da {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Segnare tutti i messaggi non letti del tuo account personale come letti?",
     "empty_all_confirm_title": "Svuota il cestino di tutti gli account",
     "empty_all_confirm_message": "Eliminare per sempre {count, plural, one {il messaggio} other {tutti i # messaggi}} nel cestino di tutti i tuoi account? Non si può annullare.",
+    "empty_all_confirm_shared": "Sono inclusi anche gli account condivisi {accounts}.",
+    "empty_all_confirm_kept": "Il cestino di {accounts} resta com'è, perché lì non puoi eliminare.",
     "toast_emptied_all": "Cestino svuotato su tutti gli account",
     "toast_error_empty_all_partial": "Cestino svuotato, ma alcuni account non sono riusciti",
     "toast_error_empty_all": "Impossibile svuotare il cestino",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Le persone con cui condividi il calendario vedono solo l'orario.",
       "visibility_hint_secret": "Le persone con cui condividi il calendario non vedono l'evento, e l'orario resta libero.",
       "visibility_series": "Vale per tutte le ripetizioni.",
+      "color_calendar": "Usa il colore del calendario",
+      "overlap": "Si sovrappone a {title} ({details})",
+      "overlap_plain": "Si sovrappone a {title}",
+      "overlap_more": "E altri {count}",
       "save": "Salva",
       "cancel": "Annulla",
       "color": "Colore"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (elenco attività, non visibile nel calendario)",
     "copy_to_account": "Copia in {address}",
     "copied_to_account": "Copiato in {address}",
-    "delete_original": "Elimina l'originale"
+    "delete_original": "Elimina l'originale",
+    "copy_to_calendar": "Copia in un calendario…",
+    "copy_to_calendar_title": "Copia in un calendario",
+    "copy_to_calendar_hint": "La copia è un tuo evento. Le modifiche all'originale non la cambiano.",
+    "copy_button": "Copia",
+    "copied_to_calendar": "Copiato in {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "Questa modifica richiede una connessione al server. Per ora modifica solo questo evento, oppure riprova quando sei di nuovo online."

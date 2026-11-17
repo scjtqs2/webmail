@@ -1335,6 +1335,7 @@
     "success": "Success",
     "cancel": "Cancel",
     "save": "Save",
+    "ready_to_save": "Ready to save",
     "delete": "Delete",
     "edit": "Edit",
     "close": "Close",
@@ -1827,6 +1828,8 @@
       "title": "Email tags",
       "description": "Make tags to sort your messages. The tags are saved with your messages on the server.",
       "add_keyword": "New tag",
+      "sort_az": "Sort A–Z",
+      "sorted": "Tags sorted A–Z",
       "empty": "No tags yet.",
       "label_field": "Display name",
       "label_placeholder": "e.g. Work, Personal, Urgent",
@@ -3030,6 +3033,7 @@
         "from": "From",
         "to": "To",
         "cc": "Cc",
+        "delivered_to": "Delivered to",
         "subject": "Subject",
         "header": "Custom header",
         "size": "Size",
@@ -3169,7 +3173,44 @@
       "apply_existing_none": "No message in {folder} matches this rule yet.",
       "period_status_scheduled": "scheduled",
       "period_status_active": "active",
-      "period_status_expired": "expired"
+      "period_status_expired": "expired",
+      "editor": {
+        "if": "If",
+        "match_all": "all",
+        "match_any": "any",
+        "of_conditions": "of these conditions apply",
+        "match_type": "Which conditions must apply",
+        "condition_number": "Condition {number}",
+        "comparison": "Comparison",
+        "size_unit": "Unit",
+        "has_attachment": "Has an attachment",
+        "attachment_type": "Attachment of type",
+        "size_units": {
+          "bytes": "bytes",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Continue to apply other rules",
+        "skip_rule": "Skip this rule",
+        "matching": "{count, plural, =0 {No messages match} one {# message matches} other {# messages match}}",
+        "matching_partial": "{count, plural, =0 {No recent messages match} other {#+ messages match}}",
+        "checking": "Looking for matching mail…",
+        "tags": "Tags",
+        "attachment_type_invalid": "Enter a file extension, such as pdf",
+        "action_conflict": "Discard and Reject cannot be combined with Move, Copy or Keep, or with each other",
+        "apply_to": "Apply to",
+        "apply_new": "New mail only",
+        "apply_folder": "New mail and {folder}",
+        "apply_folder_count": "New mail and {folder} ({count})",
+        "apply_all": "New mail and all mail",
+        "apply_all_count": "New mail and all mail ({count})",
+        "applying": "Applying “{name}”…",
+        "trash_title": "Move existing mail to Trash?",
+        "trash_confirm": "{count, plural, one {This moves # existing message to Trash.} other {This moves # existing messages to Trash.}}",
+        "trash_confirm_partial": "{count, plural, =0 {This moves every existing message the rule matches to Trash.} other {This moves #+ existing messages to Trash.}}",
+        "trash_button": "Save and move to Trash",
+        "delivered_to_new_only": "This rule works on new mail only. Delivered mail doesn't keep the address it was delivered to."
+      }
     },
     "templates": {
       "title": "Email templates",
@@ -4001,6 +4042,7 @@
       "load_failed": "Could not load the rules",
       "none": "No rules yet",
       "new_mail_only": "Only for new messages",
+      "cannot_run": "Only rules that move, copy, mark as read, star, tag or discard can run on existing messages, and only if they don't check the body, Delivered to or a regular expression.",
       "running": "Running \"{name}\" on {folder}…"
     },
     "find_emails_from": "Find emails from {name}"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Mark every unread message in your personal account as read?",
     "empty_all_confirm_title": "Empty trash for all accounts",
     "empty_all_confirm_message": "Delete {count, plural, one {the message} other {all # messages}} in the Trash of all your accounts forever? You can't undo this.",
+    "empty_all_confirm_shared": "This includes the shared accounts {accounts}.",
+    "empty_all_confirm_kept": "The Trash of {accounts} stays as it is, because you can't delete there.",
     "toast_emptied_all": "Trash emptied across all accounts",
     "toast_error_empty_all_partial": "Trash emptied, but some accounts failed",
     "toast_error_empty_all": "Failed to empty trash",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "People you share the calendar with see only the time.",
       "visibility_hint_secret": "People you share the calendar with don't see the event, and it doesn't block the time.",
       "visibility_series": "Applies to every occurrence.",
+      "color_calendar": "Use calendar color",
+      "overlap": "Overlaps with {title} ({details})",
+      "overlap_plain": "Overlaps with {title}",
+      "overlap_more": "And {count} more",
       "save": "Save",
       "cancel": "Cancel",
       "color": "Color"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (task list, not shown in the calendar)",
     "copy_to_account": "Copy to {address}",
     "copied_to_account": "Copied to {address}",
-    "delete_original": "Delete original"
+    "delete_original": "Delete original",
+    "copy_to_calendar": "Copy to calendar…",
+    "copy_to_calendar_title": "Copy to calendar",
+    "copy_to_calendar_hint": "The copy is your own event. Later changes to the original don't reach it.",
+    "copy_button": "Copy",
+    "copied_to_calendar": "Copied to {calendar}"
   },
   "calendar_offline": {
     "split_needs_server": "This change needs a connection to the server. Change only this event for now, or try again when you're back online."

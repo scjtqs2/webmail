@@ -1335,6 +1335,7 @@
     "success": "Başarılı",
     "cancel": "İptal",
     "save": "Kaydet",
+    "ready_to_save": "Kaydetmeye hazır",
     "delete": "Sil",
     "edit": "Düzenle",
     "close": "Kapat",
@@ -1824,6 +1825,8 @@
       "title": "E-posta Etiketleri",
       "description": "İletilerinizi düzenlemek için etiketler oluşturun. Etiketler iletilerinizle birlikte sunucuda saklanır.",
       "add_keyword": "Etiket Ekle",
+      "sort_az": "A–Z Sırala",
+      "sorted": "Etiketler A–Z sıralandı",
       "empty": "Henüz etiket yok.",
       "label_field": "Görünen Ad",
       "label_placeholder": "ör. İş, Kişisel, Acil",
@@ -3023,6 +3026,7 @@
         "from": "Kimden",
         "to": "Kime",
         "cc": "Bilgi",
+        "delivered_to": "Teslim edilen adres",
         "subject": "Konu",
         "header": "Özel Başlık",
         "size": "Boyut",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "{folder} içinde bu kurala uyan ileti henüz yok.",
       "period_status_scheduled": "planlandı",
       "period_status_active": "etkin",
-      "period_status_expired": "süresi doldu"
+      "period_status_expired": "süresi doldu",
+      "editor": {
+        "if": "Bu koşulların",
+        "match_all": "tümü",
+        "match_any": "herhangi biri",
+        "of_conditions": "geçerliyse",
+        "match_type": "Hangi koşulların geçerli olması gerektiği",
+        "condition_number": "Koşul {number}",
+        "comparison": "Karşılaştırma",
+        "size_unit": "Birim",
+        "has_attachment": "Eki var",
+        "attachment_type": "Ek türü",
+        "size_units": {
+          "bytes": "bayt",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "Diğer kurallar da uygulansın",
+        "skip_rule": "Bu kuralı atla",
+        "matching": "{count, plural, =0 {Eşleşen ileti yok} one {# ileti eşleşiyor} other {# ileti eşleşiyor}}",
+        "matching_partial": "{count, plural, =0 {Son iletilerden eşleşen yok} other {#+ ileti eşleşiyor}}",
+        "checking": "Eşleşen iletiler aranıyor…",
+        "tags": "Etiketler",
+        "attachment_type_invalid": "Bir dosya uzantısı girin, örneğin pdf",
+        "action_conflict": "At ve Reddet; Taşı, Kopyala veya Tut ile ya da birbiriyle birlikte kullanılamaz",
+        "apply_to": "Uygula",
+        "apply_new": "Yalnızca yeni postalara",
+        "apply_folder": "Yeni postalara ve {folder} klasörüne",
+        "apply_folder_count": "Yeni postalara ve {folder} klasörüne ({count})",
+        "apply_all": "Yeni postalara ve tüm postalara",
+        "apply_all_count": "Yeni postalara ve tüm postalara ({count})",
+        "applying": "“{name}” uygulanıyor…",
+        "trash_title": "Mevcut postalar Çöp Kutusu'na taşınsın mı?",
+        "trash_confirm": "{count, plural, one {Bu işlem # mevcut iletiyi Çöp Kutusu'na taşır.} other {Bu işlem # mevcut iletiyi Çöp Kutusu'na taşır.}}",
+        "trash_confirm_partial": "{count, plural, =0 {Bu işlem kuralla eşleşen tüm mevcut iletileri Çöp Kutusu'na taşır.} other {Bu işlem #+ mevcut iletiyi Çöp Kutusu'na taşır.}}",
+        "trash_button": "Kaydet ve Çöp Kutusu'na taşı",
+        "delivered_to_new_only": "Bu kural yalnızca yeni postalarda çalışır. Teslim edilmiş posta, teslim edildiği adresi saklamaz."
+      }
     },
     "templates": {
       "title": "E-posta Şablonları",
@@ -4001,6 +4042,7 @@
       "load_failed": "Kurallar yüklenemedi",
       "none": "Henüz kural yok",
       "new_mail_only": "Yalnızca yeni iletiler için",
+      "cannot_run": "Mevcut iletilere yalnızca taşıyan, kopyalayan, okundu işaretleyen, yıldızlayan, etiketleyen veya atan kurallar uygulanabilir; bunlar da gövdeyi, \"Teslim edilen adres\" alanını veya bir düzenli ifadeyi denetlemiyorsa.",
       "running": "\"{name}\" {folder} klasöründe çalıştırılıyor…"
     },
     "find_emails_from": "{name} adlı kişiden gelen e-postaları bul"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "Kişisel hesabınızdaki tüm okunmamış iletiler okundu olarak işaretlensin mi?",
     "empty_all_confirm_title": "Tüm hesaplar için çöp kutusunu boşalt",
     "empty_all_confirm_message": "Tüm hesaplarınızın Çöp Kutusundaki {count, plural, one {ileti} other {# iletinin tümü}} kalıcı olarak silinsin mi? Bu geri alınamaz.",
+    "empty_all_confirm_shared": "Buna paylaşılan hesaplar da dahil: {accounts}.",
+    "empty_all_confirm_kept": "{accounts} hesabının çöp kutusu olduğu gibi kalır, çünkü orada silme izniniz yok.",
     "toast_emptied_all": "Çöp kutusu tüm hesaplarda boşaltıldı",
     "toast_error_empty_all_partial": "Çöp kutusu boşaltıldı, ancak bazı hesaplarda başarısız oldu",
     "toast_error_empty_all": "Çöp kutusu boşaltılamadı",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "Takvimi paylaştığınız kişiler yalnızca saati görür.",
       "visibility_hint_secret": "Takvimi paylaştığınız kişiler etkinliği görmez ve zaman boş kalır.",
       "visibility_series": "Tüm tekrarlara uygulanır.",
+      "color_calendar": "Takvimin rengini kullan",
+      "overlap": "{title} ile çakışıyor ({details})",
+      "overlap_plain": "{title} ile çakışıyor",
+      "overlap_more": "Ve {count} tane daha",
       "save": "Kaydet",
       "cancel": "İptal",
       "color": "Renk"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (görev listesi, takvimde gösterilmez)",
     "copy_to_account": "{address} hesabına kopyala",
     "copied_to_account": "{address} hesabına kopyalandı",
-    "delete_original": "Orijinali sil"
+    "delete_original": "Orijinali sil",
+    "copy_to_calendar": "Takvime kopyala…",
+    "copy_to_calendar_title": "Takvime kopyala",
+    "copy_to_calendar_hint": "Kopya sizin kendi etkinliğiniz olur. Asıldaki değişiklikler onu değiştirmez.",
+    "copy_button": "Kopyala",
+    "copied_to_calendar": "{calendar} takvimine kopyalandı"
   },
   "calendar_offline": {
     "split_needs_server": "Bu değişiklik için sunucu bağlantısı gerekir. Şimdilik yalnızca bu etkinliği değiştirin veya yeniden çevrimiçi olduğunuzda tekrar deneyin."

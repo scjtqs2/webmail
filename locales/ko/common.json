@@ -1335,6 +1335,7 @@
     "success": "성공",
     "cancel": "취소",
     "save": "저장",
+    "ready_to_save": "저장할 준비가 되었습니다",
     "delete": "삭제",
     "edit": "수정",
     "close": "닫기",
@@ -1824,6 +1825,8 @@
       "title": "이메일 태그",
       "description": "태그를 만들어 메일을 정리하세요. 태그는 메일과 함께 서버에 저장돼요.",
       "add_keyword": "태그 추가",
+      "sort_az": "이름순 정렬",
+      "sorted": "태그를 이름순으로 정렬했습니다",
       "empty": "아직 태그가 없습니다.",
       "label_field": "표시 이름",
       "label_placeholder": "예: 업무, 개인, 긴급",
@@ -3023,6 +3026,7 @@
         "from": "보낸 사람",
         "to": "받는 사람",
         "cc": "참조",
+        "delivered_to": "배달된 주소",
         "subject": "제목",
         "header": "사용자 지정 헤더",
         "size": "크기",
@@ -3162,7 +3166,44 @@
       "apply_existing_none": "{folder}에 이 규칙에 맞는 메일이 아직 없습니다.",
       "period_status_scheduled": "예정",
       "period_status_active": "활성",
-      "period_status_expired": "만료"
+      "period_status_expired": "만료",
+      "editor": {
+        "if": "다음 조건 중",
+        "match_all": "모두",
+        "match_any": "하나라도",
+        "of_conditions": "충족하면",
+        "match_type": "충족해야 하는 조건",
+        "condition_number": "조건 {number}",
+        "comparison": "비교",
+        "size_unit": "단위",
+        "has_attachment": "첨부 파일 있음",
+        "attachment_type": "첨부 파일 형식",
+        "size_units": {
+          "bytes": "바이트",
+          "kb": "KB",
+          "mb": "MB"
+        },
+        "continue_rules": "다른 규칙도 계속 적용",
+        "skip_rule": "이 규칙 건너뛰기",
+        "matching": "{count, plural, =0 {일치하는 메일 없음} other {메일 #개 일치}}",
+        "matching_partial": "{count, plural, =0 {일치하는 최근 메일 없음} other {메일 #개 이상 일치}}",
+        "checking": "일치하는 메일을 찾는 중…",
+        "tags": "태그",
+        "attachment_type_invalid": "pdf 같은 파일 확장자를 입력하세요",
+        "action_conflict": "삭제와 거부는 이동, 복사, 유지와 함께 쓰거나 서로 함께 쓸 수 없습니다",
+        "apply_to": "적용 대상",
+        "apply_new": "새 메일만",
+        "apply_folder": "새 메일과 {folder}",
+        "apply_folder_count": "새 메일과 {folder} ({count})",
+        "apply_all": "새 메일과 모든 메일",
+        "apply_all_count": "새 메일과 모든 메일 ({count})",
+        "applying": "‘{name}’ 적용 중…",
+        "trash_title": "기존 메일을 휴지통으로 옮길까요?",
+        "trash_confirm": "{count, plural, other {기존 메일 #개가 휴지통으로 이동합니다.}}",
+        "trash_confirm_partial": "{count, plural, =0 {규칙에 맞는 기존 메일이 모두 휴지통으로 이동합니다.} other {기존 메일 #개 이상이 휴지통으로 이동합니다.}}",
+        "trash_button": "저장하고 휴지통으로 이동",
+        "delivered_to_new_only": "이 규칙은 새 메일에만 적용됩니다. 배달된 메일에는 배달된 주소가 남지 않습니다."
+      }
     },
     "templates": {
       "title": "이메일 템플릿",
@@ -4001,6 +4042,7 @@
       "load_failed": "규칙을 불러올 수 없습니다",
       "none": "아직 규칙이 없습니다",
       "new_mail_only": "새 메시지에만 적용",
+      "cannot_run": "이동, 복사, 읽음 표시, 별표, 태그 또는 삭제를 하는 규칙만 기존 메일에 적용할 수 있어요. 본문, 배달된 주소 또는 정규식을 확인하는 규칙은 적용할 수 없어요.",
       "running": "{folder}에서 \"{name}\" 실행 중…"
     },
     "find_emails_from": "{name}님이 보낸 이메일 찾기"
@@ -4037,6 +4079,8 @@
     "mark_all_confirm_message": "개인 계정의 모든 읽지 않은 메시지를 읽음으로 표시하시겠습니까?",
     "empty_all_confirm_title": "모든 계정의 휴지통 비우기",
     "empty_all_confirm_message": "모든 계정 휴지통의 {count, plural, other {메시지 #개}}를 모두 영구 삭제할까요? 되돌릴 수 없어요.",
+    "empty_all_confirm_shared": "공유 계정 {accounts}도 포함됩니다.",
+    "empty_all_confirm_kept": "{accounts}의 휴지통은 삭제 권한이 없어 그대로 남습니다.",
     "toast_emptied_all": "모든 계정에서 휴지통을 비웠습니다",
     "toast_error_empty_all_partial": "휴지통을 비웠지만 일부 계정에서 실패했습니다",
     "toast_error_empty_all": "휴지통을 비우지 못했습니다",
@@ -4913,6 +4957,10 @@
       "visibility_hint_private": "캘린더를 공유한 사람에게 시간만 보입니다.",
       "visibility_hint_secret": "캘린더를 공유한 사람에게 일정이 보이지 않으며, 시간도 비어 있는 것으로 표시됩니다.",
       "visibility_series": "모든 반복 일정에 적용됩니다.",
+      "color_calendar": "캘린더 색상 사용",
+      "overlap": "{title}과(와) 겹칩니다 ({details})",
+      "overlap_plain": "{title}과(와) 겹칩니다",
+      "overlap_more": "외 {count}개",
       "save": "저장",
       "cancel": "취소",
       "color": "색상"
@@ -5437,7 +5485,12 @@
     "task_list_not_in_calendar": "{name} (할 일 목록, 캘린더에 표시되지 않음)",
     "copy_to_account": "{address}(으)로 복사",
     "copied_to_account": "{address}(으)로 복사됨",
-    "delete_original": "원본 삭제"
+    "delete_original": "원본 삭제",
+    "copy_to_calendar": "캘린더에 복사…",
+    "copy_to_calendar_title": "캘린더에 복사",
+    "copy_to_calendar_hint": "복사본은 내 일정이 됩니다. 원본을 바꿔도 복사본은 바뀌지 않습니다.",
+    "copy_button": "복사",
+    "copied_to_calendar": "{calendar}에 복사했습니다"
   },
   "calendar_offline": {
     "split_needs_server": "이 변경에는 서버 연결이 필요합니다. 지금은 이 일정만 변경하거나 다시 온라인이 되면 다시 시도하세요."

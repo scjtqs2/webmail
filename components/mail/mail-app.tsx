@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback, useId } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { EmailList } from "@/components/email/email-list";
 import { MvComposeInline, MvComposeWindow } from "@/components/email/mv-compose-window";
@@ -66,11 +66,11 @@ import { useShallow } from "zustand/react/shallow";
 import { usePolicyStore, whenPolicySettled } from "@/stores/policy-store";
 import { isArchiveActionEnabled, useArchiveActionEnabled } from "@/lib/archive-gate";
 import type { UnifiedAccountClient } from "@/lib/unified-mailbox";
-import { connectedAccountsGrew } from "@/lib/unified-mailbox";
+import { connectedAccountsGrew, unifiedEmptySummary } from "@/lib/unified-mailbox";
 import { messagePriorityFromHeaders, type MessagePriority } from "@/lib/message-priority";
 import { LazyKeyboardShortcutsModal } from "@/components/lazy-keyboard-shortcuts-modal";
 import { lazyComponent } from "@/lib/lazy-component";
-import { useEmailStore, annotateScheduledEmails, annotateScheduledEmail, pendingInitialData, buildUnifiedAccountClients, invalidateUnifiedMailboxes, captureViewToken, ArchiveMailboxNotFoundError, ensureArchiveMailbox, resolveSelectedEmails, resolveUnstampedEmailAccountId, resolveEmailBlobContext, resolveEmailActionContext, emailWriteSource, emailLinkSource, type EmailBlobContext, type EmailWriteSource, emptyFolderMovesToTrash, bulkDeleteIsPermanent, shouldConfirmBulkDelete, isAggregateListView, removalFolder, canRemoveFromFolder, restoreBatchesFor, restoreBatchesForSelection, TrashMailboxNotFoundError, type EmailRestoreBatch , type CrossAccountMoveReceipt, moveFoldersFor, type MoveFolderUnavailableError } from "@/stores/email-store";
+import { useEmailStore, annotateScheduledEmails, annotateScheduledEmail, pendingInitialData, buildUnifiedAccountClients, invalidateUnifiedMailboxes, captureViewToken, ArchiveMailboxNotFoundError, ensureArchiveMailbox, resolveSelectedEmails, resolveUnstampedEmailAccountId, resolveEmailBlobContext, resolveEmailActionContext, emailWriteSource, emailLinkSource, type EmailBlobContext, type EmailWriteSource, emptyFolderMovesToTrash, bulkDeleteIsPermanent, shouldConfirmBulkDelete, viewedFolder, isAggregateListView, removalFolder, canRemoveFromFolder, restoreBatchesFor, restoreBatchesForSelection, TrashMailboxNotFoundError, type EmailRestoreBatch , type CrossAccountMoveReceipt, moveFoldersFor, type MoveFolderUnavailableError } from "@/stores/email-store";
 import { useMoveFolders, useMoveUnavailableHint } from "@/hooks/use-move-folders";
 import { findDraftIdentityIdForLogin, listRowSource, resolveDraftSource, type DraftSource } from "@/lib/draft-source";
 import { useRemoveFromFolder } from "@/hooks/use-remove-from-folder";
@@ -84,7 +84,7 @@ import { runUndoSendCountdown, startSendProgress, UNDO_TOAST_SLACK_MS, undoEndsA
 import { formatRejectedRecipients, RescheduleRestoredError } from "@/lib/jmap/client";
 import { subscribePushStateChanges } from "@/lib/push-events";
 import { createMailPushListener } from "@/lib/mail-push-listener";
-import { keywordRestorePoints, markSelectionReadWithUndo, recordQuietUndo, runBatchEmailAction, setSelectionStarredWithUndo, toastWithUndo, undoKeywordAction, undoLabels, undoMoveAction } from "@/lib/email-action-toast";
+import { keywordRestorePoints, markSelectionReadWithUndo, recordQuietUndo, runBatchEmailAction, setConversationTagsWithUndo, setSelectionStarredWithUndo, toastWithUndo, undoKeywordAction, undoLabels, undoMoveAction } from "@/lib/email-action-toast";
 import { batchToastTitle, selectionRowCount } from "@/lib/selection-toast";
 import { ShareNotificationToaster } from "@/components/layout/share-notification-toaster";
 import { CalendarEventNotificationToaster } from "@/components/layout/calendar-event-notification-toaster";
@@ -124,7 +124,7 @@ import { useNewMailAlerts } from "@/hooks/use-new-mail-alerts";
 import { useMailStatusAnnouncements } from "@/hooks/use-mail-status-announcements";
 import { cn, formatDateTime, getMailboxPath } from "@/lib/utils";
 import { localizeMailboxName } from "@/lib/mailbox-label";
-import { KEYWORD_PREFIX, KEYWORD_PREFIX_LEGACY, conversationInList, emailKeyFor, groupEmailsByThread, threadKeyFor } from "@/lib/thread-utils";
+import { KEYWORD_PREFIX, KEYWORD_PREFIX_LEGACY, conversationInList, emailKeyFor, getThreadTagIds, groupEmailsByThread, threadKeyFor } from "@/lib/thread-utils";
 import { shownListEmails, stepListEmail } from "@/lib/list-step";
 import { listBesideReader, returnToListAfterAction } from "@/lib/return-to-list";
 import { refreshRepliedThread } from "@/lib/replied-thread";
@@ -345,6 +345,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
   // Static Lite build: the route params are empty, read the link from the URL.
   const linkSegments = useLiteLinkSegments('mail', routeSegments);
   const t = useTranslations();
+  const locale = useLocale();
   // First-start notices wait until the welcome tips are closed: one thing at a time.
   // The page skeleton the gates below draw: the same one the server sent.
   const skeletonLabels = useSkeletonLabels();
@@ -1298,7 +1299,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
         return;
       }
       if (shortcutsTargetSelection && client) {
-        const currentMailbox = mailboxes.find(m => m.id === selectedMailbox);
+        const currentMailbox = viewedFolder(mailboxes, { selectedMailbox, isUnifiedView, unifiedRole });
         const permanent = bulkDeleteIsPermanent(currentMailbox);
         if (shouldConfirmBulkDelete(currentMailbox)) {
           const confirmed = await confirmDialog({
@@ -4420,8 +4421,27 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
     }
   };
 
-  const handleSetTag = async (emailId: string, tagId: string | null, emailKey?: string) => {
+  // `conversation`: every message of a collapsed conversation row, which the
+  // change covers. The row shows a tag while any of them has it, so taking it
+  // off takes it off all of them, and putting it on puts it on all. (#460)
+  const handleSetTag = async (emailId: string, tagId: string | null, emailKey?: string, conversation?: Email[]) => {
     if (!client) return;
+
+    if (conversation && conversation.length > 1) {
+      try {
+        const current = getThreadTagIds(conversation);
+        const add = tagId !== null && !current.includes(tagId);
+        const tagIds = tagId === null ? current : [tagId];
+        await setConversationTagsWithUndo(client, conversation, tagIds, add, {
+          describe: () => t(add ? 'notifications.email_tagged' : 'notifications.tag_removed'),
+          labels: undo,
+        });
+      } catch (error) {
+        console.error("Failed to set tag:", error);
+        toast.error(t('notifications.tag_failed'));
+      }
+      return;
+    }
 
     try {
       // Remove any existing tag keywords. By the row's key when given: the bare
@@ -4810,24 +4830,26 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
       toast.error(tCtxMenu('mailbox_context_menu.toast_error_empty_all'));
       return;
     }
-    // The user's own logins only: with group accounts in the unified view the
-    // list also holds group and delegated owners, whose Trash isn't theirs.
-    const own = accounts.filter((a) => !a.isShared);
-    const count = own.reduce(
-      (sum, a) => sum + (a.mailboxes.find((m) => m.role === role && !m.isShared)?.totalEmails ?? 0),
-      0,
-    );
+    // The user's own logins, and the group and delegated accounts whose Trash
+    // they may delete from: the dialog names those, and the ones it keeps (#1738).
+    const { count, shared, kept } = unifiedEmptySummary(accounts, role);
+    const names = (list: string[]) => new Intl.ListFormat(locale, { type: 'conjunction' }).format(list);
+    const message = [
+      tCtxMenu('mailbox_context_menu.empty_all_confirm_message', { count }),
+      shared.length > 0 ? tCtxMenu('mailbox_context_menu.empty_all_confirm_shared', { accounts: names(shared) }) : '',
+      kept.length > 0 ? tCtxMenu('mailbox_context_menu.empty_all_confirm_kept', { accounts: names(kept) }) : '',
+    ].filter(Boolean).join(' ');
 
     const confirmed = await confirmDialog({
       title: tCtxMenu('mailbox_context_menu.empty_all_confirm_title'),
-      message: tCtxMenu('mailbox_context_menu.empty_all_confirm_message', { count }),
+      message,
       confirmText: tCtxMenu('mailbox_context_menu.empty_folder_all_accounts'),
       variant: "destructive",
     });
     if (!confirmed) return;
 
     try {
-      const { errors, emptied } = await emptyUnifiedMailbox(own, role);
+      const { errors, emptied } = await emptyUnifiedMailbox(accounts, role);
       if (errors.size > 0) {
         toast.error(tCtxMenu(emptied.length > 0
           ? 'mailbox_context_menu.toast_error_empty_all_partial'
