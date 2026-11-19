@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeField } from "@/components/ui/time-field";
 import { LinkifiedText } from "@/components/ui/linkified-text";
-import { X, Trash2, Users, CalendarDays, CopyPlus, Pencil, Clock, MapPin, Video, Repeat, Bell, AlignLeft, AlertTriangle, MoreVertical, Lock } from "@/components/icons";
+import { X, Trash2, Users, CalendarDays, CopyPlus, Pencil, Clock, MapPin, Video, Repeat, Bell, AlignLeft, AlertTriangle, MoreVertical, Lock, Maximize2, Minimize2 } from "@/components/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { findMeetingLink, locationAction, mapsUrl, primaryLocationName } from "@/lib/event-links";
 import { descriptionAsText, isHtmlDescription, plainDescriptionFields } from "@/lib/calendar-description";
@@ -29,7 +29,8 @@ import { createRecurrenceRule, sameRecurrenceRules } from "@/lib/recurrence-rule
 import { ParticipantInput, type ParticipantInputHandle } from "./participant-input";
 import { ParticipantAvailability } from "./participant-availability";
 import { FindATime } from "./find-a-time";
-import { AnswerBars, useAnswerView } from "./answer-bars";
+import { SchedulingAssistant } from "./scheduling-assistant";
+import { AnswerBars, useAccountOwner, useAnswerView } from "./answer-bars";
 import type { AnswerTarget } from "@/lib/calendar-delegate";
 import {
   eventOrganizer,
@@ -37,6 +38,7 @@ import {
   getParticipantList,
   getStatusCounts,
   participantFieldsToSave,
+  type OrganizerOnBehalf,
   userOrganizes,
 } from "@/lib/calendar-participants";
 import { canUserRsvp, getEventEditability } from "@/lib/calendar-editability";
@@ -44,6 +46,7 @@ import { eventTargets, preferredTarget } from "@/lib/calendar-targets";
 import { CalendarSelect } from "@/components/calendar/calendar-select";
 import { useAccountStore } from "@/stores/account-store";
 import { useCalendarStore } from "@/stores/calendar-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { changesWhen, type EditorAttendee, type EventEditorState } from "@/lib/recurrence-scope-edit";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { linkCallback } from "@/lib/plugin-sandbox/slot-callbacks";
@@ -116,6 +119,12 @@ interface EventModalProps {
   /** The server's maxParticipantsPerEvent, for a warning; null when not advertised. */
   maxParticipants?: number | null;
   isMobile?: boolean;
+  /**
+   * The desktop sheet shows as a large dialog (#1757); onToggleExpand
+   * switches it, and without it there is no button.
+   */
+  expanded?: boolean;
+  onToggleExpand?: () => void;
   /** The events loaded in the calendar: the form says which of them share its time (#1685). */
   overlapEvents?: CalendarEvent[];
 }
@@ -310,6 +319,8 @@ export function EventModal({
   isSubscriptionCalendar,
   maxParticipants = null,
   isMobile = false,
+  expanded = false,
+  onToggleExpand,
   overlapEvents,
 }: EventModalProps) {
   const t = useTranslations("calendar");
@@ -319,6 +330,7 @@ export function EventModal({
   const labelFor = (key: string) => `${labelIdBase}-${key}`;
   const tCommon = useTranslations("common");
   const tEvent = useTranslations("ux_pim_event");
+  const tDelegate = useTranslations("calendar_delegate");
   const shownName = useCollectionNames();
   // The header's close goes to its start when the window's own close is at its end.
   const [header, setHeader] = useState<HTMLDivElement | null>(null);
@@ -597,11 +609,11 @@ export function EventModal({
     // organizer too, and the user isn't a guest of it.
     if (!event) {
       const mine = new Set(currentUserEmails.map((e) => e.toLowerCase()));
-      return existingParticipants.reduce<{ name: string; email: string }[]>((acc, p) => {
+      return existingParticipants.reduce<EditorAttendee[]>((acc, p) => {
         const key = p.email.trim().toLowerCase();
         if (!key || mine.has(key)) return acc;
         mine.add(key);
-        acc.push({ name: p.name, email: p.email.trim() });
+        acc.push({ name: p.name, email: p.email.trim(), ...(p.optional ? { optional: true } : {}) });
         return acc;
       }, []);
     }
@@ -618,16 +630,49 @@ export function EventModal({
     }
     return existingParticipants
       .filter(p => !p.isOrganizer)
-      .reduce<{ name: string; email: string }[]>((acc, p) => {
+      .reduce<EditorAttendee[]>((acc, p) => {
         const key = p.email.trim().toLowerCase();
         if (!key || excluded.has(key)) return acc;
         excluded.add(key);
-        acc.push({ name: p.name, email: p.email.trim() });
+        acc.push({ name: p.name, email: p.email.trim(), ...(p.optional ? { optional: true } : {}) });
         return acc;
       }, []);
   });
   const [attendees, setAttendees] = useState<EditorAttendee[]>(initialAttendees);
   const [sendInvitations, setSendInvitations] = useState(true);
+
+  // In another person's or a group's calendar the user may write to, the
+  // user organizes for its owner (#1761): the owner is the organizer and the
+  // user's address goes in sentBy, as a delegate answers for them (#634).
+  const authClient = useAuthStore((s) => s.client);
+  const targetCalendar = calendars.find((c) => c.id === calendarId);
+  const targetShared = !!targetCalendar?.isShared && !!targetCalendar.myRights?.mayWriteAll;
+  const calendarOwner = useAccountOwner(authClient, targetShared ? targetCalendar?.accountId ?? null : null, targetCalendar?.accountName);
+  const ownerOrganizer = useMemo<OrganizerOnBehalf | null>(() => {
+    if (!targetShared || !calendarOwner) return null;
+    const mine = new Set(currentUserEmails.map((e) => e.trim().toLowerCase()));
+    // A person's own calendar seen through a share of their own: nothing to choose.
+    if (!calendarOwner.isGroup && calendarOwner.emails.some((e) => mine.has(e))) return null;
+    const delegate = currentUserEmails[0]?.trim();
+    return {
+      name: calendarOwner.name,
+      email: calendarOwner.emails[0],
+      ...(!calendarOwner.isGroup && delegate ? { sentBy: `mailto:${delegate}` } : {}),
+    };
+  }, [targetShared, calendarOwner, currentUserEmails]);
+  // Only an event without an organizer gets one: an existing meeting keeps its own.
+  const eventHasOrganizer = !!event && !!eventOrganizer(event);
+  const [organizeAsOwner, setOrganizeAsOwner] = useState(true);
+  const offerOrganizerChoice = !!ownerOrganizer && !eventHasOrganizer && userIsOrganizer && attendees.length > 0;
+  // The organizer the save writes for someone else: the owner picked above,
+  // or the owner who already organizes the event (its sentBy follows the
+  // user who changes it).
+  const organizerOnBehalf = useMemo<OrganizerOnBehalf | undefined>(() => {
+    if (!ownerOrganizer) return undefined;
+    if (!eventHasOrganizer) return organizeAsOwner ? ownerOrganizer : undefined;
+    const current = eventOrganizer(event!)?.email.trim().toLowerCase();
+    return current && calendarOwner?.emails.includes(current) ? { ...ownerOrganizer, email: eventOrganizer(event!)!.email } : undefined;
+  }, [ownerOrganizer, eventHasOrganizer, organizeAsOwner, event, calendarOwner]);
   const participantInputRef = useRef<ParticipantInputHandle>(null);
 
   // What the form holds against what it opened with: a form with changes
@@ -898,6 +943,16 @@ export function EventModal({
     setAttendees(prev => prev.filter(a => a.email.toLowerCase() !== email.toLowerCase()));
   }, []);
 
+  // Required by default; an optional attendee is told so and doesn't
+  // block a time in Suggest times.
+  const handleToggleOptional = useCallback((email: string) => {
+    setAttendees(prev => prev.map((a) => {
+      if (a.email.toLowerCase() !== email.toLowerCase()) return a;
+      if (a.optional) return { name: a.name, email: a.email };
+      return { ...a, optional: true };
+    }));
+  }, []);
+
   const handleSave = useCallback(async () => {
     // No title is fine, as in the quick editor: the screen says "(No title)" (pim-p3-12).
     const trimmedTitle = title.trim();
@@ -1051,6 +1106,7 @@ export function EventModal({
       Object.assign(data, participantFieldsToSave(event, effectiveAttendees, {
         userEmail: currentUserEmails[0],
         userEmails: currentUserEmails,
+        organizer: organizerOnBehalf,
         resolveName: resolveContactName,
         rescheduled: !!event && (changesWhen(event, when) || timeZoneChanged || (ruleChanged && !event.recurrenceId)),
       }));
@@ -1117,12 +1173,13 @@ export function EventModal({
         when,
         ruleChanged,
         ...(timeZoneChanged ? { timeZoneChanged } : {}),
+        ...(organizerOnBehalf ? { organizer: organizerOnBehalf } : {}),
       });
     } finally {
       savingRef.current = false;
       setIsSaving(false);
     }
-  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone, initialForm, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, freeBusyStatus, privacy, privacyEditable, color, currentUserEmails, userIsOrganizer, resolveContactName, event, seed, eventDescription, onSave, isSaving, t]);
+  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone, initialForm, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, freeBusyStatus, privacy, privacyEditable, color, currentUserEmails, userIsOrganizer, organizerOnBehalf, resolveContactName, event, seed, eventDescription, onSave, isSaving, t]);
 
   // The user's own answer, and the owner's in a calendar shared with them
   // (lib/calendar-delegate.ts).
@@ -1148,8 +1205,10 @@ export function EventModal({
     (): HTMLElement | null => (mode === "edit" ? titleRef.current : primaryRef.current),
     [mode],
   );
-  // Full screen on the phone: a modal that holds the focus.
-  const modalRef = useFocusTrap({ isActive: !!isMobile, initialFocus: initialFocusTarget });
+  // Full screen on the phone, or expanded on a wide screen: a modal that
+  // holds the focus.
+  const isModal = !!isMobile || expanded;
+  const modalRef = useFocusTrap({ isActive: isModal, initialFocus: initialFocusTarget });
 
   // Beside the grid on wide screens: the focus moves in on open and with
   // each switch between summary and form, and goes back on close.
@@ -1174,6 +1233,11 @@ export function EventModal({
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (askingRef.current) return;
+        // Expanded first goes back to the sheet, as the composer's full screen does.
+        if (expanded && onToggleExpand) {
+          onToggleExpand();
+          return;
+        }
         if (mode === "edit" && isEdit) {
           backToView();
         } else {
@@ -1190,9 +1254,21 @@ export function EventModal({
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [requestClose, backToView, canEditBody, mode, isEdit]);
+  }, [requestClose, backToView, canEditBody, mode, isEdit, expanded, onToggleExpand]);
 
   const hasParticipants = attendees.length > 0 || (event?.participants && Object.keys(event.participants).length > 0);
+
+  // Wide screens only: the phone's editor fills the screen already.
+  const expandButton = onToggleExpand && !isMobile ? (
+    <IconButton
+      label={expanded ? t("form.restore_size") : t("form.expand")}
+      onClick={onToggleExpand}
+      className="flex-shrink-0 text-muted-foreground"
+      data-testid="event-editor-expand"
+    >
+      {expanded ? <Minimize2 /> : <Maximize2 />}
+    </IconButton>
+  ) : null;
 
   // View mode: read-only display of event details with Edit button. An
   // invitation the user can only answer is shown by the same view, with a
@@ -1224,9 +1300,10 @@ export function EventModal({
         <X />
       </IconButton>
     );
+    const viewExpand = expandButton && <span className="mt-0.5 flex-shrink-0">{expandButton}</span>;
 
     return (
-      <div ref={modalRef} role="dialog" aria-modal={isMobile || undefined} aria-label={event.title || t("events.no_title")} className={isMobile ? mobileRootClass : "flex flex-col h-full bg-background"}>
+      <div ref={modalRef} role="dialog" aria-modal={isModal || undefined} aria-label={event.title || t("events.no_title")} className={isMobile ? mobileRootClass : "flex flex-col h-full bg-background"}>
         {/* Color accent bar */}
         <div className="h-1 w-full flex-shrink-0" style={{ backgroundColor: color }} />
 
@@ -1247,6 +1324,7 @@ export function EventModal({
               <MoreVertical />
             </IconButton>
           )}
+          {viewExpand}
           {!closeFirst && viewClose}
         </div>
 
@@ -1373,6 +1451,9 @@ export function EventModal({
                           {p.isOrganizer && (
                             <span className="text-muted-foreground ms-1">({t("participants.organizer_role")})</span>
                           )}
+                          {p.optional && (
+                            <span className="text-muted-foreground ms-1">({t("participants.optional_role")})</span>
+                          )}
                         </span>
                         <ParticipantStatusBadge status={p.status} />
                       </div>
@@ -1472,12 +1553,13 @@ export function EventModal({
   );
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal={isMobile || undefined} aria-label={isEdit ? t("events.edit") : t("events.create")} data-tour="event-modal" className={isMobile ? mobileRootClass : "flex flex-col h-full bg-background"}>
+    <div ref={modalRef} role="dialog" aria-modal={isModal || undefined} aria-label={isEdit ? t("events.edit") : t("events.create")} data-tour="event-modal" className={isMobile ? mobileRootClass : "flex flex-col h-full bg-background"}>
       <div ref={setHeader} data-window-top-row="" className="flex items-center gap-2 px-6 py-4 border-b border-border flex-shrink-0">
         {closeFirst && editClose}
         <h2 className="min-w-0 flex-1 text-lg font-semibold">
           {isEdit ? t("events.edit") : t("events.create")}
         </h2>
+        {expandButton}
         {!closeFirst && editClose}
       </div>
 
@@ -1800,8 +1882,27 @@ export function EventModal({
               participants={attendees}
               onAdd={handleAddAttendee}
               onRemove={handleRemoveAttendee}
+              onToggleOptional={handleToggleOptional}
               disabled={!userIsOrganizer}
             />
+            {offerOrganizerChoice && ownerOrganizer && (
+              <div className="mt-2">
+                <label htmlFor={labelFor("organizer")} className="text-sm font-medium mb-1 block">{t("participants.organizer")}</label>
+                <select
+                  id={labelFor("organizer")}
+                  value={organizeAsOwner ? "owner" : "me"}
+                  onChange={(e) => setOrganizeAsOwner(e.target.value === "owner")}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-hidden"
+                >
+                  <option value="owner">
+                    {ownerOrganizer.sentBy
+                      ? tDelegate("organizer_owner", { name: ownerOrganizer.name })
+                      : ownerOrganizer.name}
+                  </option>
+                  <option value="me">{tDelegate("organizer_me")}</option>
+                </select>
+              </div>
+            )}
             {/* Only a warning: 0.16 advertises the limit without enforcing
                 it, Stalwart 1.0 refuses to save more participants - the
                 organizer entry a save adds counts too. */}
@@ -1818,6 +1919,15 @@ export function EventModal({
             />
             {userIsOrganizer && !allDay && (
               <FindATime
+                attendees={attendees}
+                start={availabilityWindow.start}
+                end={availabilityWindow.end}
+                onPick={handlePickSlot}
+                savedWindow={savedWindow}
+              />
+            )}
+            {userIsOrganizer && !allDay && (
+              <SchedulingAssistant
                 attendees={attendees}
                 start={availabilityWindow.start}
                 end={availabilityWindow.end}

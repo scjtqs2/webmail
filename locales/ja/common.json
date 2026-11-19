@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "パスワード",
     "password_placeholder": "パスワードを入力",
+    "forgot_password": "パスワードをお忘れですか？",
     "jmap_server_label": "サーバー",
     "jmap_server_auto_picked": "メールドメインからサーバーを選択しました。",
     "sign_in": "サインイン",
@@ -23,7 +24,8 @@
       "totp_invalid": "認証コードが無効です。認証アプリを確認してください。",
       "oauth_discovery_failed": "SSOは有効ですが、IDプロバイダーに接続できません。OAuth設定を確認してください。",
       "oauth_issuer_mismatch": "このプロバイダーでのサインインは正しく設定されていません。管理者がプロバイダーの発行者 (issuer) アドレスを設定する必要があります。",
-      "token_exchange_failed": "パスワードとコードは受け付けられましたが、メールサーバーがこのアプリのセッション開始を拒否しました。管理者に OAuth クライアントの設定を確認してもらってください。"
+      "token_exchange_failed": "パスワードとコードは受け付けられましたが、メールサーバーがこのアプリのセッション開始を拒否しました。管理者に OAuth クライアントの設定を確認してもらってください。",
+      "login_refused": "メールサーバーがコードを確認する前にこのサインインを拒否しました。OAuth クライアントの設定を確認するよう管理者に依頼してください。"
     },
     "show_password": "パスワードを表示",
     "hide_password": "パスワードを隠す",
@@ -788,7 +790,8 @@
       "event_status_tentative": "仮",
       "event_status_cancelled": "キャンセル済み",
       "collapse": "詳細を非表示",
-      "expand": "詳細を表示"
+      "expand": "詳細を表示",
+      "optional_role": "あなたの参加は任意です"
     },
     "previous": "前へ",
     "next": "次へ",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} 秒",
         "unsupported": "現在のアカウントは遅延送信のサポートを通知していません。この設定は他のアカウント用に保存されます。"
       },
+      "mark_read_on_reply": {
+        "label": "返信または転送したら既読にする",
+        "description": "返信または転送したメッセージは、開いても既読にしない設定のときでも既読になります。"
+      },
       "return_to_list_after_action": {
         "label": "削除、アーカイブ、移動、または未読にした後に一覧へ戻る",
         "description": "開いているメッセージを削除、アーカイブ、移動、迷惑メールとして報告、または未読にした後、次のメッセージを開かずにメッセージ一覧へ戻ります。"
@@ -3007,16 +3014,12 @@
       "loading": "フィルターを読み込み中...",
       "not_supported": "お使いのメールサーバーはメールフィルターに対応していません。",
       "rule_name": "ルール名",
-      "rule_name_placeholder": "例：ニュースレターを振り分け",
       "match_all": "すべての条件に一致",
       "match_any": "いずれかの条件に一致",
       "conditions": "条件",
       "add_condition": "条件を追加",
       "actions": "アクション",
-      "add_action": "アクションを追加",
       "remove_condition": "条件を削除",
-      "remove_action": "操作を削除",
-      "stop_processing": "以降のルールを適用しない",
       "include_spam": "迷惑メールと判定されたメッセージも移動する",
       "attachment_type_placeholder": "例: pdf, doc, jpg",
       "value_placeholder_multi": "値（カンマで複数指定可）",
@@ -3076,7 +3079,6 @@
       "condition_value": "条件の値",
       "header_placeholder": "例：X-Mailing-List",
       "size_bytes": "サイズ（バイト）",
-      "size_placeholder": "例：1000000",
       "system_managed": "システム管理ルール",
       "opaque_warning": "このスクリプトはビジュアルビルダーの外部で編集されました。Sieveスクリプトの直接編集のみ可能です。",
       "open_sieve_editor": "Sieveスクリプトエディタを開く",
@@ -3099,7 +3101,6 @@
       "reset_warning": "現在のスクリプトを破棄して最初からやり直します。",
       "reset_title": "ビジュアルエディターに戻しますか?",
       "confirm_reset": "リセット",
-      "validation_empty_name": "ルール名は必須です",
       "validation_empty_conditions": "値を持つ条件が少なくとも1つ必要です",
       "validation_empty_actions": "少なくとも1つのアクションが必要です",
       "validation_action_folder": "この操作のフォルダーを選択してください",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "CC {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "このフォルダにある既存のメールにも適用",
-      "apply_existing_unsupported": "既存のメールに適用できるのは、差出人・宛先・件名・ヘッダーを条件とし、移動・コピー・既読・スター・ラベルを実行するルールだけです。",
       "period_title": "期間",
       "period_start": "開始日",
       "period_end": "終了日",
@@ -3160,10 +3159,6 @@
       "period_hint": "この期間に届いたメッセージに適用されます。空欄にすると、その側は制限なしになります。",
       "validation_period_empty": "期間の開始日または終了日を入力してください",
       "validation_period_invalid": "期間には時刻付きの有効な日付を入力するか、欄を空のままにしてください",
-      "apply_existing_period": "期間付きのルールは期間内に届いたメッセージにのみ適用されるため、既存のメッセージには適用できません。",
-      "apply_existing_in": "{folder} にあるメッセージにも適用する",
-      "apply_existing_count": "{count, plural, other {{folder} にある # 件にも適用する}}",
-      "apply_existing_none": "{folder} にこのルールに合うメッセージはまだありません。",
       "period_status_scheduled": "予定",
       "period_status_active": "有効",
       "period_status_expired": "期限切れ",
@@ -4963,7 +4958,9 @@
       "overlap_more": "ほか{count}件",
       "save": "保存",
       "cancel": "キャンセル",
-      "color": "色"
+      "color": "色",
+      "expand": "拡大",
+      "restore_size": "元のサイズに戻す"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "あなたは参加者です",
       "no_participants": "参加者なし",
       "limit_warning": "参加者が主催者を含めて{max, plural, other {#人}}を超えています。サーバーがこの予定の保存を拒否する可能性があります。管理者が上限を引き上げることができます。",
-      "count": "{count}人の参加者"
+      "count": "{count}人の参加者",
+      "optional": "任意",
+      "optional_role": "任意"
     },
     "recurrence": {
       "title": "繰り返し",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, other {# 件の予定が見つかりました}}"
     },
     "mini_has_events": "イベントあり",
-    "mini_week_number": "第{week}週"
+    "mini_week_number": "第{week}週",
+    "move_confirm_organizer_title": "「{title}」を{when}に移動しますか？",
+    "move_confirm_organizer_message": "参加者に更新が送られ、新しい時間の承諾を求められます。",
+    "move_confirm_organizer_confirm": "移動して通知",
+    "move_confirm_attendee_title": "「{title}」をあなたのカレンダーでだけ移動しますか？",
+    "move_confirm_attendee_message": "あなたは主催者ではありません。主催者と他の参加者の予定は元の時間のままで、主催者が次に更新するとあなたの変更は上書きされます。",
+    "move_confirm_attendee_confirm": "自分のコピーを移動"
   },
   "ux_pim_calendar": {
     "task_lists": "タスクリスト",
@@ -6196,7 +6201,9 @@
     "answer_for": "{name} の代わりに返答",
     "no_write": "{name} の招待は見られますが、代わりに返答することはできません。編集権限を依頼してください。",
     "also_invited": "あなたも招待されていて、このサーバーではあなたの返答と {name} の返答を区別できません。この招待には {name} 本人が返答する必要があります。",
-    "answered_by": "{who} が返答しました"
+    "answered_by": "{who} が返答しました",
+    "organizer_owner": "{name}（あなたが代理で送信）",
+    "organizer_me": "あなた"
   },
   "free_busy_share": {
     "button": "自分の空き時間を {group} と共有",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark が予定ありの時間を確認できるのは、共有されたカレンダーだけです。これらの人については、空いているのか共有されていないのか区別できません。",
     "directory_off": "Bulwark はこのサーバーで人を検索できません。管理者は Stalwart でディレクトリ照会をオンにできます。",
     "not_looked_up": "このアドレスを検索できません",
-    "found": "見つかった空き時間：{count}"
+    "found": "見つかった空き時間：{count}",
+    "optional_ignored": "任意の参加者の予定ありの時間は考慮しません。"
+  },
+  "scheduling_assistant": {
+    "open": "空き状況…",
+    "title": "空き状況",
+    "description": "グリッドをクリックするか予定をドラッグして移動します。終わりの端をドラッグすると長さを変えられます。",
+    "previous_day": "前の日",
+    "next_day": "次の日",
+    "you": "あなた",
+    "everyone": "すべての参加者",
+    "optional": "任意",
+    "event": "予定: {time}",
+    "keyboard_hint": "矢印キーで予定を15分ずつ移動します。Shiftキーと一緒に押すと長さを変えます。",
+    "use_time": "この時間にする",
+    "loading": "予定ありの時間を読み込み中…",
+    "outside_hours": "勤務時間外",
+    "everyone_free": "全員空き",
+    "not_checked": "不明"
   },
   "share_notifications": {
     "someone": "誰か",

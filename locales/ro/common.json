@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "Parolă",
     "password_placeholder": "Introduceți parola",
+    "forgot_password": "Ați uitat parola?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server selectat din domeniul dvs. de e-mail.",
     "sign_in": "Autentificare",
@@ -23,7 +24,8 @@
       "totp_invalid": "Cod de autentificare invalid. Vă rugăm să verificați aplicația de autentificare și să încercați din nou.",
       "oauth_discovery_failed": "SSO este activată, dar furnizorul de identitate nu a putut fi contactat. Verificați configurația OAuth.",
       "oauth_issuer_mismatch": "Autentificarea prin acest furnizor nu este configurată corect. Administratorul trebuie să seteze adresa emitentului (issuer) acestuia.",
-      "token_exchange_failed": "Parola și codul au fost acceptate, dar serverul de e-mail a refuzat să pornească o sesiune pentru această aplicație. Cereți administratorului să verifice setările clientului OAuth."
+      "token_exchange_failed": "Parola și codul au fost acceptate, dar serverul de e-mail a refuzat să pornească o sesiune pentru această aplicație. Cereți administratorului să verifice setările clientului OAuth.",
+      "login_refused": "Serverul de e-mail a refuzat această autentificare înainte de a verifica codul. Cereți administratorului să verifice setările clientului OAuth."
     },
     "show_password": "Afișează parola",
     "hide_password": "Ascunde parola",
@@ -815,7 +817,8 @@
       "event_status_tentative": "Provizoriu",
       "event_status_cancelled": "Anulat",
       "expand": "Afișați detalii",
-      "collapse": "Ascunde detaliile"
+      "collapse": "Ascunde detaliile",
+      "optional_role": "Participarea ta este opțională"
     },
     "send": "Trimite",
     "more": "mai mult",
@@ -2301,6 +2304,10 @@
         "seconds": "{seconds} secunde",
         "unsupported": "Contul curent nu indică faptul că acceptă trimiterea amânată. Setarea este totuși salvată pentru alte conturi."
       },
+      "mark_read_on_reply": {
+        "label": "Marchează ca citit când răspund sau redirecționez",
+        "description": "Un mesaj la care răspundeți sau pe care îl redirecționați este marcat ca citit, chiar și când mesajele nu sunt niciodată marcate ca citite la deschidere."
+      },
       "return_to_list_after_action": {
         "label": "Revenire la listă după ștergere, arhivare, mutare sau marcare ca necitit",
         "description": "După ștergerea, arhivarea, mutarea, raportarea ca spam sau marcarea mesajului deschis ca necitit, reveniți la lista de mesaje în loc să deschideți mesajul următor."
@@ -3014,16 +3021,12 @@
       "loading": "Se încarcă filtrele...",
       "not_supported": "Serverul dvs. de e-mail nu acceptă filtre de e-mail.",
       "rule_name": "Numele regulii",
-      "rule_name_placeholder": "de ex., Sortează buletinele informative",
       "match_all": "Îndeplinește toate condițiile",
       "match_any": "Îndeplinește oricare condiție",
       "conditions": "Condiții",
       "add_condition": "Adăugați condiție",
       "actions": "Acțiuni",
-      "add_action": "Adăugare acțiune",
       "remove_condition": "Elimină condiția",
-      "remove_action": "Elimină acțiunea",
-      "stop_processing": "Nu aplicați regulile următoare",
       "include_spam": "Mută și mesajele marcate ca spam",
       "attachment_type_placeholder": "de ex. pdf, doc, jpg",
       "value_placeholder_multi": "Valoare (mai multe valori separate prin virgule)",
@@ -3083,7 +3086,6 @@
       "condition_value": "Valoarea condiției",
       "header_placeholder": "de ex., X-Mailing-List",
       "size_bytes": "Dimensiune în octeți",
-      "size_placeholder": "de exemplu, 1000000",
       "system_managed": "Regulă gestionată de sistem",
       "opaque_warning": "Acest script a fost editat în afara editorului vizual. Este disponibilă doar editarea directă a fișierului „Sieve”.",
       "open_sieve_editor": "Deschideți editorul de fișiere Sieve în format brut",
@@ -3106,7 +3108,6 @@
       "reset_warning": "Aceasta va anula scriptul curent și va începe de la zero.",
       "reset_title": "Reveniți la editorul vizual?",
       "confirm_reset": "Resetare",
-      "validation_empty_name": "Numele regulii este obligatoriu",
       "validation_empty_conditions": "Este necesară cel puțin o condiție cu o valoare",
       "validation_empty_actions": "Este necesară cel puțin o acțiune",
       "validation_action_folder": "Selectați un dosar pentru această acțiune",
@@ -3157,8 +3158,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Aplicați și mesajelor care sunt deja în acest dosar",
-      "apply_existing_unsupported": "Doar regulile care verifică expeditorul, destinatarii, subiectul sau antetele și care mută, copiază, marchează ca citit, marchează cu stea sau etichetează pot fi aplicate mesajelor existente.",
       "period_title": "Interval de date",
       "period_start": "Data de începere",
       "period_end": "Data de încheiere",
@@ -3167,10 +3166,6 @@
       "period_hint": "Se aplică mesajelor care sosesc în această perioadă. Lăsați un câmp gol pentru a nu limita acel capăt.",
       "validation_period_empty": "Introduceți o dată de începere sau de încheiere pentru perioadă",
       "validation_period_invalid": "Introduceți o dată validă cu oră pentru perioadă sau lăsați câmpul gol",
-      "apply_existing_period": "O regulă cu perioadă acționează doar asupra mesajelor care sosesc în acea perioadă, deci nu poate fi aplicată mesajelor existente.",
-      "apply_existing_in": "Aplicați și mesajelor care sunt deja în {folder}",
-      "apply_existing_count": "{count, plural, one {Aplicați și # mesajului care este deja în {folder}} few {Aplicați și celor # mesaje care sunt deja în {folder}} other {Aplicați și celor # de mesaje care sunt deja în {folder}}}",
-      "apply_existing_none": "Niciun mesaj din {folder} nu se potrivește încă acestei reguli.",
       "period_status_scheduled": "programată",
       "period_status_active": "activă",
       "period_status_expired": "expirată",
@@ -4963,7 +4958,9 @@
       "overlap_more": "Și încă {count}",
       "save": "Salvare",
       "cancel": "Anulează",
-      "color": "Culoare"
+      "color": "Culoare",
+      "expand": "Extinde",
+      "restore_size": "Restabilește dimensiunea"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Sunteți participant",
       "no_participants": "Nu există participanți",
       "limit_warning": "Mai mult de {max, plural, one {# participant} few {# participanți} other {# de participanți}}, inclusiv organizatorul: serverul poate refuza salvarea acestui eveniment. Un administrator poate mări limita.",
-      "count": "{count, plural, one {# participant} few {# participanți} other {# de participanți}}"
+      "count": "{count, plural, one {# participant} few {# participanți} other {# de participanți}}",
+      "optional": "Opțional",
+      "optional_role": "opțional"
     },
     "recurrence": {
       "title": "Recurență",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# eveniment găsit} few {# evenimente găsite} other {# de evenimente găsite}}"
     },
     "mini_has_events": "are evenimente",
-    "mini_week_number": "Săptămâna {week}"
+    "mini_week_number": "Săptămâna {week}",
+    "move_confirm_organizer_title": "Muți „{title}” la {when}?",
+    "move_confirm_organizer_message": "Participanții primesc o actualizare și li se cere să accepte noua oră.",
+    "move_confirm_organizer_confirm": "Mută și anunță",
+    "move_confirm_attendee_title": "Muți „{title}” doar în calendarul tău?",
+    "move_confirm_attendee_message": "Nu ești organizatorul. Pentru organizator și ceilalți participanți întâlnirea rămâne la ora ei, iar următoarea actualizare a organizatorului îți va înlocui modificarea.",
+    "move_confirm_attendee_confirm": "Mută copia mea"
   },
   "ux_pim_calendar": {
     "task_lists": "Liste de sarcini",
@@ -5557,7 +5562,9 @@
     "answer_for": "Răspunde în numele {name}",
     "no_write": "Vedeți invitațiile lui {name}, dar nu puteți răspunde în numele său. Cereți acces de editare.",
     "also_invited": "Sunteți și dvs. invitat, iar acest server nu poate deosebi răspunsul dvs. de cel al lui {name}. {name} trebuie să răspundă la aceasta.",
-    "answered_by": "Răspuns de {who}"
+    "answered_by": "Răspuns de {who}",
+    "organizer_owner": "{name} (trimis de tine)",
+    "organizer_me": "Tu"
   },
   "free_busy_share": {
     "button": "Partajează disponibilitatea mea cu {group}",
@@ -5668,7 +5675,25 @@
     "unknown_note": "Bulwark vede orele ocupate doar în calendarele partajate cu dvs. Pentru aceste persoane nu poate deosebi liber de nepartajat.",
     "directory_off": "Bulwark nu poate căuta persoane pe acest server. Administratorul poate activa interogările de director în Stalwart.",
     "not_looked_up": "Adresa nu a putut fi căutată",
-    "found": "Ore libere găsite: {count}"
+    "found": "Ore libere găsite: {count}",
+    "optional_ignored": "Orele ocupate ale participanților opționali nu contează."
+  },
+  "scheduling_assistant": {
+    "open": "Disponibilitate…",
+    "title": "Disponibilitate",
+    "description": "Dați clic pe grilă sau trageți evenimentul pentru a-l muta. Trageți de sfârșitul lui pentru a schimba durata.",
+    "previous_day": "Ziua anterioară",
+    "next_day": "Ziua următoare",
+    "you": "Dvs.",
+    "everyone": "Toți participanții",
+    "optional": "Opțional",
+    "event": "Eveniment: {time}",
+    "keyboard_hint": "Săgețile mută evenimentul cu 15 minute. Cu Shift schimbă durata.",
+    "use_time": "Folosește această oră",
+    "loading": "Se încarcă orele ocupate…",
+    "outside_hours": "În afara programului de lucru",
+    "everyone_free": "Toți liberi",
+    "not_checked": "Necunoscut"
   },
   "share_notifications": {
     "someone": "Cineva",

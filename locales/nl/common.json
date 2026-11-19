@@ -6,6 +6,7 @@
     "username_placeholder": "gebruiker@voorbeeld.nl",
     "password_label": "Wachtwoord",
     "password_placeholder": "Voer je wachtwoord in",
+    "forgot_password": "Wachtwoord vergeten?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server geselecteerd op basis van je e-maildomein.",
     "sign_in": "Aanmelden",
@@ -23,7 +24,8 @@
       "totp_invalid": "Ongeldige authenticatiecode. Controleer uw authenticator-app.",
       "oauth_discovery_failed": "SSO is ingeschakeld maar de identiteitsprovider is niet bereikbaar. Controleer uw OAuth-configuratie.",
       "oauth_issuer_mismatch": "Aanmelden via deze provider is niet goed ingesteld. De beheerder moet het issuer-adres van de provider instellen.",
-      "token_exchange_failed": "Uw wachtwoord en code zijn geaccepteerd, maar de mailserver weigerde een sessie voor deze app te starten. Vraag uw beheerder de OAuth-clientinstellingen te controleren."
+      "token_exchange_failed": "Uw wachtwoord en code zijn geaccepteerd, maar de mailserver weigerde een sessie voor deze app te starten. Vraag uw beheerder de OAuth-clientinstellingen te controleren.",
+      "login_refused": "De mailserver weigerde deze aanmelding voordat uw code werd gecontroleerd. Vraag uw beheerder de OAuth-clientinstellingen te controleren."
     },
     "show_password": "Wachtwoord tonen",
     "hide_password": "Wachtwoord verbergen",
@@ -788,7 +790,8 @@
       "event_status_tentative": "Voorlopig",
       "event_status_cancelled": "Geannuleerd",
       "collapse": "Details verbergen",
-      "expand": "Details tonen"
+      "expand": "Details tonen",
+      "optional_role": "Je aanwezigheid is optioneel"
     },
     "previous": "Vorige",
     "next": "Volgende",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} seconden",
         "unsupported": "Het huidige account meldt geen ondersteuning voor vertraagd verzenden. De instelling blijft opgeslagen voor andere accounts."
       },
+      "mark_read_on_reply": {
+        "label": "Als gelezen markeren wanneer ik antwoord of doorstuur",
+        "description": "Een bericht dat u beantwoordt of doorstuurt, wordt als gelezen gemarkeerd, ook als berichten bij openen nooit als gelezen worden gemarkeerd."
+      },
       "return_to_list_after_action": {
         "label": "Terug naar lijst na verwijderen, archiveren, verplaatsen of markeren als ongelezen",
         "description": "Na het verwijderen, archiveren, verplaatsen, als spam melden of als ongelezen markeren van het geopende bericht terugkeren naar de berichtenlijst in plaats van het volgende bericht te openen."
@@ -3007,16 +3014,12 @@
       "loading": "Filters laden...",
       "not_supported": "Uw mailserver ondersteunt geen e-mailfilters.",
       "rule_name": "Regelnaam",
-      "rule_name_placeholder": "bijv. Nieuwsbrieven sorteren",
       "match_all": "Aan alle voorwaarden voldoen",
       "match_any": "Aan een van de voorwaarden voldoen",
       "conditions": "Voorwaarden",
       "add_condition": "Voorwaarde toevoegen",
       "actions": "Acties",
-      "add_action": "Actie toevoegen",
       "remove_condition": "Voorwaarde verwijderen",
-      "remove_action": "Actie verwijderen",
-      "stop_processing": "Latere regels niet toepassen",
       "include_spam": "Ook berichten verplaatsen die als spam zijn gemarkeerd",
       "attachment_type_placeholder": "bijv. pdf, doc, jpg",
       "value_placeholder_multi": "Waarde (meerdere met komma's gescheiden)",
@@ -3076,7 +3079,6 @@
       "condition_value": "Waarde van de voorwaarde",
       "header_placeholder": "bijv. X-Mailing-List",
       "size_bytes": "Grootte in bytes",
-      "size_placeholder": "bijv. 1000000",
       "system_managed": "Systeembeheerde regel",
       "opaque_warning": "Dit script is buiten de visuele builder bewerkt. Alleen Sieve-scriptbewerking is beschikbaar.",
       "open_sieve_editor": "Sieve-scripteditor openen",
@@ -3099,7 +3101,6 @@
       "reset_warning": "Dit verwijdert het huidige script en begint opnieuw.",
       "reset_title": "Terugzetten naar de visuele editor?",
       "confirm_reset": "Terugzetten",
-      "validation_empty_name": "Regelnaam is verplicht",
       "validation_empty_conditions": "Minstens één voorwaarde met een waarde is vereist",
       "validation_empty_actions": "Minstens één actie is vereist",
       "validation_action_folder": "Kies een map voor deze actie",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Ook toepassen op berichten die al in deze map staan",
-      "apply_existing_unsupported": "Alleen regels die de afzender, ontvangers, het onderwerp of headers controleren, en die verplaatsen, kopiëren, als gelezen markeren, een ster geven of labelen, kunnen op bestaande berichten worden toegepast.",
       "period_title": "Periode",
       "period_start": "Startdatum",
       "period_end": "Einddatum",
@@ -3160,10 +3159,6 @@
       "period_hint": "Geldt voor berichten die in deze periode binnenkomen. Laat een veld leeg om die kant open te laten.",
       "validation_period_empty": "Vul een start- of einddatum voor de periode in",
       "validation_period_invalid": "Vul voor de periode een geldige datum met tijd in, of laat het veld leeg",
-      "apply_existing_period": "Een regel met een periode werkt alleen op berichten die binnen die periode binnenkomen en kan dus niet op bestaande berichten worden toegepast.",
-      "apply_existing_in": "Ook toepassen op de berichten die al in {folder} staan",
-      "apply_existing_count": "{count, plural, one {Ook toepassen op het # bericht dat al in {folder} staat} other {Ook toepassen op de # berichten die al in {folder} staan}}",
-      "apply_existing_none": "Nog geen bericht in {folder} past bij deze regel.",
       "period_status_scheduled": "gepland",
       "period_status_active": "actief",
       "period_status_expired": "verlopen",
@@ -4963,7 +4958,9 @@
       "overlap_more": "En nog {count}",
       "save": "Opslaan",
       "cancel": "Annuleren",
-      "color": "Kleur"
+      "color": "Kleur",
+      "expand": "Vergroten",
+      "restore_size": "Oorspronkelijke grootte"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Je bent een deelnemer",
       "no_participants": "Geen deelnemers",
       "limit_warning": "Meer dan {max, plural, one {# deelnemer} other {# deelnemers}}, de organisator meegeteld: de server kan weigeren dit evenement op te slaan. Een beheerder kan de limiet verhogen.",
-      "count": "{count, plural, one {# deelnemer} other {# deelnemers}}"
+      "count": "{count, plural, one {# deelnemer} other {# deelnemers}}",
+      "optional": "Optioneel",
+      "optional_role": "optioneel"
     },
     "recurrence": {
       "title": "Herhaling",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# afspraak gevonden} other {# afspraken gevonden}}"
     },
     "mini_has_events": "heeft afspraken",
-    "mini_week_number": "Week {week}"
+    "mini_week_number": "Week {week}",
+    "move_confirm_organizer_title": "\"{title}\" verplaatsen naar {when}?",
+    "move_confirm_organizer_message": "De deelnemers krijgen een update en worden gevraagd de nieuwe tijd te accepteren.",
+    "move_confirm_organizer_confirm": "Verplaatsen en melden",
+    "move_confirm_attendee_title": "\"{title}\" alleen in je eigen agenda verplaatsen?",
+    "move_confirm_attendee_message": "Je bent niet de organisator. Voor de organisator en de andere deelnemers blijft de vergadering op dezelfde tijd, en de volgende update van de organisator overschrijft je wijziging.",
+    "move_confirm_attendee_confirm": "Mijn kopie verplaatsen"
   },
   "ux_pim_calendar": {
     "task_lists": "Takenlijsten",
@@ -6196,7 +6201,9 @@
     "answer_for": "Antwoorden namens {name}",
     "no_write": "Je ziet de uitnodigingen van {name}, maar kunt er niet namens hen op antwoorden. Vraag om bewerkrechten.",
     "also_invited": "Je bent zelf ook uitgenodigd en deze server kan jouw antwoord niet onderscheiden van dat van {name}. {name} moet deze zelf beantwoorden.",
-    "answered_by": "Beantwoord door {who}"
+    "answered_by": "Beantwoord door {who}",
+    "organizer_owner": "{name} (verzonden door jou)",
+    "organizer_me": "Jij"
   },
   "free_busy_share": {
     "button": "Mijn vrij/bezet delen met {group}",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark ziet bezette tijden alleen in agenda’s die met je zijn gedeeld. Bij deze mensen kan het vrij niet onderscheiden van niet gedeeld.",
     "directory_off": "Bulwark kan op deze server geen mensen opzoeken. Je beheerder kan directoryquery’s aanzetten in Stalwart.",
     "not_looked_up": "Dit adres kon niet worden opgezocht",
-    "found": "Vrije tijden gevonden: {count}"
+    "found": "Vrije tijden gevonden: {count}",
+    "optional_ignored": "Bezette tijden van optionele deelnemers tellen niet mee."
+  },
+  "scheduling_assistant": {
+    "open": "Beschikbaarheid…",
+    "title": "Beschikbaarheid",
+    "description": "Klik in het raster of sleep de afspraak om hem te verplaatsen. Sleep het einde om de duur te wijzigen.",
+    "previous_day": "Vorige dag",
+    "next_day": "Volgende dag",
+    "you": "Jij",
+    "everyone": "Alle deelnemers",
+    "optional": "Optioneel",
+    "event": "Afspraak: {time}",
+    "keyboard_hint": "De pijltjestoetsen verplaatsen de afspraak 15 minuten. Met Shift wijzigen ze de duur.",
+    "use_time": "Deze tijd gebruiken",
+    "loading": "Bezette tijden laden…",
+    "outside_hours": "Buiten werktijd",
+    "everyone_free": "Iedereen vrij",
+    "not_checked": "Onbekend"
   },
   "share_notifications": {
     "someone": "Iemand",

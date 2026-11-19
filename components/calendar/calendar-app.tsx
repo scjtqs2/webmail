@@ -85,11 +85,14 @@ import type { Calendar, CalendarEvent, CalendarParticipant, CalendarRights, Cale
 import { ShareCollectionDialog } from "@/components/settings/share-collection-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
+import { useFormatEventDate } from "@/hooks/use-format-event-date";
 import { SchedulingDeniedError } from "@/lib/jmap/scheduling-error";
 import { CreateCalendarModal } from "@/components/calendar/create-calendar-modal";
 import { CalendarSidebarHeader } from "@/components/calendar/calendar-sidebar-header";
 import { getUserParticipantId, collectUserCalendarAddresses, userOrganizes, getParticipantList } from "@/lib/calendar-participants";
 import type { AnswerTarget } from "@/lib/calendar-delegate";
+import { gridAnswerTargets, useAccountOwners } from "./answer-bars";
+import { CalendarOwnersContext, ownerOfCalendar } from "@/hooks/use-reply-emails";
 import type { MoveEventHandler } from "@/hooks/use-time-grid-interactions";
 import type { RevealTime } from "@/hooks/use-display-hours";
 import { generateBirthdayEvents, createBirthdayCalendar, BIRTHDAY_CALENDAR_ID } from "@/lib/birthday-calendar";
@@ -143,9 +146,19 @@ import { useCollectionNames } from "@/hooks/use-collection-names";
 // `fromEditor`: asked on the way out of the event editor, which stays open
 // until a scope is picked, so Cancel goes back to it with the changes.
 type PendingScopeAction =
-  | { type: "edit"; event: CalendarEvent; updates: Partial<CalendarEvent>; editor?: EventEditorState; sendScheduling?: boolean; fromEditor?: boolean }
+  | { type: "edit"; event: CalendarEvent; updates: Partial<CalendarEvent>; editor?: EventEditorState; sendScheduling?: boolean; fromEditor?: boolean; note?: string }
   | { type: "delete"; event: CalendarEvent; sendScheduling?: boolean; fromEditor?: boolean }
   | { type: "rsvp"; event: CalendarEvent; participantId: string; status: CalendarParticipant["participationStatus"]; sentBy?: string };
+
+/**
+ * Who a drag or resize of `event` reaches (#1752): the user as its
+ * organizer moves it for its attendees, anyone else only their own copy.
+ * Null for an event without attendees, which moves at once.
+ */
+function moveAudience(event: CalendarEvent, userEmails: string[]): { organizes: boolean; attendees: number } | null {
+  const attendees = getParticipantList(event).filter((p) => !p.isOrganizer).length;
+  return attendees > 0 ? { organizes: userOrganizes(event, userEmails), attendees } : null;
+}
 
 /** How long a sideways scroll rests on a day before that day becomes the selection. */
 const VISIBLE_DATE_SETTLE_MS = 300;
@@ -172,6 +185,21 @@ function keepEventClearOfToast(eventId: string, toastId: string): void {
 
 function isRecurringEvent(event: CalendarEvent): boolean {
   return (event.recurrenceRules?.length ?? 0) > 0 || event.recurrenceId != null;
+}
+
+type RsvpStatus = CalendarParticipant['participationStatus'];
+
+/** The grid menu's answers: the user's own, and the owner's in a shared calendar (#1760). */
+function gridAnswerMenuProps(targets: AnswerTarget[] | null, respond: (target: AnswerTarget, status: RsvpStatus) => void) {
+  const self = targets?.find((target) => target.kind === "self");
+  const owner = targets?.find((target) => target.kind === "owner");
+  return {
+    onRespond: self ? (status: RsvpStatus) => respond(self, status) : undefined,
+    responseStatus: self?.status,
+    ownerAnswer: owner
+      ? { name: owner.ownerName ?? "", status: owner.status, onRespond: (status: RsvpStatus) => respond(owner, status) }
+      : undefined,
+  };
 }
 
 export interface CalendarAppProps {
@@ -303,6 +331,13 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
   const resolveContactName = useContactNameResolver();
 
   const [showEventModal, setShowEventModal] = useState(false);
+  // The desktop editor as a large dialog (#1757). Like the composer's full
+  // screen it isn't remembered: each editor opens as the sheet.
+  const [eventEditorExpanded, setEventEditorExpanded] = useState(false);
+  const toggleEventEditorExpanded = useCallback(() => setEventEditorExpanded((v) => !v), []);
+  useEffect(() => {
+    if (!showEventModal) setEventEditorExpanded(false);
+  }, [showEventModal]);
   const [showImportModal, setShowImportModal] = useState(false);
   // Event search (CAL-16): the query in the toolbar box; on phones the box
   // opens as a row of its own.
@@ -1720,10 +1755,29 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
     }
   }, [client, pendingScopeAction, updateEvent, deleteEvent, createEvent, findMasterEvent, userEmailsFor, resolveContactName, refetchCurrentRange, submitRsvp, describeError, t, tOffline]);
 
+  // When a moved event happens, as the move question names it: its day,
+  // and its times for a timed one.
+  const formatEventDate = useFormatEventDate();
+  const movedWhen = useCallback((moved: CalendarEvent) => {
+    const start = getEventStartDate(moved);
+    if (moved.showWithoutTime) {
+      const last = getEventDisplayEndDate(moved);
+      return last.getTime() > start.getTime() ? `${formatEventDate(start)} – ${formatEventDate(last)}` : formatEventDate(start);
+    }
+    const time = timeFormat === "12h" ? "h:mm a" : "HH:mm";
+    return `${formatEventDate(start)}, ${format(start, time)}–${format(getEventEndDate(moved), time)}`;
+  }, [formatEventDate, timeFormat]);
+
   // A drag or resize. A series asks which occurrences it covers, as the
-  // editor does; one event moves at once and can be moved back.
+  // editor does; one event moves at once and can be moved back. With
+  // attendees, the user says first that the move goes out to them, or that
+  // only their own copy moves (#1752).
   const handleMoveEvent = useCallback<MoveEventHandler>(async (event, updates, sendScheduling, kind) => {
     if (!client) { toast.error(t("notifications.event_move_error")); return; }
+    const audience = moveAudience(event, userEmailsFor(event));
+    const audienceNote = audience
+      ? (audience.organizes ? t("move_confirm_organizer_message") : t("move_confirm_attendee_message"))
+      : undefined;
     if (isRecurringEvent(event)) {
       const moved = { ...event, ...updates };
       const allDay = !!event.showWithoutTime;
@@ -1743,8 +1797,26 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
           when: { allDay, start: getEventStartDate(moved), end: allDay ? getEventDisplayEndDate(moved) : getEventEndDate(moved) },
           ruleChanged: false,
         },
+        // The scope question says it too: one dialog, not two in a row.
+        note: audienceNote,
       });
       return;
+    }
+    if (audience) {
+      const moved = { ...event, ...updates } as CalendarEvent;
+      const title = event.title || t("events.no_title");
+      const confirmed = await confirmAction(audience.organizes
+        ? {
+            title: t("move_confirm_organizer_title", { title, when: movedWhen(moved) }),
+            message: audienceNote!,
+            confirmText: t("move_confirm_organizer_confirm"),
+          }
+        : {
+            title: t("move_confirm_attendee_title", { title }),
+            message: audienceNote!,
+            confirmText: t("move_confirm_attendee_confirm"),
+          });
+      if (!confirmed) return;
     }
     try {
       // false: a plugin stopped it and said why.
@@ -1766,7 +1838,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       },
     });
     keepEventClearOfToast(event.id, shown);
-  }, [client, updateEvent, resolveContactName, describeError, t]);
+  }, [client, updateEvent, resolveContactName, describeError, t, userEmailsFor, confirmAction, movedWhen]);
 
   const handleRsvp = useCallback(async (eventId: string, participantId: string, status: CalendarParticipant['participationStatus'], sentBy?: string) => {
     if (!client) return;
@@ -2108,16 +2180,20 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
 
   // Answering an invitation from the grid (pim-9), as the login the event is
   // in, the popover's way (handleRsvp: a series asks "this event or all").
-  const gridAnswerFor = useCallback((event: CalendarEvent) => {
+  // In a calendar of another person's or a group's account, for its owner
+  // as the popover offers it (#1760, lib/calendar-delegate.ts).
+  const accountOwners = useAccountOwners(client, allCalendars);
+  const gridAnswerFor = useCallback((event: CalendarEvent): AnswerTarget[] | null => {
     const emails = userEmailsFor(event);
-    if (!canUserRsvp(event, { ...editabilityContext, userCalendarAddresses: emails })) return null;
-    const participantId = getUserParticipantId(event, emails);
-    return participantId ? { participantId, status: event.participants?.[participantId]?.participationStatus ?? null } : null;
-  }, [userEmailsFor, editabilityContext]);
-  const handleRespondFromGrid = useCallback((event: CalendarEvent, status: CalendarParticipant['participationStatus']) => {
-    const answer = gridAnswerFor(event);
-    if (answer) void handleRsvp(event.id, answer.participantId, status);
-  }, [gridAnswerFor, handleRsvp]);
+    const canRsvpSelf = canUserRsvp(event, { ...editabilityContext, userCalendarAddresses: emails });
+    const calendar = allCalendars.find((c) => event.calendarIds?.[c.id]);
+    const owner = ownerOfCalendar(accountOwners, calendar);
+    const targets = gridAnswerTargets({ event, calendar, userEmails: emails, canRsvpSelf, owner, events, client });
+    return targets.length > 0 ? targets : null;
+  }, [userEmailsFor, editabilityContext, allCalendars, accountOwners, events, client]);
+  const handleRespondFromGrid = useCallback((target: AnswerTarget, status: RsvpStatus) => {
+    void handleRsvp(target.eventId, target.participantId, status, target.sentBy);
+  }, [handleRsvp]);
   const handleReplyEvent = useCallback((anchor: HTMLElement, event: CalendarEvent) => {
     closeDetail();
     // Nothing to answer here (no right to): the event's card says why.
@@ -2423,7 +2499,10 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
         {eventsLoadError && normalizedViewMode !== "tasks" && (
           <CalendarLoadErrorNotice onRetry={retryEventsLoad} />
         )}
-        {viewContent}
+        {/* Shared calendars draw their owner's answers (#1760). */}
+        <CalendarOwnersContext.Provider value={accountOwners}>
+          {viewContent}
+        </CalendarOwnersContext.Provider>
         {/* The first events: the grid is drawn already and they fill in on
             it, so this is said rather than shown (a dimmed grid with a
             spinner flashed between the skeleton and the events). */}
@@ -2731,9 +2810,16 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
 
           {/* Desktop event panel: a sheet over the grid from the right, as
               on small screens, so the week keeps its width (pim-25). Above
-              the views' sticky headers (z-50) inside this isolated row. */}
+              the views' sticky headers (z-50) inside this isolated row.
+              Expanded (#1757), the same editor is a large dialog over the
+              views; only the frame changes, so the form keeps what it holds. */}
+          {!isMobile && showEventModal && eventEditorExpanded && (
+            <div aria-hidden="true" className="absolute inset-0 z-[55] bg-black/40" />
+          )}
           {!isMobile && showEventModal && (
-            <div data-testid="event-panel" data-end-sheet="" className="absolute inset-y-0 end-0 z-[55] w-[400px] max-w-full border-s border-border bg-background shadow-xl overflow-hidden">
+            <div data-testid="event-panel" data-end-sheet="" data-expanded={eventEditorExpanded || undefined} className={eventEditorExpanded
+              ? "absolute inset-0 z-[55] m-auto h-[min(56rem,calc(100%-2rem))] w-[min(48rem,calc(100%-2rem))] overflow-hidden rounded-lg border border-border bg-background shadow-2xl"
+              : "absolute inset-y-0 end-0 z-[55] w-[400px] max-w-full border-s border-border bg-background shadow-xl overflow-hidden"}>
               <EventModal
                 key={`${editEvent?.id ?? (copySource ? `copy:${copySource.id}` : 'new')}${modalStartsInEdit ? ':edit' : ''}`}
                 event={editEvent}
@@ -2757,6 +2843,8 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
                 isSubscriptionCalendar={isSubscriptionCalendar}
                 maxParticipants={maxParticipants}
                 isMobile={false}
+                expanded={eventEditorExpanded}
+                onToggleExpand={toggleEventEditorExpanded}
                 overlapEvents={visibleEvents}
               />
             </div>
@@ -2830,8 +2918,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
           onDelete={() => handleDeleteContextMenu(eventContextMenu.data!)}
           onPrint={printOff ? undefined : () => { void requestPrint({ kind: "calendar-event", event: eventContextMenu.data! }); }}
           editable={canEditEvent(eventContextMenu.data)}
-          onRespond={gridAnswerFor(eventContextMenu.data) ? (status) => handleRespondFromGrid(eventContextMenu.data!, status) : undefined}
-          responseStatus={gridAnswerFor(eventContextMenu.data)?.status}
+          {...gridAnswerMenuProps(gridAnswerFor(eventContextMenu.data), handleRespondFromGrid)}
           answersOnly={answersOnlyMenu}
           overDialog={true}
           copyTo={answersOnlyMenu ? [] : copyTargetsOf(eventContextMenu.data).map((target) => ({
@@ -3027,7 +3114,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
         note={pendingScopeAction?.type === "delete" && pendingScopeAction.sendScheduling
           && userOrganizes(pendingScopeAction.event, userEmailsFor(pendingScopeAction.event))
           ? t("participants.cancel_notification")
-          : undefined}
+          : pendingScopeAction?.type === "edit" ? pendingScopeAction.note : undefined}
         eventTitle={pendingScopeAction?.event.title || t("events.no_title")}
         onSelect={handleScopeSelect}
         onClose={() => setPendingScopeAction(null)}

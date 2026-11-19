@@ -6,6 +6,7 @@
     "username_placeholder": "kullanici@example.com",
     "password_label": "Şifre",
     "password_placeholder": "Şifrenizi girin",
+    "forgot_password": "Şifrenizi mi unuttunuz?",
     "jmap_server_label": "Sunucu",
     "jmap_server_auto_picked": "Sunucu, e-posta etki alanınıza göre seçildi.",
     "sign_in": "Giriş yap",
@@ -23,7 +24,8 @@
       "totp_invalid": "Geçersiz doğrulama kodu. Lütfen doğrulama uygulamanızı kontrol edip tekrar deneyin.",
       "oauth_discovery_failed": "SSO etkin ancak kimlik sağlayıcısına ulaşılamıyor. OAuth yapılandırmanızı kontrol edin.",
       "oauth_issuer_mismatch": "Bu sağlayıcıyla oturum açma doğru yapılandırılmamış. Yöneticinin sağlayıcının yayıncı (issuer) adresini ayarlaması gerekiyor.",
-      "token_exchange_failed": "Parolanız ve kodunuz kabul edildi ancak posta sunucusu bu uygulama için oturum başlatmayı reddetti. Yöneticinizden OAuth istemci ayarlarını kontrol etmesini isteyin."
+      "token_exchange_failed": "Parolanız ve kodunuz kabul edildi ancak posta sunucusu bu uygulama için oturum başlatmayı reddetti. Yöneticinizden OAuth istemci ayarlarını kontrol etmesini isteyin.",
+      "login_refused": "Posta sunucusu kodunuzu denetlemeden bu oturum açmayı reddetti. Yöneticinizden OAuth istemci ayarlarını denetlemesini isteyin."
     },
     "show_password": "Şifreyi göster",
     "hide_password": "Şifreyi gizle",
@@ -790,7 +792,8 @@
       "event_status_tentative": "Belirsiz",
       "event_status_cancelled": "İptal edildi",
       "expand": "Ayrıntıları göster",
-      "collapse": "Ayrıntıları gizle"
+      "collapse": "Ayrıntıları gizle",
+      "optional_role": "Katılımınız isteğe bağlı"
     },
     "send": "Gönder",
     "more": "daha fazla",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} saniye",
         "unsupported": "Geçerli hesap gecikmeli gönderim desteği bildirmiyor. Ayar diğer hesaplar için kaydedilmeye devam eder."
       },
+      "mark_read_on_reply": {
+        "label": "Yanıtladığımda veya ilettiğimde okundu olarak işaretle",
+        "description": "Yanıtladığınız veya ilettiğiniz bir ileti, iletiler açıldığında hiç okundu olarak işaretlenmese bile okundu olarak işaretlenir."
+      },
       "return_to_list_after_action": {
         "label": "Silme, arşivleme, taşıma veya okunmadı olarak işaretlemeden sonra listeye dön",
         "description": "Açık iletiyi sildikten, arşivledikten, taşıdıktan, spam olarak bildirdikten veya okunmadı olarak işaretledikten sonra, sonraki iletiyi açmak yerine ileti listesine dön."
@@ -3007,16 +3014,12 @@
       "loading": "Filtreler yükleniyor...",
       "not_supported": "Posta sunucunuz e-posta filtrelerini desteklemiyor.",
       "rule_name": "Kural Adı",
-      "rule_name_placeholder": "ör. Bültenleri sırala",
       "match_all": "Tüm koşullarla eşleş",
       "match_any": "Herhangi bir koşulla eşleş",
       "conditions": "Koşullar",
       "add_condition": "Koşul Ekle",
       "actions": "İşlemler",
-      "add_action": "İşlem Ekle",
       "remove_condition": "Koşulu kaldır",
-      "remove_action": "Eylemi kaldır",
-      "stop_processing": "Sonraki kuralları uygulama",
       "include_spam": "İstenmeyen olarak işaretlenen iletileri de taşı",
       "attachment_type_placeholder": "örn. pdf, doc, jpg",
       "value_placeholder_multi": "Değer (birden fazla virgülle ayrılır)",
@@ -3076,7 +3079,6 @@
       "condition_value": "Koşul değeri",
       "header_placeholder": "ör. X-Mailing-List",
       "size_bytes": "Bayt cinsinden boyut",
-      "size_placeholder": "ör. 1000000",
       "system_managed": "Sistem tarafından yönetilen kural",
       "opaque_warning": "Bu betik görsel oluşturucunun dışında düzenlendi. Yalnızca ham Sieve düzenleme kullanılabilir.",
       "open_sieve_editor": "Ham Sieve düzenleyicisini aç",
@@ -3099,7 +3101,6 @@
       "reset_warning": "Bu işlem mevcut betiği atacak ve yeniden başlatacak.",
       "reset_title": "Görsel düzenleyiciye sıfırlansın mı?",
       "confirm_reset": "Sıfırla",
-      "validation_empty_name": "Kural adı gerekli",
       "validation_empty_conditions": "En az bir değeri olan koşul gerekli",
       "validation_empty_actions": "En az bir işlem gerekli",
       "validation_action_folder": "Bu işlem için bir klasör seçin",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "Bilgi {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Bu klasörde zaten bulunan iletilere de uygula",
-      "apply_existing_unsupported": "Mevcut iletilere yalnızca göndereni, alıcıları, konuyu veya üstbilgileri denetleyen ve taşıyan, kopyalayan, okundu işaretleyen, yıldızlayan veya etiketleyen kurallar uygulanabilir.",
       "period_title": "Tarih Aralığı",
       "period_start": "Başlangıç Tarihi",
       "period_end": "Bitiş Tarihi",
@@ -3160,10 +3159,6 @@
       "period_hint": "Bu dönemde gelen iletilere uygulanır. O ucu sınırlamamak için alanı boş bırakın.",
       "validation_period_empty": "Dönem için bir başlangıç veya bitiş tarihi girin",
       "validation_period_invalid": "Dönem için saatiyle birlikte geçerli bir tarih girin veya alanı boş bırakın",
-      "apply_existing_period": "Dönemi olan bir kural yalnızca o dönemde gelen iletilere uygulanır, bu nedenle mevcut iletilere uygulanamaz.",
-      "apply_existing_in": "{folder} içindeki mevcut iletilere de uygula",
-      "apply_existing_count": "{count, plural, one {{folder} içindeki # mevcut iletiye de uygula} other {{folder} içindeki # mevcut iletiye de uygula}}",
-      "apply_existing_none": "{folder} içinde bu kurala uyan ileti henüz yok.",
       "period_status_scheduled": "planlandı",
       "period_status_active": "etkin",
       "period_status_expired": "süresi doldu",
@@ -4963,7 +4958,9 @@
       "overlap_more": "Ve {count} tane daha",
       "save": "Kaydet",
       "cancel": "İptal",
-      "color": "Renk"
+      "color": "Renk",
+      "expand": "Genişlet",
+      "restore_size": "Eski boyuta döndür"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Siz bir katılımcısınız",
       "no_participants": "Katılımcı yok",
       "limit_warning": "Organizatör dahil {max, plural, one {# katılımcıdan} other {# katılımcıdan}} fazla: sunucu bu etkinliği kaydetmeyi reddedebilir. Bir yönetici bu sınırı yükseltebilir.",
-      "count": "{count, plural, one {# katılımcı} other {# katılımcı}}"
+      "count": "{count, plural, one {# katılımcı} other {# katılımcı}}",
+      "optional": "İsteğe bağlı",
+      "optional_role": "isteğe bağlı"
     },
     "recurrence": {
       "title": "Yineleme",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# etkinlik bulundu} other {# etkinlik bulundu}}"
     },
     "mini_has_events": "etkinlik var",
-    "mini_week_number": "{week}. hafta"
+    "mini_week_number": "{week}. hafta",
+    "move_confirm_organizer_title": "\"{title}\" {when} zamanına taşınsın mı?",
+    "move_confirm_organizer_message": "Katılımcılar bir güncelleme alır ve yeni saati kabul etmeleri istenir.",
+    "move_confirm_organizer_confirm": "Taşı ve bildir",
+    "move_confirm_attendee_title": "\"{title}\" yalnızca sizin takviminizde taşınsın mı?",
+    "move_confirm_attendee_message": "Organizatör siz değilsiniz. Toplantı, organizatör ve diğer katılımcılar için kendi saatinde kalır; organizatörün bir sonraki güncellemesi değişikliğinizin üzerine yazar.",
+    "move_confirm_attendee_confirm": "Kendi kopyamı taşı"
   },
   "ux_pim_calendar": {
     "task_lists": "Görev listeleri",
@@ -5557,7 +5562,9 @@
     "answer_for": "{name} adına yanıtla",
     "no_write": "{name} kişisinin davetlerini görebilirsiniz ama onun adına yanıtlayamazsınız. Düzenleme erişimi isteyin.",
     "also_invited": "Siz de davetlisiniz ve bu sunucu yanıtınızı {name} kişisinin yanıtından ayıramıyor. Bunu {name} yanıtlamalı.",
-    "answered_by": "Yanıtlayan: {who}"
+    "answered_by": "Yanıtlayan: {who}",
+    "organizer_owner": "{name} (sizin tarafınızdan gönderilir)",
+    "organizer_me": "Siz"
   },
   "free_busy_share": {
     "button": "Müsaitlik durumumu {group} ile paylaş",
@@ -5668,7 +5675,25 @@
     "unknown_note": "Bulwark meşgul saatleri yalnızca sizinle paylaşılan takvimlerde görür. Bu kişiler için boş olmayı paylaşılmamaktan ayıramaz.",
     "directory_off": "Bulwark bu sunucuda kişi arayamıyor. Yöneticiniz Stalwart’ta dizin sorgularını açabilir.",
     "not_looked_up": "Bu adres aranamadı",
-    "found": "Bulunan boş saatler: {count}"
+    "found": "Bulunan boş saatler: {count}",
+    "optional_ignored": "İsteğe bağlı katılımcıların meşgul saatleri sayılmaz."
+  },
+  "scheduling_assistant": {
+    "open": "Uygunluk…",
+    "title": "Uygunluk",
+    "description": "Etkinliği taşımak için ızgaraya tıklayın veya sürükleyin. Süreyi değiştirmek için sonunu sürükleyin.",
+    "previous_day": "Önceki gün",
+    "next_day": "Sonraki gün",
+    "you": "Siz",
+    "everyone": "Tüm katılımcılar",
+    "optional": "İsteğe bağlı",
+    "event": "Etkinlik: {time}",
+    "keyboard_hint": "Ok tuşları etkinliği 15 dakika kaydırır. Shift ile süresini değiştirir.",
+    "use_time": "Bu saati kullan",
+    "loading": "Dolu saatler yükleniyor…",
+    "outside_hours": "Çalışma saatleri dışında",
+    "everyone_free": "Herkes müsait",
+    "not_checked": "Bilinmiyor"
   },
   "share_notifications": {
     "someone": "Birisi",

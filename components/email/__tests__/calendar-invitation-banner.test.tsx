@@ -301,6 +301,25 @@ describe('CalendarInvitationBanner', () => {
     expect(mocks.sourceClientMock.parseCalendarEvents).not.toHaveBeenCalled();
   });
 
+  // #1753: ROLE=OPT-PARTICIPANT arrives as roles.optional on the user's entry.
+  it.each([
+    ['optional', { attendee: true, optional: true }, true],
+    ['required', { attendee: true }, false],
+  ])('tells a %s attendee whether they are optional', async (_label, roles, shown) => {
+    mocks.clientMock.parseCalendarEvents.mockResolvedValue([{
+      uid: 'uid-opt', title: 'Quarterly review', start: '2026-03-22T14:00:00Z',
+      participants: {
+        organizer: { '@type': 'Participant', email: 'boss@example.com', roles: { owner: true }, participationStatus: 'accepted' },
+        me: { '@type': 'Participant', email: 'user@example.com', roles, participationStatus: 'needs-action' },
+      },
+    }]);
+
+    render(<CalendarInvitationBanner email={makeEmail()} />);
+
+    await waitFor(() => expect(screen.getByText('Quarterly review')).toBeInTheDocument());
+    expect(screen.queryByTestId('invitation-optional') !== null).toBe(shown);
+  });
+
   // The calendar on screen is the active login's. An invitation in another
   // login's message is shown, and nothing for it touches that calendar: the
   // event belongs in the calendar of the login that was invited.
@@ -1242,6 +1261,31 @@ describe('CalendarInvitationBanner', () => {
     await waitFor(() => expect(screen.getByText(
       'This response was sent from mallory@evil.example, while the attendee answering in the calendar data is alice@example.com, and the message could not be verified.',
     )).toBeInTheDocument());
+  });
+
+  it('shows no update number on a reply, only who answered and how (#1755)', async () => {
+    const event = (sequence: number) => ({
+      uid: 'uid-16', title: 'Sync', start: '2026-03-27T09:00:00Z', duration: 'PT1H', sequence,
+      organizerCalendarAddress: 'mailto:user@example.com',
+      participants: {
+        a: { '@type': 'Participant', calendarAddress: 'mailto:user@example.com', roles: { owner: true, attendee: true }, participationStatus: 'accepted' },
+        b: { '@type': 'Participant', name: 'Alice', calendarAddress: 'mailto:alice@example.com', roles: { attendee: true }, participationStatus: 'accepted' },
+      },
+    });
+    mocks.clientMock.parseCalendarEvents.mockResolvedValue([event(1)]);
+    const { unmount } = render(<CalendarInvitationBanner email={makeEmail({
+      id: 'email-16', from: [{ email: 'alice@example.com' }],
+      attachments: [{ partId: '1', blobId: 'blob-16', size: 256, type: 'text/calendar; method=REPLY', name: 'reply.ics' }],
+    })} />);
+    await waitFor(() => expect(screen.getByText('Alice responded Accepted.')).toBeInTheDocument());
+    expect(screen.queryByText('event_updated')).toBeNull();
+    unmount();
+
+    // An updated invitation still says so.
+    mocks.clientMock.parseCalendarEvents.mockResolvedValue([event(2)]);
+    render(<CalendarInvitationBanner email={makeEmail({ id: 'email-17', from: [{ email: 'user@example.com' }] })} />);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sync' })).toBeInTheDocument());
+    expect(screen.getByText('event_updated')).toBeInTheDocument();
   });
 
   it('lets a proposal from an attendee Stalwart lists by calendar address be applied', async () => {

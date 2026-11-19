@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "Password",
     "password_placeholder": "Enter your password",
+    "forgot_password": "Forgot your password?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server selected from your email domain.",
     "sign_in": "Sign in",
@@ -23,7 +24,8 @@
       "totp_invalid": "Invalid authentication code. Please check your authenticator app and try again.",
       "oauth_discovery_failed": "SSO is enabled but the identity provider could not be reached. Check your OAuth configuration.",
       "oauth_issuer_mismatch": "Sign-in with this provider is not set up correctly. The administrator has to set its issuer address.",
-      "token_exchange_failed": "Your password and code were accepted, but the mail server refused to start a session for this app. Ask your administrator to check its OAuth client settings."
+      "token_exchange_failed": "Your password and code were accepted, but the mail server refused to start a session for this app. Ask your administrator to check its OAuth client settings.",
+      "login_refused": "The mail server refused this sign-in before checking your code. Ask your administrator to check its OAuth client settings."
     },
     "show_password": "Show password",
     "hide_password": "Hide password",
@@ -815,7 +817,8 @@
       "event_status_tentative": "Tentative",
       "event_status_cancelled": "Cancelled",
       "expand": "Show details",
-      "collapse": "Hide details"
+      "collapse": "Hide details",
+      "optional_role": "You are an optional attendee"
     },
     "send": "Send",
     "more": "more",
@@ -2301,6 +2304,10 @@
         "seconds": "{seconds} seconds",
         "unsupported": "The current account does not advertise delayed-send support. The setting is still saved for other accounts."
       },
+      "mark_read_on_reply": {
+        "label": "Mark as read after replying or forwarding",
+        "description": "A message you reply to or forward is marked as read, also when messages are never marked as read on opening."
+      },
       "return_to_list_after_action": {
         "label": "Return to list after delete, archive, move or mark unread",
         "description": "After deleting, archiving, moving, reporting as spam or marking the open message unread, go back to the message list instead of opening the next message."
@@ -3014,16 +3021,12 @@
       "loading": "Loading filters...",
       "not_supported": "Your mail server does not support email filters.",
       "rule_name": "Rule name",
-      "rule_name_placeholder": "e.g., Sort newsletters",
       "match_all": "Match all conditions",
       "match_any": "Match any condition",
       "conditions": "Conditions",
       "add_condition": "Add condition",
       "actions": "Actions",
-      "add_action": "Add action",
       "remove_condition": "Remove condition",
-      "remove_action": "Remove action",
-      "stop_processing": "Don't apply later rules",
       "include_spam": "Also move messages marked as spam",
       "attachment_type_placeholder": "e.g. pdf, doc, jpg",
       "value_placeholder_multi": "Value (multiple separated by commas)",
@@ -3083,7 +3086,6 @@
       "condition_value": "Condition value",
       "header_placeholder": "e.g., X-Mailing-List",
       "size_bytes": "Size in bytes",
-      "size_placeholder": "e.g., 1000000",
       "system_managed": "System-managed rule",
       "opaque_warning": "This script was edited outside the visual builder. Only raw Sieve editing is available.",
       "open_sieve_editor": "Open raw Sieve editor",
@@ -3106,7 +3108,6 @@
       "reset_warning": "This will discard the current script and start fresh.",
       "reset_title": "Reset to the visual builder?",
       "confirm_reset": "Reset",
-      "validation_empty_name": "Rule name is required",
       "validation_empty_conditions": "At least one condition with a value is required",
       "validation_empty_actions": "At least one action is required",
       "validation_action_folder": "Select a folder for this action",
@@ -3157,8 +3158,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Also apply to existing messages in this folder",
-      "apply_existing_unsupported": "Only rules that check the sender, recipients, subject or headers, and that move, copy, mark as read, star or tag, can run on existing messages.",
       "period_title": "Date range",
       "period_start": "Start date",
       "period_end": "End date",
@@ -3167,10 +3166,6 @@
       "period_hint": "Applies to messages that arrive during this period. Leave a field empty to keep that end open.",
       "validation_period_empty": "Enter a start or end date for the period",
       "validation_period_invalid": "Enter a valid date with a time for the period, or leave the field empty",
-      "apply_existing_period": "A rule with a period acts only on messages that arrive within it, so it cannot run on existing messages.",
-      "apply_existing_in": "Also apply to the messages already in {folder}",
-      "apply_existing_count": "{count, plural, one {Also apply to the # message already in {folder}} other {Also apply to the # messages already in {folder}}}",
-      "apply_existing_none": "No message in {folder} matches this rule yet.",
       "period_status_scheduled": "scheduled",
       "period_status_active": "active",
       "period_status_expired": "expired",
@@ -4963,7 +4958,9 @@
       "overlap_more": "And {count} more",
       "save": "Save",
       "cancel": "Cancel",
-      "color": "Color"
+      "color": "Color",
+      "expand": "Expand",
+      "restore_size": "Restore"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "You are an attendee",
       "no_participants": "No participants",
       "limit_warning": "More than {max, plural, one {# participant} other {# participants}}, including the organizer: the server may refuse to save this event. An administrator can raise the limit.",
-      "count": "{count, plural, one {# participant} other {# participants}}"
+      "count": "{count, plural, one {# participant} other {# participants}}",
+      "optional": "Optional",
+      "optional_role": "optional"
     },
     "recurrence": {
       "title": "Recurrence",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# event found} other {# events found}}"
     },
     "mini_has_events": "has events",
-    "mini_week_number": "Week {week}"
+    "mini_week_number": "Week {week}",
+    "move_confirm_organizer_title": "Move \"{title}\" to {when}?",
+    "move_confirm_organizer_message": "The attendees get an update and are asked to accept the new time.",
+    "move_confirm_organizer_confirm": "Move and notify",
+    "move_confirm_attendee_title": "Move \"{title}\" in your calendar only?",
+    "move_confirm_attendee_message": "You aren't the organizer. The meeting keeps its time for the organizer and the other attendees, and the organizer's next update overwrites your change.",
+    "move_confirm_attendee_confirm": "Move my copy"
   },
   "ux_pim_calendar": {
     "task_lists": "Task lists",
@@ -5557,7 +5562,9 @@
     "answer_for": "Answer for {name}",
     "no_write": "You can see {name}’s invitations but can’t answer for them. Ask them for edit access.",
     "also_invited": "You’re invited too, and this server can’t tell your answer from {name}’s. {name} has to answer this one.",
-    "answered_by": "Answered by {who}"
+    "answered_by": "Answered by {who}",
+    "organizer_owner": "{name} (sent by you)",
+    "organizer_me": "You"
   },
   "free_busy_share": {
     "button": "Share my free/busy with {group}",
@@ -5668,7 +5675,25 @@
     "unknown_note": "Bulwark only sees busy times in calendars shared with you. For these people it can’t tell free from not shared.",
     "directory_off": "Bulwark can’t look up people on this server. Your administrator can turn on directory queries in Stalwart.",
     "not_looked_up": "Couldn’t look up this address",
-    "found": "Free times found: {count}"
+    "found": "Free times found: {count}",
+    "optional_ignored": "Optional attendees' busy times don't count."
+  },
+  "scheduling_assistant": {
+    "open": "Availability…",
+    "title": "Availability",
+    "description": "Click the grid or drag the event to move it. Drag its end to change the length.",
+    "previous_day": "Previous day",
+    "next_day": "Next day",
+    "you": "You",
+    "everyone": "All attendees",
+    "optional": "Optional",
+    "event": "Event: {time}",
+    "keyboard_hint": "The arrow keys move the event by 15 minutes. With Shift they change its length.",
+    "use_time": "Use this time",
+    "loading": "Loading busy times…",
+    "outside_hours": "Outside working hours",
+    "everyone_free": "Everyone free",
+    "not_checked": "Unknown"
   },
   "share_notifications": {
     "someone": "Someone",

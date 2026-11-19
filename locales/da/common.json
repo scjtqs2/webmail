@@ -6,6 +6,7 @@
     "username_placeholder": "bruger@example.com",
     "password_label": "Adgangskode",
     "password_placeholder": "Indtast din adgangskode",
+    "forgot_password": "Har du glemt din adgangskode?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server valgt ud fra din e-maildomæne.",
     "sign_in": "Log ind",
@@ -23,7 +24,8 @@
       "totp_invalid": "Ugyldig godkendelseskode. Kontrollér din autentificeringsapp og prøv igen.",
       "oauth_discovery_failed": "SSO er aktiveret, men identitetsudbyderen kunne ikke nås. Kontrollér din OAuth-konfiguration.",
       "oauth_issuer_mismatch": "Login med denne udbyder er ikke sat korrekt op. Administratoren skal angive udbyderens issuer-adresse.",
-      "token_exchange_failed": "Din adgangskode og kode blev accepteret, men mailserveren nægtede at starte en session for denne app. Bed din administrator om at kontrollere OAuth-klientindstillingerne."
+      "token_exchange_failed": "Din adgangskode og kode blev accepteret, men mailserveren nægtede at starte en session for denne app. Bed din administrator om at kontrollere OAuth-klientindstillingerne.",
+      "login_refused": "Mailserveren afviste dette login, før den tjekkede din kode. Bed din administrator om at kontrollere OAuth-klientindstillingerne."
     },
     "show_password": "Vis adgangskode",
     "hide_password": "Skjul adgangskode",
@@ -815,7 +817,8 @@
       "event_status_tentative": "Foreløbig",
       "event_status_cancelled": "Aflyst",
       "expand": "Vis detaljer",
-      "collapse": "Skjul detaljer"
+      "collapse": "Skjul detaljer",
+      "optional_role": "Din deltagelse er valgfri"
     },
     "send": "Send",
     "more": "mere",
@@ -2301,6 +2304,10 @@
         "seconds": "{seconds} sekunder",
         "unsupported": "Den aktuelle konto annoncerer ikke understøttelse af forsinket afsendelse. Indstillingen gemmes stadig for andre konti."
       },
+      "mark_read_on_reply": {
+        "label": "Markér som læst, når jeg svarer eller videresender",
+        "description": "En besked, du svarer på eller videresender, markeres som læst, også når beskeder aldrig markeres som læst ved åbning."
+      },
       "return_to_list_after_action": {
         "label": "Vend tilbage til listen efter sletning, arkivering, flytning eller markering som ulæst",
         "description": "Efter sletning, arkivering, flytning, rapportering som spam eller markering af den åbne besked som ulæst vendes der tilbage til beskedlisten i stedet for at åbne den næste besked."
@@ -3010,16 +3017,12 @@
       "loading": "Indlæser filtre...",
       "not_supported": "Din mailserver understøtter ikke e-mail-filtre.",
       "rule_name": "Regelnavn",
-      "rule_name_placeholder": "f.eks. Sorter nyhedsbreve",
       "match_all": "Match alle betingelser",
       "match_any": "Match en af betingelserne",
       "conditions": "Betingelser",
       "add_condition": "Tilføj betingelse",
       "actions": "Handlinger",
-      "add_action": "Tilføj handling",
       "remove_condition": "Fjern betingelse",
-      "remove_action": "Fjern handling",
-      "stop_processing": "Anvend ikke senere regler",
       "include_spam": "Flyt også beskeder, der er markeret som spam",
       "attachment_type_placeholder": "f.eks. pdf, doc, jpg",
       "value_placeholder_multi": "Værdi (flere adskilt med komma)",
@@ -3079,7 +3082,6 @@
       "condition_value": "Betingelsens værdi",
       "header_placeholder": "f.eks. X-Mailing-List",
       "size_bytes": "Størrelse i bytes",
-      "size_placeholder": "f.eks. 1000000",
       "system_managed": "Systemadministreret regel",
       "opaque_warning": "Dette script blev redigeret uden for den visuelle builder. Kun raw Sieve-redigering er tilgængelig.",
       "open_sieve_editor": "Åbn raw Sieve-editor",
@@ -3102,7 +3104,6 @@
       "reset_warning": "Dette vil kassere det nuværende script og starte forfra.",
       "reset_title": "Nulstil til den visuelle editor?",
       "confirm_reset": "Nulstil",
-      "validation_empty_name": "Regelnavn er påkrævet",
       "validation_empty_conditions": "Mindst én betingelse med en værdi er påkrævet",
       "validation_empty_actions": "Mindst én handling er påkrævet",
       "validation_action_folder": "Vælg en mappe til denne handling",
@@ -3153,8 +3154,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Anvend også på beskeder, der allerede ligger i denne mappe",
-      "apply_existing_unsupported": "Kun regler, der tjekker afsender, modtagere, emne eller headere, og som flytter, kopierer, markerer som læst, stjernemarkerer eller tagger, kan anvendes på eksisterende beskeder.",
       "period_title": "Datoperiode",
       "period_start": "Startdato",
       "period_end": "Slutdato",
@@ -3163,10 +3162,6 @@
       "period_hint": "Gælder for beskeder, der ankommer i denne periode. Lad et felt stå tomt for at holde den ende åben.",
       "validation_period_empty": "Angiv en start- eller slutdato for perioden",
       "validation_period_invalid": "Angiv en gyldig dato med klokkeslæt for perioden, eller lad feltet stå tomt",
-      "apply_existing_period": "En regel med en periode virker kun på beskeder, der ankommer i perioden, og kan derfor ikke køres på eksisterende beskeder.",
-      "apply_existing_in": "Anvend også på beskederne, der allerede er i {folder}",
-      "apply_existing_count": "{count, plural, one {Anvend også på den # besked, der allerede er i {folder}} other {Anvend også på de # beskeder, der allerede er i {folder}}}",
-      "apply_existing_none": "Ingen beskeder i {folder} passer til reglen endnu.",
       "period_status_scheduled": "planlagt",
       "period_status_active": "aktiv",
       "period_status_expired": "udløbet",
@@ -4963,7 +4958,9 @@
       "overlap_more": "Og {count} mere",
       "save": "Gem",
       "cancel": "Annuller",
-      "color": "Farve"
+      "color": "Farve",
+      "expand": "Udvid",
+      "restore_size": "Gendan størrelse"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Du er deltager",
       "no_participants": "Ingen deltagere",
       "limit_warning": "Mere end {max, plural, one {# deltager} other {# deltagere}}, arrangøren medregnet: serveren kan afvise at gemme denne begivenhed. En administrator kan hæve grænsen.",
-      "count": "{count, plural, one {# deltager} other {# deltagere}}"
+      "count": "{count, plural, one {# deltager} other {# deltagere}}",
+      "optional": "Valgfri",
+      "optional_role": "valgfri"
     },
     "recurrence": {
       "title": "Gentagelse",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# begivenhed fundet} other {# begivenheder fundet}}"
     },
     "mini_has_events": "har begivenheder",
-    "mini_week_number": "Uge {week}"
+    "mini_week_number": "Uge {week}",
+    "move_confirm_organizer_title": "Flyt \"{title}\" til {when}?",
+    "move_confirm_organizer_message": "Deltagerne får en opdatering og bliver bedt om at acceptere det nye tidspunkt.",
+    "move_confirm_organizer_confirm": "Flyt og giv besked",
+    "move_confirm_attendee_title": "Flyt \"{title}\" kun i din kalender?",
+    "move_confirm_attendee_message": "Du er ikke arrangør. Mødet beholder sit tidspunkt for arrangøren og de andre deltagere, og arrangørens næste opdatering overskriver din ændring.",
+    "move_confirm_attendee_confirm": "Flyt min kopi"
   },
   "ux_pim_calendar": {
     "task_lists": "Opgavelister",
@@ -5557,7 +5562,9 @@
     "answer_for": "Svar for {name}",
     "no_write": "Du kan se invitationerne til {name}, men kan ikke svare for dem. Bed om redigeringsadgang.",
     "also_invited": "Du er også inviteret, og denne server kan ikke skelne dit svar fra svaret fra {name}. {name} skal selv svare på denne.",
-    "answered_by": "Besvaret af {who}"
+    "answered_by": "Besvaret af {who}",
+    "organizer_owner": "{name} (sendt af dig)",
+    "organizer_me": "Dig"
   },
   "free_busy_share": {
     "button": "Del min ledig/optaget med {group}",
@@ -5668,7 +5675,25 @@
     "unknown_note": "Bulwark ser kun optagede tider i kalendere, der er delt med dig. For disse personer kan den ikke skelne ledig fra ikke delt.",
     "directory_off": "Bulwark kan ikke slå personer op på denne server. Din administrator kan slå katalogforespørgsler til i Stalwart.",
     "not_looked_up": "Adressen kunne ikke slås op",
-    "found": "Ledige tidspunkter fundet: {count}"
+    "found": "Ledige tidspunkter fundet: {count}",
+    "optional_ignored": "Valgfrie deltageres optagede tider tæller ikke med."
+  },
+  "scheduling_assistant": {
+    "open": "Tilgængelighed…",
+    "title": "Tilgængelighed",
+    "description": "Klik i gitteret, eller træk begivenheden for at flytte den. Træk i slutningen for at ændre varigheden.",
+    "previous_day": "Forrige dag",
+    "next_day": "Næste dag",
+    "you": "Dig",
+    "everyone": "Alle deltagere",
+    "optional": "Valgfri",
+    "event": "Begivenhed: {time}",
+    "keyboard_hint": "Piletasterne flytter begivenheden 15 minutter. Med Skift ændrer de varigheden.",
+    "use_time": "Brug dette tidspunkt",
+    "loading": "Henter optagede tider…",
+    "outside_hours": "Uden for arbejdstiden",
+    "everyone_free": "Alle ledige",
+    "not_checked": "Ukendt"
   },
   "share_notifications": {
     "someone": "Nogen",

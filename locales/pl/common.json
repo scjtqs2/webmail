@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "Hasło",
     "password_placeholder": "Wprowadź hasło",
+    "forgot_password": "Nie pamiętasz hasła?",
     "jmap_server_label": "Serwer",
     "jmap_server_auto_picked": "Serwer wybrany na podstawie domeny Twojej poczty.",
     "sign_in": "Zaloguj się",
@@ -23,7 +24,8 @@
       "totp_invalid": "Nieprawidłowy kod uwierzytelniania. Sprawdź aplikację uwierzytelniającą i spróbuj ponownie.",
       "oauth_discovery_failed": "SSO jest włączone, ale nie można połączyć się z dostawcą tożsamości. Sprawdź konfigurację OAuth.",
       "oauth_issuer_mismatch": "Logowanie przez tego dostawcę nie jest poprawnie skonfigurowane. Administrator musi ustawić jego adres wystawcy (issuer).",
-      "token_exchange_failed": "Hasło i kod zostały zaakceptowane, ale serwer poczty odmówił rozpoczęcia sesji dla tej aplikacji. Poproś administratora o sprawdzenie ustawień klienta OAuth."
+      "token_exchange_failed": "Hasło i kod zostały zaakceptowane, ale serwer poczty odmówił rozpoczęcia sesji dla tej aplikacji. Poproś administratora o sprawdzenie ustawień klienta OAuth.",
+      "login_refused": "Serwer poczty odrzucił to logowanie, zanim sprawdził Twój kod. Poproś administratora o sprawdzenie ustawień klienta OAuth."
     },
     "show_password": "Pokaż hasło",
     "hide_password": "Ukryj hasło",
@@ -790,7 +792,8 @@
       "event_status_tentative": "Wstępne",
       "event_status_cancelled": "Anulowane",
       "collapse": "Ukryj szczegóły",
-      "expand": "Pokaż szczegóły"
+      "expand": "Pokaż szczegóły",
+      "optional_role": "Twoja obecność jest opcjonalna"
     },
     "send": "Wyślij",
     "more": "więcej",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} sekund",
         "unsupported": "Bieżące konto nie zgłasza obsługi opóźnionej wysyłki. Ustawienie pozostanie zapisane dla innych kont."
       },
+      "mark_read_on_reply": {
+        "label": "Oznacz jako przeczytane, gdy odpowiadam lub przekazuję",
+        "description": "Wiadomość, na którą odpowiadasz lub którą przekazujesz, zostaje oznaczona jako przeczytana, także gdy wiadomości nigdy nie są oznaczane jako przeczytane po otwarciu."
+      },
       "return_to_list_after_action": {
         "label": "Powrót do listy po usunięciu, zarchiwizowaniu, przeniesieniu lub oznaczeniu jako nieprzeczytane",
         "description": "Po usunięciu, zarchiwizowaniu, przeniesieniu, zgłoszeniu jako spam lub oznaczeniu otwartej wiadomości jako nieprzeczytanej wróć do listy wiadomości zamiast otwierać następną."
@@ -3007,16 +3014,12 @@
       "loading": "Ładowanie filtrów...",
       "not_supported": "Twój serwer pocztowy nie obsługuje filtrów wiadomości e-mail.",
       "rule_name": "Nazwa reguły",
-      "rule_name_placeholder": "np. Sortuj newslettery",
       "match_all": "Spełnione wszystkie warunki",
       "match_any": "Spełniony dowolny warunek",
       "conditions": "Warunki",
       "add_condition": "Dodaj warunek",
       "actions": "Akcje",
-      "add_action": "Dodaj akcję",
       "remove_condition": "Usuń warunek",
-      "remove_action": "Usuń akcję",
-      "stop_processing": "Nie stosuj kolejnych reguł",
       "include_spam": "Przenoś również wiadomości oznaczone jako spam",
       "attachment_type_placeholder": "np. pdf, doc, jpg",
       "value_placeholder_multi": "Wartość (kilka oddzielonych przecinkami)",
@@ -3076,7 +3079,6 @@
       "condition_value": "Wartość warunku",
       "header_placeholder": "np. X-Mailing-List",
       "size_bytes": "Rozmiar w bajtach",
-      "size_placeholder": "np. 1000000",
       "system_managed": "Reguła zarządzana przez system",
       "opaque_warning": "Ten skrypt został edytowany poza kreatorem wizualnym. Dostępna jest tylko surowa edycja Sieve.",
       "open_sieve_editor": "Otwórz surowy edytor Sieve",
@@ -3099,7 +3101,6 @@
       "reset_warning": "To odrzuci bieżący skrypt i pozwoli zacząć od nowa.",
       "reset_title": "Przywrócić edytor wizualny?",
       "confirm_reset": "Resetuj",
-      "validation_empty_name": "Nazwa reguły jest wymagana",
       "validation_empty_conditions": "Wymagany jest co najmniej jeden warunek z wartością",
       "validation_empty_actions": "Wymagana jest co najmniej jedna akcja",
       "validation_action_folder": "Wybierz folder dla tej akcji",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "DW {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Zastosuj też do wiadomości, które już są w tym folderze",
-      "apply_existing_unsupported": "Do istniejących wiadomości można zastosować tylko reguły, które sprawdzają nadawcę, odbiorców, temat lub nagłówki i które przenoszą, kopiują, oznaczają jako przeczytane, oznaczają gwiazdką lub etykietą.",
       "period_title": "Zakres dat",
       "period_start": "Data rozpoczęcia",
       "period_end": "Data zakończenia",
@@ -3160,10 +3159,6 @@
       "period_hint": "Dotyczy wiadomości, które przychodzą w tym okresie. Pozostaw pole puste, aby nie ograniczać tej strony.",
       "validation_period_empty": "Podaj datę rozpoczęcia lub zakończenia okresu",
       "validation_period_invalid": "Podaj prawidłową datę z godziną dla okresu albo pozostaw pole puste",
-      "apply_existing_period": "Reguła z okresem działa tylko na wiadomości, które przychodzą w tym okresie, dlatego nie można jej zastosować do istniejących wiadomości.",
-      "apply_existing_in": "Zastosuj też do wiadomości, które już są w folderze {folder}",
-      "apply_existing_count": "{count, plural, one {Zastosuj też do # wiadomości, która już jest w folderze {folder}} few {Zastosuj też do # wiadomości, które już są w folderze {folder}} many {Zastosuj też do # wiadomości, które już są w folderze {folder}} other {Zastosuj też do # wiadomości, które już są w folderze {folder}}}",
-      "apply_existing_none": "Żadna wiadomość w folderze {folder} nie pasuje jeszcze do tej reguły.",
       "period_status_scheduled": "zaplanowana",
       "period_status_active": "aktywna",
       "period_status_expired": "wygasła",
@@ -4963,7 +4958,9 @@
       "overlap_more": "I jeszcze {count}",
       "save": "Zapisz",
       "cancel": "Anuluj",
-      "color": "Kolor"
+      "color": "Kolor",
+      "expand": "Powiększ",
+      "restore_size": "Przywróć rozmiar"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Jesteś uczestnikiem",
       "no_participants": "Brak uczestników",
       "limit_warning": "Ponad {max, plural, one {# uczestnika} few {# uczestników} many {# uczestników} other {# uczestnika}} łącznie z organizatorem: serwer może odmówić zapisania tego wydarzenia. Administrator może zwiększyć limit.",
-      "count": "{count, plural, one {# uczestnik} other {# uczestników}}"
+      "count": "{count, plural, one {# uczestnik} other {# uczestników}}",
+      "optional": "Opcjonalny",
+      "optional_role": "opcjonalny"
     },
     "recurrence": {
       "title": "Powtarzanie",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {Znaleziono # wydarzenie} few {Znaleziono # wydarzenia} many {Znaleziono # wydarzeń} other {Znaleziono # wydarzenia}}"
     },
     "mini_has_events": "ma wydarzenia",
-    "mini_week_number": "Tydzień {week}"
+    "mini_week_number": "Tydzień {week}",
+    "move_confirm_organizer_title": "Przenieść „{title}” na {when}?",
+    "move_confirm_organizer_message": "Uczestnicy otrzymają aktualizację i zostaną poproszeni o zaakceptowanie nowego terminu.",
+    "move_confirm_organizer_confirm": "Przenieś i powiadom",
+    "move_confirm_attendee_title": "Przenieść „{title}” tylko w Twoim kalendarzu?",
+    "move_confirm_attendee_message": "Nie jesteś organizatorem. U organizatora i pozostałych uczestników spotkanie zostaje w dotychczasowym terminie, a następna aktualizacja od organizatora nadpisze Twoją zmianę.",
+    "move_confirm_attendee_confirm": "Przenieś moją kopię"
   },
   "ux_pim_calendar": {
     "task_lists": "Listy zadań",
@@ -6196,7 +6201,9 @@
     "answer_for": "Odpowiedz w imieniu: {name}",
     "no_write": "Widzisz zaproszenia użytkownika {name}, ale nie możesz za niego odpowiadać. Poproś o prawo do edycji.",
     "also_invited": "Też jesteś zaproszony, a ten serwer nie odróżni Twojej odpowiedzi od odpowiedzi {name}. Na to zaproszenie musi odpowiedzieć {name}.",
-    "answered_by": "Odpowiedź od: {who}"
+    "answered_by": "Odpowiedź od: {who}",
+    "organizer_owner": "{name} (wysłane przez Ciebie)",
+    "organizer_me": "Ty"
   },
   "free_busy_share": {
     "button": "Udostępnij moją dostępność grupie {group}",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark widzi zajęte terminy tylko w kalendarzach udostępnionych Tobie. U tych osób nie odróżni wolnego czasu od braku udostępnienia.",
     "directory_off": "Bulwark nie może wyszukiwać osób na tym serwerze. Administrator może włączyć zapytania do katalogu w Stalwart.",
     "not_looked_up": "Nie udało się wyszukać adresu",
-    "found": "Znalezione wolne terminy: {count}"
+    "found": "Znalezione wolne terminy: {count}",
+    "optional_ignored": "Zajęte terminy opcjonalnych uczestników nie są brane pod uwagę."
+  },
+  "scheduling_assistant": {
+    "open": "Dostępność…",
+    "title": "Dostępność",
+    "description": "Kliknij siatkę lub przeciągnij wydarzenie, aby je przenieść. Przeciągnij jego koniec, aby zmienić czas trwania.",
+    "previous_day": "Poprzedni dzień",
+    "next_day": "Następny dzień",
+    "you": "Ty",
+    "everyone": "Wszyscy uczestnicy",
+    "optional": "Opcjonalny",
+    "event": "Wydarzenie: {time}",
+    "keyboard_hint": "Strzałki przesuwają wydarzenie o 15 minut. Z klawiszem Shift zmieniają czas trwania.",
+    "use_time": "Użyj tego terminu",
+    "loading": "Wczytywanie zajętych terminów…",
+    "outside_hours": "Poza godzinami pracy",
+    "everyone_free": "Wszyscy wolni",
+    "not_checked": "Nieznane"
   },
   "share_notifications": {
     "someone": "Ktoś",

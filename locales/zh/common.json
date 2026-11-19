@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "密码",
     "password_placeholder": "请输入密码",
+    "forgot_password": "忘记密码？",
     "jmap_server_label": "服务器",
     "jmap_server_auto_picked": "已根据您的电子邮件域名选择服务器。",
     "sign_in": "登录",
@@ -23,7 +24,8 @@
       "totp_invalid": "验证码无效。请检查您的身份验证器应用，然后重试。",
       "oauth_discovery_failed": "SSO 已启用，但无法访问身份提供者。检查您的 OAuth 配置。",
       "oauth_issuer_mismatch": "通过此身份提供者登录的配置不正确。管理员需要设置其颁发者（issuer）地址。",
-      "token_exchange_failed": "密码和验证码已通过，但邮件服务器拒绝为此应用建立会话。请联系管理员检查其 OAuth 客户端设置。"
+      "token_exchange_failed": "密码和验证码已通过，但邮件服务器拒绝为此应用建立会话。请联系管理员检查其 OAuth 客户端设置。",
+      "login_refused": "邮件服务器在检查你的验证码之前拒绝了此次登录。请让管理员检查 OAuth 客户端设置。"
     },
     "show_password": "显示密码",
     "hide_password": "隐藏密码",
@@ -790,7 +792,8 @@
       "event_status_tentative": "暂定",
       "event_status_cancelled": "已取消",
       "collapse": "隐藏详情",
-      "expand": "显示详情"
+      "expand": "显示详情",
+      "optional_role": "您是可选参与者"
     },
     "send": "发送",
     "more": "更多",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} 秒",
         "unsupported": "当前账户未声明支持延迟发送。该设置仍会为其他账户保存。"
       },
+      "mark_read_on_reply": {
+        "label": "回复或转发时标为已读",
+        "description": "你回复或转发的邮件会标为已读，即使设置为打开邮件时从不标为已读。"
+      },
       "return_to_list_after_action": {
         "label": "删除、归档、移动或标记为未读后返回列表",
         "description": "删除、归档、移动打开的邮件、举报为垃圾邮件或将其标记为未读后，返回邮件列表而不是打开下一封邮件。"
@@ -3007,16 +3014,12 @@
       "loading": "正在加载过滤器...",
       "not_supported": "您的邮件服务器不支持邮件过滤器。",
       "rule_name": "规则名称",
-      "rule_name_placeholder": "例如，整理订阅邮件",
       "match_all": "匹配所有条件",
       "match_any": "匹配任一条件",
       "conditions": "条件",
       "add_condition": "添加条件",
       "actions": "操作",
-      "add_action": "添加操作",
       "remove_condition": "移除条件",
-      "remove_action": "移除操作",
-      "stop_processing": "不再应用后面的规则",
       "include_spam": "同时移动被标记为垃圾邮件的邮件",
       "attachment_type_placeholder": "例如：pdf、doc、jpg",
       "value_placeholder_multi": "值（多个用逗号分隔）",
@@ -3076,7 +3079,6 @@
       "condition_value": "条件值",
       "header_placeholder": "例如，X-Mailing-List",
       "size_bytes": "大小（以字节为单位）",
-      "size_placeholder": "例如，1000000",
       "system_managed": "系统管理的规则",
       "opaque_warning": "该脚本是在可视化编辑器之外编辑的。仅可使用原始 Sieve 编辑。",
       "open_sieve_editor": "打开原始 Sieve 编辑器",
@@ -3099,7 +3101,6 @@
       "reset_warning": "这将丢弃当前脚本并重新开始。",
       "reset_title": "重置为可视化编辑器?",
       "confirm_reset": "重置",
-      "validation_empty_name": "规则名称为必填项",
       "validation_empty_conditions": "至少需要一个具有值的条件",
       "validation_empty_actions": "至少需要执行一项操作",
       "validation_action_folder": "请为此操作选择文件夹",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "抄送 {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "同时应用于此文件夹中已有的邮件",
-      "apply_existing_unsupported": "只有检查发件人、收件人、主题或邮件头，并执行移动、复制、标记为已读、加星标或添加标签的规则，才能应用于已有邮件。",
       "period_title": "日期范围",
       "period_start": "开始日期",
       "period_end": "结束日期",
@@ -3160,10 +3159,6 @@
       "period_hint": "适用于在此时间段内收到的邮件。留空某一项即表示该端不设限制。",
       "validation_period_empty": "请输入时间段的开始日期或结束日期",
       "validation_period_invalid": "请为时间段输入带时间的有效日期，或将该字段留空",
-      "apply_existing_period": "设置了时间段的规则只作用于在该时间段内收到的邮件，因此无法应用于已有邮件。",
-      "apply_existing_in": "同时应用于{folder}中已有的邮件",
-      "apply_existing_count": "{count, plural, other {同时应用于{folder}中已有的 # 封邮件}}",
-      "apply_existing_none": "{folder}中还没有符合此规则的邮件。",
       "period_status_scheduled": "未开始",
       "period_status_active": "生效中",
       "period_status_expired": "已过期",
@@ -4963,7 +4958,9 @@
       "overlap_more": "另有 {count} 个",
       "save": "保存",
       "cancel": "取消",
-      "color": "颜色"
+      "color": "颜色",
+      "expand": "展开",
+      "restore_size": "还原"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "您是与会者",
       "no_participants": "没有参加者",
       "limit_warning": "参与者（含组织者）超过 {max, plural, other {# 位}}：服务器可能会拒绝保存此活动。管理员可以提高此限制。",
-      "count": "{count, plural, one {# 位参与者} other {# 位参与者}}"
+      "count": "{count, plural, one {# 位参与者} other {# 位参与者}}",
+      "optional": "可选",
+      "optional_role": "可选"
     },
     "recurrence": {
       "title": "重复",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, other {找到 # 个活动}}"
     },
     "mini_has_events": "有事件",
-    "mini_week_number": "第 {week} 周"
+    "mini_week_number": "第 {week} 周",
+    "move_confirm_organizer_title": "将“{title}”移到 {when}？",
+    "move_confirm_organizer_message": "参与者会收到更新，并需要接受新的时间。",
+    "move_confirm_organizer_confirm": "移动并通知",
+    "move_confirm_attendee_title": "仅在你的日历中移动“{title}”？",
+    "move_confirm_attendee_message": "你不是组织者。对组织者和其他参与者来说，会议时间不变；组织者下次更新时会覆盖你的更改。",
+    "move_confirm_attendee_confirm": "移动我的副本"
   },
   "ux_pim_calendar": {
     "task_lists": "任务列表",
@@ -6196,7 +6201,9 @@
     "answer_for": "代表 {name} 回复",
     "no_write": "你能看到 {name} 的邀请，但不能代为回复。请向对方申请编辑权限。",
     "also_invited": "你也被邀请了，此服务器无法区分你和 {name} 的回复。这一项需要 {name} 自己回复。",
-    "answered_by": "由 {who} 回复"
+    "answered_by": "由 {who} 回复",
+    "organizer_owner": "{name}（由你代发）",
+    "organizer_me": "你"
   },
   "free_busy_share": {
     "button": "与 {group} 共享我的忙闲时间",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark 只能看到与你共享的日历中的忙碌时间。对这些人，它无法区分有空和未共享。",
     "directory_off": "Bulwark 无法在此服务器上查找用户。管理员可以在 Stalwart 中开启目录查询。",
     "not_looked_up": "无法查找此地址",
-    "found": "找到的空闲时间：{count}"
+    "found": "找到的空闲时间：{count}",
+    "optional_ignored": "不计入可选参与者的忙碌时间。"
+  },
+  "scheduling_assistant": {
+    "open": "空闲情况…",
+    "title": "空闲情况",
+    "description": "点击网格或拖动日程即可移动。拖动其末端可更改时长。",
+    "previous_day": "前一天",
+    "next_day": "后一天",
+    "you": "你",
+    "everyone": "所有参与者",
+    "optional": "可选",
+    "event": "日程：{time}",
+    "keyboard_hint": "方向键每次将日程移动 15 分钟。按住 Shift 则更改时长。",
+    "use_time": "使用此时间",
+    "loading": "正在加载忙碌时间…",
+    "outside_hours": "工作时间以外",
+    "everyone_free": "所有人都有空",
+    "not_checked": "未知"
   },
   "share_notifications": {
     "someone": "有人",

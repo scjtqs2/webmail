@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "كلمة المرور",
     "password_placeholder": "أدخل كلمة المرور",
+    "forgot_password": "هل نسيت كلمة المرور؟",
     "jmap_server_label": "الخادم",
     "jmap_server_auto_picked": "تم اختيار الخادم بناءً على نطاق بريدك الإلكتروني.",
     "sign_in": "تسجيل الدخول",
@@ -23,7 +24,8 @@
       "totp_invalid": "رمز المصادقة غير صحيح. تحقق من تطبيق المصادقة وحاول مرة أخرى.",
       "oauth_discovery_failed": "تسجيل الدخول الموحد (SSO) مفعّل، لكن تعذّر الوصول إلى مزوّد الهوية. تحقق من إعدادات OAuth.",
       "oauth_issuer_mismatch": "تسجيل الدخول عبر هذا المزوّد غير مُعدّ بشكل صحيح. يجب على المسؤول تعيين عنوان جهة الإصدار (issuer) الخاص به.",
-      "token_exchange_failed": "تم قبول كلمة المرور والرمز، لكن خادم البريد رفض بدء جلسة لهذا التطبيق. اطلب من المسؤول التحقق من إعدادات عميل OAuth."
+      "token_exchange_failed": "تم قبول كلمة المرور والرمز، لكن خادم البريد رفض بدء جلسة لهذا التطبيق. اطلب من المسؤول التحقق من إعدادات عميل OAuth.",
+      "login_refused": "رفض خادم البريد تسجيل الدخول هذا قبل التحقق من الرمز. اطلب من المسؤول التحقق من إعدادات عميل OAuth."
     },
     "show_password": "إظهار كلمة المرور",
     "hide_password": "إخفاء كلمة المرور",
@@ -815,7 +817,8 @@
       "event_status_tentative": "مبدئي",
       "event_status_cancelled": "ملغى",
       "expand": "إظهار التفاصيل",
-      "collapse": "إخفاء التفاصيل"
+      "collapse": "إخفاء التفاصيل",
+      "optional_role": "حضورك اختياري"
     },
     "send": "إرسال",
     "more": "المزيد",
@@ -2301,6 +2304,10 @@
         "seconds": "{seconds} ثانية",
         "unsupported": "الحساب الحالي لا يعلن عن دعم الإرسال المؤجل. لا يزال الإعداد محفوظًا للحسابات الأخرى."
       },
+      "mark_read_on_reply": {
+        "label": "وضع علامة مقروءة عند الرد أو إعادة التوجيه",
+        "description": "تُعلَّم الرسالة التي ترد عليها أو تعيد توجيهها كمقروءة، حتى إذا كانت الرسائل لا تُعلَّم كمقروءة أبدًا عند فتحها."
+      },
       "return_to_list_after_action": {
         "label": "العودة إلى القائمة بعد الحذف أو الأرشفة أو النقل أو التمييز كغير مقروء",
         "description": "بعد حذف الرسالة المفتوحة أو أرشفتها أو نقلها أو الإبلاغ عنها كبريد مزعج أو تمييزها كغير مقروءة، العودة إلى قائمة الرسائل بدلًا من فتح الرسالة التالية."
@@ -3014,16 +3021,12 @@
       "loading": "جارٍ تحميل المرشحات...",
       "not_supported": "خادم بريدك لا يدعم مرشحات البريد.",
       "rule_name": "اسم القاعدة",
-      "rule_name_placeholder": "مثال: فرز النشرات البريدية",
       "match_all": "مطابقة كل الشروط",
       "match_any": "مطابقة أي شرط",
       "conditions": "الشروط",
       "add_condition": "إضافة شرط",
       "actions": "الإجراءات",
-      "add_action": "إضافة إجراء",
       "remove_condition": "إزالة الشرط",
-      "remove_action": "إزالة الإجراء",
-      "stop_processing": "عدم تطبيق القواعد التالية",
       "include_spam": "نقل الرسائل المصنفة كرسائل مزعجة أيضًا",
       "attachment_type_placeholder": "مثال: pdf, doc, jpg",
       "value_placeholder_multi": "القيمة (عدة قيم مفصولة بفواصل)",
@@ -3083,7 +3086,6 @@
       "condition_value": "قيمة الشرط",
       "header_placeholder": "مثال: X-Mailing-List",
       "size_bytes": "الحجم بالبايت",
-      "size_placeholder": "مثال: 1000000",
       "system_managed": "قاعدة تديرها المنظومة",
       "opaque_warning": "تم تعديل هذا النص خارج أداة الإنشاء المرئي. يتوفر فقط تعديل Sieve الخام.",
       "open_sieve_editor": "فتح محرر Sieve الخام",
@@ -3106,7 +3108,6 @@
       "reset_warning": "سيؤدي هذا إلى تجاهل النص الحالي والبدء من جديد.",
       "reset_title": "إعادة التعيين إلى المحرر المرئي؟",
       "confirm_reset": "إعادة التعيين",
-      "validation_empty_name": "اسم القاعدة مطلوب",
       "validation_empty_conditions": "مطلوب شرط واحد على الأقل بقيمة",
       "validation_empty_actions": "مطلوب إجراء واحد على الأقل",
       "validation_action_folder": "اختر مجلدًا لهذا الإجراء",
@@ -3157,8 +3158,6 @@
       "suggest_cc": "نسخة إلى {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "طبّقها أيضًا على الرسائل الموجودة في هذا المجلد",
-      "apply_existing_unsupported": "لا يمكن تطبيق القواعد على الرسائل الموجودة إلا إذا كانت تفحص المرسل أو المستلمين أو الموضوع أو الترويسات، وتنقل أو تنسخ أو تميّز كمقروءة أو بنجمة أو بوسم.",
       "period_title": "النطاق الزمني",
       "period_start": "تاريخ البدء",
       "period_end": "تاريخ الانتهاء",
@@ -3167,10 +3166,6 @@
       "period_hint": "تنطبق على الرسائل التي تصل خلال هذه الفترة. اترك حقلًا فارغًا لإبقاء ذلك الطرف مفتوحًا.",
       "validation_period_empty": "أدخل تاريخ بدء أو انتهاء للفترة",
       "validation_period_invalid": "أدخل تاريخًا صالحًا مع الوقت للفترة، أو اترك الحقل فارغًا",
-      "apply_existing_period": "القاعدة ذات الفترة الزمنية تعمل فقط على الرسائل التي تصل خلالها، لذا لا يمكن تطبيقها على الرسائل الموجودة.",
-      "apply_existing_in": "طبّقها أيضًا على الرسائل الموجودة في {folder}",
-      "apply_existing_count": "{count, plural, zero {طبّقها أيضًا على الرسائل الموجودة في {folder}} one {طبّقها أيضًا على الرسالة الموجودة في {folder}} two {طبّقها أيضًا على الرسالتين الموجودتين في {folder}} few {طبّقها أيضًا على # رسائل موجودة في {folder}} many {طبّقها أيضًا على # رسالة موجودة في {folder}} other {طبّقها أيضًا على # رسالة موجودة في {folder}}}",
-      "apply_existing_none": "لا توجد رسالة في {folder} تطابق هذه القاعدة بعد.",
       "period_status_scheduled": "مجدولة",
       "period_status_active": "نشطة",
       "period_status_expired": "منتهية",
@@ -4963,7 +4958,9 @@
       "overlap_more": "و{count} أخرى",
       "save": "حفظ",
       "cancel": "إلغاء",
-      "color": "اللون"
+      "color": "اللون",
+      "expand": "توسيع",
+      "restore_size": "استعادة الحجم"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "أنت أحد الحاضرين",
       "no_participants": "لا يوجد مشاركون",
       "limit_warning": "أكثر من {max, plural, zero {# مشارك} one {مشارك واحد} two {مشاركَين} few {# مشاركين} many {# مشاركًا} other {# مشارك}}، بمن فيهم المنظّم: قد يرفض الخادم حفظ هذا الحدث. يمكن للمسؤول رفع هذا الحد.",
-      "count": "{count, plural, one {# مشارك} other {# مشاركين}}"
+      "count": "{count, plural, one {# مشارك} other {# مشاركين}}",
+      "optional": "اختياري",
+      "optional_role": "اختياري"
     },
     "recurrence": {
       "title": "التكرار",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, zero {لم يُعثر على أي حدث} one {تم العثور على حدث واحد} two {تم العثور على حدثين} few {تم العثور على # أحداث} many {تم العثور على # حدثًا} other {تم العثور على # حدث}}"
     },
     "mini_has_events": "فيه أحداث",
-    "mini_week_number": "الأسبوع {week}"
+    "mini_week_number": "الأسبوع {week}",
+    "move_confirm_organizer_title": "نقل \"{title}\" إلى {when}؟",
+    "move_confirm_organizer_message": "سيتلقى الحضور تحديثًا، وسيُطلب منهم قبول الوقت الجديد.",
+    "move_confirm_organizer_confirm": "نقل وإشعار",
+    "move_confirm_attendee_title": "نقل \"{title}\" في تقويمك فقط؟",
+    "move_confirm_attendee_message": "لست المنظّم. يبقى الاجتماع في وقته لدى المنظّم والحضور الآخرين، وسيستبدل التحديث التالي من المنظّم تغييرك.",
+    "move_confirm_attendee_confirm": "نقل نسختي"
   },
   "ux_pim_calendar": {
     "task_lists": "قوائم المهام",
@@ -5557,7 +5562,9 @@
     "answer_for": "الرد نيابةً عن {name}",
     "no_write": "يمكنك رؤية دعوات {name} لكن لا يمكنك الرد عليها. اطلب صلاحية التعديل.",
     "also_invited": "أنت مدعو أيضًا، ولا يستطيع هذا الخادم التمييز بين ردك ورد {name}. على {name} الرد على هذه الدعوة.",
-    "answered_by": "ردّ عليها {who}"
+    "answered_by": "ردّ عليها {who}",
+    "organizer_owner": "{name} (مُرسَل منك)",
+    "organizer_me": "أنت"
   },
   "free_busy_share": {
     "button": "مشاركة أوقات توفري مع {group}",
@@ -5668,7 +5675,25 @@
     "unknown_note": "يرى Bulwark أوقات الانشغال فقط في التقويمات المشتركة معك. لهؤلاء الأشخاص لا يمكنه التمييز بين متاح وغير مشترك.",
     "directory_off": "لا يستطيع Bulwark البحث عن الأشخاص على هذا الخادم. يمكن لمسؤولك تفعيل استعلامات الدليل في Stalwart.",
     "not_looked_up": "تعذّر العثور على هذا العنوان",
-    "found": "الأوقات المتاحة التي وُجدت: {count}"
+    "found": "الأوقات المتاحة التي وُجدت: {count}",
+    "optional_ignored": "لا تُحتسب أوقات انشغال الحضور الاختياريين."
+  },
+  "scheduling_assistant": {
+    "open": "التوفر…",
+    "title": "التوفر",
+    "description": "انقر على الشبكة أو اسحب الحدث لنقله. اسحب نهايته لتغيير المدة.",
+    "previous_day": "اليوم السابق",
+    "next_day": "اليوم التالي",
+    "you": "أنت",
+    "everyone": "جميع الحضور",
+    "optional": "اختياري",
+    "event": "الحدث: {time}",
+    "keyboard_hint": "تنقل مفاتيح الأسهم الحدث 15 دقيقة. ومع Shift تغيّر مدته.",
+    "use_time": "استخدام هذا الوقت",
+    "loading": "جارٍ تحميل أوقات الانشغال…",
+    "outside_hours": "خارج ساعات العمل",
+    "everyone_free": "الجميع متاحون",
+    "not_checked": "غير معروف"
   },
   "share_notifications": {
     "someone": "شخص ما",

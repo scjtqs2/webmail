@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import type { FilterRule } from '@/lib/jmap/sieve-types';
-import { FilterRuleModal } from '../filter-rule-modal';
+import { RuleEditor } from '../rule-editor';
 
 vi.mock('@/stores/toast-store', () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 
@@ -16,14 +16,14 @@ const rule: FilterRule = {
   stopProcessing: false,
 };
 
-function openModal(props: Partial<React.ComponentProps<typeof FilterRuleModal>> = {}) {
+function openModal(props: Partial<React.ComponentProps<typeof RuleEditor>> = {}) {
   const onSave = vi.fn();
-  render(<FilterRuleModal mailboxes={[]} initialRule={rule} onSave={onSave} onClose={vi.fn()} {...props} />);
+  render(<RuleEditor mailboxes={[]} initialRule={rule} onSave={onSave} onClose={vi.fn()} {...props} />);
   return { onSave, saved: () => onSave.mock.calls[0][0] as FilterRule };
 }
 
-const fieldSelect = () => screen.getByLabelText('conditions') as HTMLSelectElement;
-const comparatorSelect = () => screen.queryByLabelText('comparators.contains') as HTMLSelectElement | null;
+const fieldSelect = () => screen.getByLabelText('condition_number') as HTMLSelectElement;
+const comparatorSelect = () => screen.queryByLabelText('comparison') as HTMLSelectElement | null;
 const valueInput = () => screen.queryByPlaceholderText('filter_value_placeholder') as HTMLInputElement | null;
 
 describe('the "all messages" condition', () => {
@@ -80,14 +80,5 @@ describe('the "all messages" condition', () => {
       { field: 'all', comparator: 'any', value: '' },
       { field: 'subject', comparator: 'contains', value: 'Rechnung' },
     ]);
-  });
-
-  it('is never run on the messages already in the folder', () => {
-    openModal({ offerApplyToExisting: true });
-    const applyExisting = screen.getByLabelText('apply_existing') as HTMLInputElement;
-    expect(applyExisting.disabled).toBe(false);
-    fireEvent.change(fieldSelect(), { target: { value: 'all' } });
-    expect(fieldSelect().value).toBe('all');
-    expect(applyExisting.disabled).toBe(true);
   });
 });

@@ -6,6 +6,7 @@
     "username_placeholder": "utente@esempio.com",
     "password_label": "Password",
     "password_placeholder": "Inserisci la tua password",
+    "forgot_password": "Hai dimenticato la password?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server selezionato in base al tuo dominio email.",
     "sign_in": "Accedi",
@@ -23,7 +24,8 @@
       "totp_invalid": "Codice di autenticazione non valido. Controlla la tua app di autenticazione.",
       "oauth_discovery_failed": "SSO è abilitato ma il provider di identità non è raggiungibile. Controlla la configurazione OAuth.",
       "oauth_issuer_mismatch": "L'accesso con questo provider non è configurato correttamente. L'amministratore deve impostarne l'indirizzo dell'emittente (issuer).",
-      "token_exchange_failed": "Password e codice sono stati accettati, ma il server di posta ha rifiutato di avviare una sessione per questa app. Chiedi all'amministratore di controllare le impostazioni del client OAuth."
+      "token_exchange_failed": "Password e codice sono stati accettati, ma il server di posta ha rifiutato di avviare una sessione per questa app. Chiedi all'amministratore di controllare le impostazioni del client OAuth.",
+      "login_refused": "Il server di posta ha rifiutato questo accesso prima di controllare il codice. Chiedi all'amministratore di controllare le impostazioni del client OAuth."
     },
     "show_password": "Mostra password",
     "hide_password": "Nascondi password",
@@ -788,7 +790,8 @@
       "event_status_tentative": "Provvisorio",
       "event_status_cancelled": "Annullato",
       "collapse": "Nascondi dettagli",
-      "expand": "Mostra dettagli"
+      "expand": "Mostra dettagli",
+      "optional_role": "La tua partecipazione è facoltativa"
     },
     "previous": "Precedente",
     "next": "Successivo",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} secondi",
         "unsupported": "L’account corrente non dichiara il supporto all’invio ritardato. L’impostazione resta salvata per altri account."
       },
+      "mark_read_on_reply": {
+        "label": "Segna come letto quando rispondo o inoltro",
+        "description": "Un messaggio a cui rispondi o che inoltri viene segnato come letto, anche quando i messaggi non vengono mai segnati come letti all'apertura."
+      },
       "return_to_list_after_action": {
         "label": "Torna all'elenco dopo l'eliminazione, l'archiviazione, lo spostamento o il contrassegno come non letto",
         "description": "Dopo aver eliminato, archiviato, spostato, segnalato come spam o segnato come non letto il messaggio aperto, torna all'elenco dei messaggi invece di aprire il messaggio successivo."
@@ -3007,16 +3014,12 @@
       "loading": "Caricamento filtri...",
       "not_supported": "Il tuo server di posta non supporta i filtri email.",
       "rule_name": "Nome della regola",
-      "rule_name_placeholder": "es. Ordina newsletter",
       "match_all": "Corrisponde a tutte le condizioni",
       "match_any": "Corrisponde a una qualsiasi condizione",
       "conditions": "Condizioni",
       "add_condition": "Aggiungi condizione",
       "actions": "Azioni",
-      "add_action": "Aggiungi azione",
       "remove_condition": "Rimuovi condizione",
-      "remove_action": "Rimuovi azione",
-      "stop_processing": "Non applicare le regole successive",
       "include_spam": "Sposta anche i messaggi contrassegnati come spam",
       "attachment_type_placeholder": "es. pdf, doc, jpg",
       "value_placeholder_multi": "Valore (più valori separati da virgole)",
@@ -3076,7 +3079,6 @@
       "condition_value": "Valore della condizione",
       "header_placeholder": "es. X-Mailing-List",
       "size_bytes": "Dimensione in byte",
-      "size_placeholder": "es. 1000000",
       "system_managed": "Regola gestita dal sistema",
       "opaque_warning": "Questo script è stato modificato al di fuori del costruttore visuale. È disponibile solo la modifica Sieve grezza.",
       "open_sieve_editor": "Apri editor Sieve",
@@ -3099,7 +3101,6 @@
       "reset_warning": "Questo eliminerà lo script attuale e ricomincerà da zero.",
       "reset_title": "Tornare all'editor visuale?",
       "confirm_reset": "Ripristina",
-      "validation_empty_name": "Il nome della regola è obbligatorio",
       "validation_empty_conditions": "È necessaria almeno una condizione con un valore",
       "validation_empty_actions": "È necessaria almeno un'azione",
       "validation_action_folder": "Seleziona una cartella per questa azione",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Applica anche ai messaggi già presenti in questa cartella",
-      "apply_existing_unsupported": "Solo le regole che controllano mittente, destinatari, oggetto o intestazioni, e che spostano, copiano, segnano come letto, contrassegnano con stella o etichettano, si possono applicare ai messaggi esistenti.",
       "period_title": "Periodo",
       "period_start": "Data di inizio",
       "period_end": "Data di fine",
@@ -3160,10 +3159,6 @@
       "period_hint": "Si applica ai messaggi che arrivano in questo periodo. Lascia un campo vuoto per non limitare quell'estremo.",
       "validation_period_empty": "Inserisci una data di inizio o di fine per il periodo",
       "validation_period_invalid": "Inserisci una data valida con l'ora per il periodo oppure lascia vuoto il campo",
-      "apply_existing_period": "Una regola con periodo agisce solo sui messaggi che arrivano al suo interno, quindi non si può applicare ai messaggi esistenti.",
-      "apply_existing_in": "Applica anche ai messaggi già in {folder}",
-      "apply_existing_count": "{count, plural, one {Applica anche al # messaggio già in {folder}} other {Applica anche ai # messaggi già in {folder}}}",
-      "apply_existing_none": "Nessun messaggio in {folder} corrisponde ancora a questa regola.",
       "period_status_scheduled": "programmata",
       "period_status_active": "attiva",
       "period_status_expired": "scaduta",
@@ -4963,7 +4958,9 @@
       "overlap_more": "E altri {count}",
       "save": "Salva",
       "cancel": "Annulla",
-      "color": "Colore"
+      "color": "Colore",
+      "expand": "Espandi",
+      "restore_size": "Ripristina dimensioni"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Sei un partecipante",
       "no_participants": "Nessun partecipante",
       "limit_warning": "Più di {max, plural, one {# partecipante} other {# partecipanti}}, organizzatore incluso: il server potrebbe rifiutarsi di salvare questo evento. Un amministratore può aumentare il limite.",
-      "count": "{count, plural, one {# partecipante} other {# partecipanti}}"
+      "count": "{count, plural, one {# partecipante} other {# partecipanti}}",
+      "optional": "Facoltativo",
+      "optional_role": "facoltativo"
     },
     "recurrence": {
       "title": "Ricorrenza",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# evento trovato} other {# eventi trovati}}"
     },
     "mini_has_events": "ha eventi",
-    "mini_week_number": "Settimana {week}"
+    "mini_week_number": "Settimana {week}",
+    "move_confirm_organizer_title": "Spostare «{title}» a {when}?",
+    "move_confirm_organizer_message": "I partecipanti riceveranno un aggiornamento e dovranno accettare il nuovo orario.",
+    "move_confirm_organizer_confirm": "Sposta e avvisa",
+    "move_confirm_attendee_title": "Spostare «{title}» solo nel tuo calendario?",
+    "move_confirm_attendee_message": "Non sei l'organizzatore. Per l'organizzatore e gli altri partecipanti la riunione resta all'orario previsto, e il prossimo aggiornamento dell'organizzatore sovrascriverà la tua modifica.",
+    "move_confirm_attendee_confirm": "Sposta la mia copia"
   },
   "ux_pim_calendar": {
     "task_lists": "Elenchi attività",
@@ -6196,7 +6201,9 @@
     "answer_for": "Rispondi per {name}",
     "no_write": "Puoi vedere gli inviti di {name} ma non rispondere al suo posto. Chiedi l’accesso in modifica.",
     "also_invited": "Sei invitato anche tu e questo server non distingue la tua risposta da quella di {name}. Deve rispondere {name}.",
-    "answered_by": "Risposto da {who}"
+    "answered_by": "Risposto da {who}",
+    "organizer_owner": "{name} (inviato da te)",
+    "organizer_me": "Tu"
   },
   "free_busy_share": {
     "button": "Condividi la mia disponibilità con {group}",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark vede gli orari occupati solo nei calendari condivisi con te. Per queste persone non può distinguere libero da non condiviso.",
     "directory_off": "Bulwark non può cercare persone su questo server. L’amministratore può attivare le query della rubrica in Stalwart.",
     "not_looked_up": "Impossibile cercare questo indirizzo",
-    "found": "Orari liberi trovati: {count}"
+    "found": "Orari liberi trovati: {count}",
+    "optional_ignored": "Gli orari occupati dei partecipanti facoltativi non contano."
+  },
+  "scheduling_assistant": {
+    "open": "Disponibilità…",
+    "title": "Disponibilità",
+    "description": "Fai clic sulla griglia o trascina l’evento per spostarlo. Trascina la fine per cambiare la durata.",
+    "previous_day": "Giorno precedente",
+    "next_day": "Giorno successivo",
+    "you": "Tu",
+    "everyone": "Tutti i partecipanti",
+    "optional": "Facoltativo",
+    "event": "Evento: {time}",
+    "keyboard_hint": "Le frecce spostano l’evento di 15 minuti. Con Maiusc ne cambiano la durata.",
+    "use_time": "Usa questo orario",
+    "loading": "Caricamento degli orari occupati…",
+    "outside_hours": "Fuori orario di lavoro",
+    "everyone_free": "Tutti liberi",
+    "not_checked": "Sconosciuto"
   },
   "share_notifications": {
     "someone": "Qualcuno",

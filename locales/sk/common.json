@@ -6,6 +6,7 @@
     "username_placeholder": "pouzivatel@example.com",
     "password_label": "Heslo",
     "password_placeholder": "Zadajte heslo",
+    "forgot_password": "Zabudli ste heslo?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server bol vybratý podľa domény vášho e-mailu.",
     "sign_in": "Prihlásiť sa",
@@ -23,7 +24,8 @@
       "totp_invalid": "Neplatný overovací kód. Skontrolujte svoju overovaciu aplikáciu a skúste znova.",
       "oauth_discovery_failed": "SSO je povolené, ale poskytovateľa identity sa nepodarilo dosiahnuť. Skontrolujte konfiguráciu OAuth.",
       "oauth_issuer_mismatch": "Prihlásenie cez tohto poskytovateľa nie je správne nastavené. Správca musí nastaviť jeho adresu vydavateľa (issuer).",
-      "token_exchange_failed": "Heslo a kód boli prijaté, ale poštový server odmietol pre túto aplikáciu spustiť reláciu. Požiadajte správcu o kontrolu nastavení klienta OAuth."
+      "token_exchange_failed": "Heslo a kód boli prijaté, ale poštový server odmietol pre túto aplikáciu spustiť reláciu. Požiadajte správcu o kontrolu nastavení klienta OAuth.",
+      "login_refused": "Poštový server odmietol toto prihlásenie skôr, ako overil váš kód. Požiadajte správcu, aby skontroloval nastavenia klienta OAuth."
     },
     "show_password": "Zobraziť heslo",
     "hide_password": "Skryť heslo",
@@ -815,7 +817,8 @@
       "event_status_tentative": "Nezaväzne",
       "event_status_cancelled": "Zrušené",
       "expand": "Zobraziť podrobnosti",
-      "collapse": "Skryť podrobnosti"
+      "collapse": "Skryť podrobnosti",
+      "optional_role": "Vaša účasť je nepovinná"
     },
     "send": "Odoslať",
     "more": "viac",
@@ -2301,6 +2304,10 @@
         "seconds": "{seconds} sekúnd",
         "unsupported": "Aktuálny účet neoznamuje podporu oneskoreného odoslania."
       },
+      "mark_read_on_reply": {
+        "label": "Označiť ako prečítané, keď odpoviem alebo prepošlem",
+        "description": "Správa, na ktorú odpoviete alebo ktorú prepošlete, sa označí ako prečítaná, aj keď sa správy pri otvorení nikdy neoznačujú ako prečítané."
+      },
       "return_to_list_after_action": {
         "label": "Vrátiť sa na zoznam po odstránení, archivovaní, presunutí alebo označení ako neprečítané",
         "description": "Po odstránení, archivovaní, presunutí, nahlásení ako spam alebo označení otvorenej správy ako neprečítanej sa vrátiť na zoznam správ."
@@ -3014,16 +3021,12 @@
       "loading": "Načítavanie filtrov...",
       "not_supported": "Váš poštový server nepodporuje e-mailové filtre.",
       "rule_name": "Názov pravidla",
-      "rule_name_placeholder": "napr. Triediť newslettery",
       "match_all": "Splňuje všetky podmienky",
       "match_any": "Splňuje ktorúkoľvek podmienku",
       "conditions": "Podmienky",
       "add_condition": "Pridať podmienku",
       "actions": "Akcie",
-      "add_action": "Pridať akciu",
       "remove_condition": "Odobrať podmienku",
-      "remove_action": "Odobrať akciu",
-      "stop_processing": "Ďalšie pravidlá nepoužívať",
       "include_spam": "Presúvať aj správy označené ako spam",
       "attachment_type_placeholder": "napr. pdf, doc, jpg",
       "value_placeholder_multi": "Hodnota (viac oddelených čiarkami)",
@@ -3083,7 +3086,6 @@
       "condition_value": "Hodnota podmienky",
       "header_placeholder": "napr. X-Mailing-List",
       "size_bytes": "Veľkosť v bajtoch",
-      "size_placeholder": "napr. 1000000",
       "system_managed": "Pravidlo spravované systémom",
       "opaque_warning": "Tento skript bol upravený mimo vizuálneho sprievodcu. K dispozícii je iba priama úprava Sieve.",
       "open_sieve_editor": "Otvoriť textový editor Sieve",
@@ -3106,7 +3108,6 @@
       "reset_warning": "Tým zahodíte aktuálny skript a začnete odznova.",
       "reset_title": "Obnoviť vizuálny editor?",
       "confirm_reset": "Resetovať",
-      "validation_empty_name": "Názov pravidla je povinný",
       "validation_empty_conditions": "Je potrebná aspoň jedna podmienka s hodnotou",
       "validation_empty_actions": "Je potrebná aspoň jedna akcia",
       "validation_action_folder": "Vyberte priečinok pre túto akciu",
@@ -3157,8 +3158,6 @@
       "suggest_cc": "Kópia {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Použiť aj na správy, ktoré už sú v tomto priečinku",
-      "apply_existing_unsupported": "Na existujúce správy možno použiť len pravidlá, ktoré kontrolujú odosielateľa, príjemcov, predmet alebo hlavičky a ktoré presúvajú, kopírujú, označujú ako prečítané, hviezdičkou alebo štítkom.",
       "period_title": "Časové obdobie",
       "period_start": "Dátum začiatku",
       "period_end": "Dátum ukončenia",
@@ -3167,10 +3166,6 @@
       "period_hint": "Platí pre správy, ktoré prídu v tomto období. Prázdne pole ponechá daný koniec otvorený.",
       "validation_period_empty": "Zadajte dátum začiatku alebo ukončenia obdobia",
       "validation_period_invalid": "Zadajte pre obdobie platný dátum aj s časom alebo pole nechajte prázdne",
-      "apply_existing_period": "Pravidlo s obdobím pôsobí len na správy, ktoré v ňom prídu, preto ho nemožno použiť na existujúce správy.",
-      "apply_existing_in": "Použiť aj na správy, ktoré už sú v priečinku {folder}",
-      "apply_existing_count": "{count, plural, one {Použiť aj na # správu, ktorá už je v priečinku {folder}} few {Použiť aj na # správy, ktoré už sú v priečinku {folder}} many {Použiť aj na # správy, ktoré už sú v priečinku {folder}} other {Použiť aj na # správ, ktoré už sú v priečinku {folder}}}",
-      "apply_existing_none": "Tomuto pravidlu zatiaľ nezodpovedá žiadna správa v priečinku {folder}.",
       "period_status_scheduled": "naplánované",
       "period_status_active": "aktívne",
       "period_status_expired": "uplynulo",
@@ -4963,7 +4958,9 @@
       "overlap_more": "A ďalšie: {count}",
       "save": "Uložiť",
       "cancel": "Zrušiť",
-      "color": "Farba"
+      "color": "Farba",
+      "expand": "Zväčšiť",
+      "restore_size": "Obnoviť veľkosť"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Ste účastníkom",
       "no_participants": "Žiadni účastníci",
       "limit_warning": "Viac ako {max, plural, one {# účastník} few {# účastníci} many {# účastníka} other {# účastníkov}} vrátane organizátora: server môže odmietnuť uloženie tejto udalosti. Správca môže limit zvýšiť.",
-      "count": "{count, plural, one {# účastník} other {# účastníkov}}"
+      "count": "{count, plural, one {# účastník} other {# účastníkov}}",
+      "optional": "Nepovinný",
+      "optional_role": "nepovinný"
     },
     "recurrence": {
       "title": "Opakovanie",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {Nájdená # udalosť} few {Nájdené # udalosti} many {Nájdenej # udalosti} other {Nájdených # udalostí}}"
     },
     "mini_has_events": "má udalosti",
-    "mini_week_number": "Týždeň {week}"
+    "mini_week_number": "Týždeň {week}",
+    "move_confirm_organizer_title": "Presunúť „{title}“ na {when}?",
+    "move_confirm_organizer_message": "Účastníci dostanú aktualizáciu a budú požiadaní, aby nový čas prijali.",
+    "move_confirm_organizer_confirm": "Presunúť a oznámiť",
+    "move_confirm_attendee_title": "Presunúť „{title}“ len vo vašom kalendári?",
+    "move_confirm_attendee_message": "Nie ste organizátor. Pre organizátora a ostatných účastníkov zostane stretnutie v pôvodnom čase a ďalšia aktualizácia od organizátora vašu zmenu prepíše.",
+    "move_confirm_attendee_confirm": "Presunúť moju kópiu"
   },
   "ux_pim_calendar": {
     "task_lists": "Zoznamy úloh",
@@ -5557,7 +5562,9 @@
     "answer_for": "Odpovedať za: {name}",
     "no_write": "Vidíte pozvánky používateľa {name}, ale nemôžete za neho odpovedať. Požiadajte o prístup na úpravy.",
     "also_invited": "Ste pozvaní aj vy a tento server nerozlíši vašu odpoveď od odpovede používateľa {name}. Na túto musí odpovedať {name}.",
-    "answered_by": "Odpovedal(a): {who}"
+    "answered_by": "Odpovedal(a): {who}",
+    "organizer_owner": "{name} (odoslané vami)",
+    "organizer_me": "Vy"
   },
   "free_busy_share": {
     "button": "Zdieľať môj voľný čas so skupinou {group}",
@@ -5668,7 +5675,25 @@
     "unknown_note": "Bulwark vidí obsadené časy len v kalendároch, ktoré s vami niekto zdieľa. Pri týchto ľuďoch nerozlíši voľno od nezdieľaného kalendára.",
     "directory_off": "Bulwark na tomto serveri nemôže vyhľadávať ľudí. Správca môže v Stalwarte zapnúť dopyty do adresára.",
     "not_looked_up": "Adresu sa nepodarilo vyhľadať",
-    "found": "Nájdené voľné časy: {count}"
+    "found": "Nájdené voľné časy: {count}",
+    "optional_ignored": "Obsadené časy nepovinných účastníkov sa nepočítajú."
+  },
+  "scheduling_assistant": {
+    "open": "Dostupnosť…",
+    "title": "Dostupnosť",
+    "description": "Kliknite do mriežky alebo udalosť potiahnite, aby ste ju presunuli. Potiahnutím konca zmeníte dĺžku.",
+    "previous_day": "Predchádzajúci deň",
+    "next_day": "Nasledujúci deň",
+    "you": "Vy",
+    "everyone": "Všetci účastníci",
+    "optional": "Voliteľný",
+    "event": "Udalosť: {time}",
+    "keyboard_hint": "Šípky posúvajú udalosť o 15 minút. S klávesom Shift menia jej dĺžku.",
+    "use_time": "Použiť tento čas",
+    "loading": "Načítavajú sa obsadené časy…",
+    "outside_hours": "Mimo pracovného času",
+    "everyone_free": "Všetci voľní",
+    "not_checked": "Neznáme"
   },
   "share_notifications": {
     "someone": "Niekto",

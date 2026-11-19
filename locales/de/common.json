@@ -6,6 +6,7 @@
     "username_placeholder": "benutzer@beispiel.de",
     "password_label": "Passwort",
     "password_placeholder": "Geben Sie Ihr Passwort ein",
+    "forgot_password": "Passwort vergessen?",
     "jmap_server_label": "Server",
     "jmap_server_auto_picked": "Server anhand Ihrer E-Mail-Domain ausgewählt.",
     "sign_in": "Anmelden",
@@ -23,7 +24,8 @@
       "totp_invalid": "Ungültiger Authentifizierungscode. Überprüfen Sie Ihre Authenticator-App.",
       "oauth_discovery_failed": "SSO ist aktiviert, aber der Identitätsanbieter ist nicht erreichbar. Überprüfen Sie Ihre OAuth-Konfiguration.",
       "oauth_issuer_mismatch": "Die Anmeldung über diesen Anbieter ist nicht richtig eingerichtet. Die Administration muss seine Issuer-Adresse eintragen.",
-      "token_exchange_failed": "Passwort und Code wurden akzeptiert, aber der Mailserver hat für diese App keine Sitzung gestartet. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen."
+      "token_exchange_failed": "Passwort und Code wurden akzeptiert, aber der Mailserver hat für diese App keine Sitzung gestartet. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen.",
+      "login_refused": "Der Mailserver hat diese Anmeldung abgelehnt, bevor er Ihren Code geprüft hat. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen."
     },
     "show_password": "Passwort anzeigen",
     "hide_password": "Passwort verbergen",
@@ -788,7 +790,8 @@
       "event_status_tentative": "Vorläufig",
       "event_status_cancelled": "Abgesagt",
       "collapse": "Details ausblenden",
-      "expand": "Details anzeigen"
+      "expand": "Details anzeigen",
+      "optional_role": "Ihre Teilnahme ist optional"
     },
     "previous": "Zurück",
     "next": "Weiter",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} Sekunden",
         "unsupported": "Das aktuelle Konto meldet keine Unterstützung für verzögertes Senden. Die Einstellung bleibt für andere Konten gespeichert."
       },
+      "mark_read_on_reply": {
+        "label": "Als gelesen markieren, wenn ich antworte oder weiterleite",
+        "description": "Eine Nachricht, auf die Sie antworten oder die Sie weiterleiten, wird als gelesen markiert, auch wenn Nachrichten beim Öffnen nie als gelesen markiert werden."
+      },
       "return_to_list_after_action": {
         "label": "Nach Löschen, Archivieren, Verschieben oder Ungelesen-Markieren zur Liste zurückkehren",
         "description": "Nach dem Löschen, Archivieren, Verschieben, Als-Spam-Melden oder Als-ungelesen-Markieren der geöffneten E-Mail zurück zur Liste, statt die nächste E-Mail zu öffnen."
@@ -3007,16 +3014,12 @@
       "loading": "Filter werden geladen...",
       "not_supported": "Ihr Mailserver unterstützt keine E-Mail-Filter.",
       "rule_name": "Regelname",
-      "rule_name_placeholder": "z.B. Newsletter sortieren",
       "match_all": "Alle Bedingungen müssen zutreffen",
       "match_any": "Eine Bedingung genügt",
       "conditions": "Bedingungen",
       "add_condition": "Bedingung hinzufügen",
       "actions": "Aktionen",
-      "add_action": "Aktion hinzufügen",
       "remove_condition": "Bedingung entfernen",
-      "remove_action": "Aktion entfernen",
-      "stop_processing": "Spätere Regeln nicht anwenden",
       "include_spam": "Auch als Spam markierte Nachrichten verschieben",
       "attachment_type_placeholder": "z.B. pdf, doc, jpg",
       "value_placeholder_multi": "Wert (mehrere mit Komma trennen)",
@@ -3076,7 +3079,6 @@
       "condition_value": "Wert der Bedingung",
       "header_placeholder": "z.B. X-Mailing-List",
       "size_bytes": "Größe in Bytes",
-      "size_placeholder": "z.B. 1000000",
       "system_managed": "Systemverwaltete Regel",
       "opaque_warning": "Dieses Skript wurde außerhalb des visuellen Builders bearbeitet. Nur die Sieve-Skriptbearbeitung ist verfügbar.",
       "open_sieve_editor": "Sieve-Skript-Editor öffnen",
@@ -3099,7 +3101,6 @@
       "reset_warning": "Dies verwirft das aktuelle Skript und beginnt von vorne.",
       "reset_title": "Auf den visuellen Editor zurücksetzen?",
       "confirm_reset": "Zurücksetzen",
-      "validation_empty_name": "Regelname ist erforderlich",
       "validation_empty_conditions": "Mindestens eine Bedingung mit einem Wert ist erforderlich",
       "validation_empty_actions": "Mindestens eine Aktion ist erforderlich",
       "validation_action_folder": "Wählen Sie einen Ordner für diese Aktion",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Auch auf vorhandene Nachrichten in diesem Ordner anwenden",
-      "apply_existing_unsupported": "Nur Regeln, die Absender, Empfänger, Betreff oder Kopfzeilen prüfen und verschieben, kopieren, als gelesen markieren, mit Stern markieren oder mit Label versehen, lassen sich auf vorhandene Nachrichten anwenden.",
       "period_title": "Zeitraum",
       "period_start": "Startdatum",
       "period_end": "Enddatum",
@@ -3160,10 +3159,6 @@
       "period_hint": "Gilt für Nachrichten, die in diesem Zeitraum eintreffen. Ein leeres Feld lässt den Zeitraum an dieser Seite offen.",
       "validation_period_empty": "Bitte ein Start- oder Enddatum für den Zeitraum angeben",
       "validation_period_invalid": "Bitte für den Zeitraum ein gültiges Datum mit Uhrzeit angeben oder das Feld leer lassen",
-      "apply_existing_period": "Eine Regel mit Zeitraum wirkt nur auf Nachrichten, die in diesem Zeitraum eintreffen, und lässt sich daher nicht auf vorhandene Nachrichten anwenden.",
-      "apply_existing_in": "Auch auf die Nachrichten anwenden, die schon in {folder} sind",
-      "apply_existing_count": "{count, plural, one {Auch auf die # Nachricht anwenden, die schon in {folder} ist} other {Auch auf die # Nachrichten anwenden, die schon in {folder} sind}}",
-      "apply_existing_none": "Noch keine Nachricht in {folder} passt zu dieser Regel.",
       "period_status_scheduled": "geplant",
       "period_status_active": "aktiv",
       "period_status_expired": "abgelaufen",
@@ -4963,7 +4958,9 @@
       "overlap_more": "Und {count} weitere",
       "save": "Speichern",
       "cancel": "Abbrechen",
-      "color": "Farbe"
+      "color": "Farbe",
+      "expand": "Vergrößern",
+      "restore_size": "Ursprüngliche Größe"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Sie sind ein Teilnehmer",
       "no_participants": "Keine Teilnehmer",
       "limit_warning": "Mehr als {max, plural, one {# Teilnehmer} other {# Teilnehmer}}, den Organisator mitgezählt: Der Server lehnt das Speichern dieses Termins möglicherweise ab. Ihr Administrator kann das Limit erhöhen.",
-      "count": "{count, plural, one {# Teilnehmer} other {# Teilnehmer}}"
+      "count": "{count, plural, one {# Teilnehmer} other {# Teilnehmer}}",
+      "optional": "Optional",
+      "optional_role": "optional"
     },
     "recurrence": {
       "title": "Wiederholung",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# Termin gefunden} other {# Termine gefunden}}"
     },
     "mini_has_events": "hat Termine",
-    "mini_week_number": "Woche {week}"
+    "mini_week_number": "Woche {week}",
+    "move_confirm_organizer_title": "„{title}“ auf {when} verschieben?",
+    "move_confirm_organizer_message": "Die Teilnehmer erhalten eine Aktualisierung und werden gebeten, die neue Zeit zuzusagen.",
+    "move_confirm_organizer_confirm": "Verschieben und benachrichtigen",
+    "move_confirm_attendee_title": "„{title}“ nur in Ihrem Kalender verschieben?",
+    "move_confirm_attendee_message": "Sie sind nicht der Organisator. Für den Organisator und die anderen Teilnehmer bleibt der Termin, wo er ist, und die nächste Aktualisierung des Organisators überschreibt Ihre Änderung.",
+    "move_confirm_attendee_confirm": "Meine Kopie verschieben"
   },
   "ux_pim_calendar": {
     "task_lists": "Aufgabenlisten",
@@ -6196,7 +6201,9 @@
     "answer_for": "Für {name} antworten",
     "no_write": "Sie sehen die Einladungen von {name}, können aber nicht dafür antworten. Bitten Sie um Bearbeitungszugriff.",
     "also_invited": "Sie sind ebenfalls eingeladen, und dieser Server kann Ihre Antwort nicht von der von {name} unterscheiden. {name} muss hier selbst antworten.",
-    "answered_by": "Beantwortet von {who}"
+    "answered_by": "Beantwortet von {who}",
+    "organizer_owner": "{name} (gesendet von Ihnen)",
+    "organizer_me": "Sie"
   },
   "free_busy_share": {
     "button": "Meine Frei/Gebucht-Zeiten für {group} freigeben",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark sieht belegte Zeiten nur in Kalendern, die für Sie freigegeben sind. Bei diesen Personen kann es „frei“ nicht von „nicht freigegeben“ unterscheiden.",
     "directory_off": "Bulwark kann auf diesem Server keine Personen nachschlagen. Ihre Administration kann Verzeichnisabfragen in Stalwart einschalten.",
     "not_looked_up": "Adresse nicht gefunden",
-    "found": "Freie Zeiten gefunden: {count}"
+    "found": "Freie Zeiten gefunden: {count}",
+    "optional_ignored": "Belegte Zeiten optionaler Teilnehmer zählen nicht."
+  },
+  "scheduling_assistant": {
+    "open": "Verfügbarkeit…",
+    "title": "Verfügbarkeit",
+    "description": "Klicken Sie in das Raster oder ziehen Sie den Termin, um ihn zu verschieben. Ziehen Sie sein Ende, um die Dauer zu ändern.",
+    "previous_day": "Vorheriger Tag",
+    "next_day": "Nächster Tag",
+    "you": "Sie",
+    "everyone": "Alle Teilnehmer",
+    "optional": "Optional",
+    "event": "Termin: {time}",
+    "keyboard_hint": "Die Pfeiltasten verschieben den Termin um 15 Minuten. Mit Umschalt ändern sie die Dauer.",
+    "use_time": "Diese Zeit übernehmen",
+    "loading": "Belegte Zeiten werden geladen…",
+    "outside_hours": "Außerhalb der Arbeitszeit",
+    "everyone_free": "Alle frei",
+    "not_checked": "Unbekannt"
   },
   "share_notifications": {
     "someone": "Jemand",

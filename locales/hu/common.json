@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "Jelszó",
     "password_placeholder": "Add meg a jelszavad",
+    "forgot_password": "Elfelejtetted a jelszavad?",
     "jmap_server_label": "Szerver",
     "jmap_server_auto_picked": "Szerver kiválasztva az e-mail tartományodból.",
     "sign_in": "Bejelentkezés",
@@ -23,7 +24,8 @@
       "totp_invalid": "Érvénytelen hitelesítési kód. Ellenőrizd a hitelesítő alkalmazásod és próbáld újra.",
       "oauth_discovery_failed": "SSO engedélyezve van, de az identitásszolgáltató nem érhető el. Ellenőrizd az OAuth konfigurációt.",
       "oauth_issuer_mismatch": "A bejelentkezés ezen a szolgáltatón keresztül nincs megfelelően beállítva. A rendszergazdának meg kell adnia a kibocsátó (issuer) címét.",
-      "token_exchange_failed": "A jelszót és a kódot elfogadtuk, de a levelezőszerver nem indított munkamenetet ehhez az alkalmazáshoz. Kérje meg a rendszergazdát, hogy ellenőrizze az OAuth-kliens beállításait."
+      "token_exchange_failed": "A jelszót és a kódot elfogadtuk, de a levelezőszerver nem indított munkamenetet ehhez az alkalmazáshoz. Kérje meg a rendszergazdát, hogy ellenőrizze az OAuth-kliens beállításait.",
+      "login_refused": "A levelezőszerver elutasította ezt a bejelentkezést, mielőtt ellenőrizte volna a kódot. Kérje meg a rendszergazdát, hogy ellenőrizze az OAuth-kliens beállításait."
     },
     "show_password": "Jelszó megjelenítése",
     "hide_password": "Jelszó elrejtése",
@@ -815,7 +817,8 @@
       "event_status_tentative": "Előzetes",
       "event_status_cancelled": "Lemondva",
       "expand": "Részletek mutatása",
-      "collapse": "Részletek elrejtése"
+      "collapse": "Részletek elrejtése",
+      "optional_role": "A részvétele nem kötelező"
     },
     "send": "Küldés",
     "more": "további",
@@ -2301,6 +2304,10 @@
         "seconds": "{seconds} másodperc",
         "unsupported": "A jelenlegi fiók nem támogatja a késleltetett küldést. A beállítás más fiókokhoz elmentésre kerül."
       },
+      "mark_read_on_reply": {
+        "label": "Olvasottnak jelölés válaszkor vagy továbbításkor",
+        "description": "A megválaszolt vagy továbbított üzenet olvasottként lesz megjelölve akkor is, ha az üzenetek megnyitáskor soha nem lesznek olvasottak."
+      },
       "return_to_list_after_action": {
         "label": "Visszatérés a listához törlés, archiválás, áthelyezés vagy olvasatlanként jelölés után",
         "description": "A megnyitott üzenet törlése, archiválása, áthelyezése, spamként jelentése vagy olvasatlanként való megjelölése után visszatérés az üzenetlistához a következő üzenet megnyitása helyett."
@@ -3010,16 +3017,12 @@
       "loading": "Szűrők betöltése...",
       "not_supported": "A levelezőszervered nem támogatja az e-mail szűrőket.",
       "rule_name": "Szabály neve",
-      "rule_name_placeholder": "pl. Hírlevelek rendezése",
       "match_all": "Minden feltétel teljesüljön",
       "match_any": "Bármelyik feltétel teljesüljön",
       "conditions": "Feltételek",
       "add_condition": "Feltétel hozzáadása",
       "actions": "Műveletek",
-      "add_action": "Művelet hozzáadása",
       "remove_condition": "Feltétel eltávolítása",
-      "remove_action": "Művelet eltávolítása",
-      "stop_processing": "A későbbi szabályok ne fussanak",
       "include_spam": "A levélszemétnek jelölt üzenetek áthelyezése is",
       "attachment_type_placeholder": "pl. pdf, doc, jpg",
       "value_placeholder_multi": "Érték (több érték vesszővel elválasztva)",
@@ -3079,7 +3082,6 @@
       "condition_value": "Feltétel értéke",
       "header_placeholder": "pl. X-Mailing-List",
       "size_bytes": "Méret bájtokban",
-      "size_placeholder": "pl. 1000000",
       "system_managed": "Rendszer által kezelt szabály",
       "opaque_warning": "Ezt a szkriptet a vizuális szerkesztőn kívül szerkesztették. Csak nyers Sieve szerkesztés érhető el.",
       "open_sieve_editor": "Nyers Sieve szerkesztő megnyitása",
@@ -3102,7 +3104,6 @@
       "reset_warning": "Ez elveti az aktuális szkriptet és újat kezd.",
       "reset_title": "Visszaáll a vizuális szerkesztőre?",
       "confirm_reset": "Visszaállítás",
-      "validation_empty_name": "A szabály neve kötelező",
       "validation_empty_conditions": "Legalább egy feltétel szükséges értékkel",
       "validation_empty_actions": "Legalább egy művelet szükséges",
       "validation_action_folder": "Válasszon mappát ehhez a művelethez",
@@ -3153,8 +3154,6 @@
       "suggest_cc": "Másolat: {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Alkalmazás a mappában már meglévő üzenetekre is",
-      "apply_existing_unsupported": "Meglévő üzenetekre csak olyan szabály alkalmazható, amely a feladót, a címzetteket, a tárgyat vagy a fejléceket vizsgálja, és áthelyez, másol, olvasottnak jelöl, csillagoz vagy címkéz.",
       "period_title": "Dátumtartomány",
       "period_start": "Kezdő dátum",
       "period_end": "Befejező dátum",
@@ -3163,10 +3162,6 @@
       "period_hint": "Az ebben az időszakban érkező üzenetekre vonatkozik. Hagyjon egy mezőt üresen, ha azt a végét nem szeretné korlátozni.",
       "validation_period_empty": "Adjon meg kezdő vagy befejező dátumot az időszakhoz",
       "validation_period_invalid": "Adjon meg érvényes dátumot időponttal az időszakhoz, vagy hagyja üresen a mezőt",
-      "apply_existing_period": "Az időszakhoz kötött szabály csak az abban érkező üzenetekre hat, ezért meglévő üzenetekre nem alkalmazható.",
-      "apply_existing_in": "Alkalmazás a már itt lévő üzenetekre is: {folder}",
-      "apply_existing_count": "{count, plural, one {Alkalmazás a már itt lévő # üzenetre is: {folder}} other {Alkalmazás a már itt lévő # üzenetre is: {folder}}}",
-      "apply_existing_none": "Itt még egy üzenet sem felel meg ennek a szabálynak: {folder}.",
       "period_status_scheduled": "ütemezett",
       "period_status_active": "aktív",
       "period_status_expired": "lejárt",
@@ -4963,7 +4958,9 @@
       "overlap_more": "És még {count}",
       "save": "Mentés",
       "cancel": "Mégse",
-      "color": "Szín"
+      "color": "Szín",
+      "expand": "Nagyítás",
+      "restore_size": "Eredeti méret"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "Résztvevő vagy",
       "no_participants": "Nincs résztvevő",
       "limit_warning": "Több mint {max, plural, one {# résztvevő} other {# résztvevő}}, a szervezőt is beleértve: a szerver elutasíthatja az esemény mentését. A rendszergazda megemelheti a korlátot.",
-      "count": "{count, plural, one {# résztvevő} other {# résztvevő}}"
+      "count": "{count, plural, one {# résztvevő} other {# résztvevő}}",
+      "optional": "Nem kötelező",
+      "optional_role": "nem kötelező"
     },
     "recurrence": {
       "title": "Ismétlődés",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, one {# esemény található} other {# esemény található}}"
     },
     "mini_has_events": "vannak események",
-    "mini_week_number": "{week}. hét"
+    "mini_week_number": "{week}. hét",
+    "move_confirm_organizer_title": "Áthelyezi a(z) „{title}” eseményt erre: {when}?",
+    "move_confirm_organizer_message": "A résztvevők frissítést kapnak, és el kell fogadniuk az új időpontot.",
+    "move_confirm_organizer_confirm": "Áthelyezés és értesítés",
+    "move_confirm_attendee_title": "Csak a saját naptárában helyezi át a(z) „{title}” eseményt?",
+    "move_confirm_attendee_message": "Nem Ön a szervező. A szervezőnél és a többi résztvevőnél a megbeszélés marad az eredeti időpontban, és a szervező következő frissítése felülírja a módosítását.",
+    "move_confirm_attendee_confirm": "Saját példány áthelyezése"
   },
   "ux_pim_calendar": {
     "task_lists": "Feladatlisták",
@@ -5557,7 +5562,9 @@
     "answer_for": "Válasz {name} nevében",
     "no_write": "Látja {name} meghívóit, de nem válaszolhat a nevében. Kérjen szerkesztési jogot.",
     "also_invited": "Ön is meghívott, és ez a szerver nem tudja megkülönböztetni az Ön válaszát {name} válaszától. Erre {name} válaszoljon.",
-    "answered_by": "Válaszolt: {who}"
+    "answered_by": "Válaszolt: {who}",
+    "organizer_owner": "{name} (Ön küldi)",
+    "organizer_me": "Ön"
   },
   "free_busy_share": {
     "button": "Szabad/foglalt időim megosztása ezzel: {group}",
@@ -5668,7 +5675,25 @@
     "unknown_note": "A Bulwark csak az Önnel megosztott naptárakban látja a foglalt időket. Ezeknél a személyeknél nem tudja megkülönböztetni a szabadot a nem megosztottól.",
     "directory_off": "A Bulwark ezen a szerveren nem tud személyeket keresni. A rendszergazda a Stalwartban bekapcsolhatja a címtár-lekérdezéseket.",
     "not_looked_up": "A cím nem kereshető",
-    "found": "Talált szabad időpontok: {count}"
+    "found": "Talált szabad időpontok: {count}",
+    "optional_ignored": "A nem kötelező résztvevők foglalt idejei nem számítanak."
+  },
+  "scheduling_assistant": {
+    "open": "Elérhetőség…",
+    "title": "Elérhetőség",
+    "description": "Kattintson a rácsra, vagy húzza az eseményt az áthelyezéshez. A végét húzva módosíthatja a hosszát.",
+    "previous_day": "Előző nap",
+    "next_day": "Következő nap",
+    "you": "Ön",
+    "everyone": "Minden résztvevő",
+    "optional": "Nem kötelező",
+    "event": "Esemény: {time}",
+    "keyboard_hint": "A nyílbillentyűk 15 perccel mozgatják az eseményt. Shifttel a hosszát módosítják.",
+    "use_time": "Ez az időpont legyen",
+    "loading": "Foglalt idők betöltése…",
+    "outside_hours": "Munkaidőn kívül",
+    "everyone_free": "Mindenki szabad",
+    "not_checked": "Ismeretlen"
   },
   "share_notifications": {
     "someone": "Valaki",

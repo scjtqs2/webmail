@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "비밀번호",
     "password_placeholder": "비밀번호를 입력해 주세요",
+    "forgot_password": "비밀번호를 잊으셨나요?",
     "jmap_server_label": "서버",
     "jmap_server_auto_picked": "이메일 도메인에서 서버를 선택했습니다.",
     "sign_in": "로그인",
@@ -23,7 +24,8 @@
       "totp_invalid": "인증 코드가 올바르지 않아요. 인증 앱을 확인하고 다시 시도해 주세요.",
       "oauth_discovery_failed": "SSO가 활성화되어 있지만 ID 공급자에 연결할 수 없어요. OAuth 설정을 확인해 주세요.",
       "oauth_issuer_mismatch": "이 공급자를 통한 로그인이 올바르게 설정되지 않았어요. 관리자가 공급자의 발급자(issuer) 주소를 설정해야 해요.",
-      "token_exchange_failed": "비밀번호와 코드는 확인되었지만 메일 서버가 이 앱의 세션 시작을 거부했습니다. 관리자에게 OAuth 클라이언트 설정을 확인해 달라고 요청하세요."
+      "token_exchange_failed": "비밀번호와 코드는 확인되었지만 메일 서버가 이 앱의 세션 시작을 거부했습니다. 관리자에게 OAuth 클라이언트 설정을 확인해 달라고 요청하세요.",
+      "login_refused": "메일 서버가 코드를 확인하기 전에 이 로그인을 거부했습니다. 관리자에게 OAuth 클라이언트 설정을 확인해 달라고 요청하세요."
     },
     "show_password": "비밀번호 표시",
     "hide_password": "비밀번호 숨기기",
@@ -790,7 +792,8 @@
       "event_status_tentative": "미정",
       "event_status_cancelled": "취소됨",
       "collapse": "세부정보 숨기기",
-      "expand": "세부정보 표시"
+      "expand": "세부정보 표시",
+      "optional_role": "선택 참석자예요"
     },
     "send": "보내기",
     "more": "더보기",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds}초",
         "unsupported": "현재 계정은 지연 보내기 지원을 알리지 않습니다. 설정은 다른 계정을 위해 계속 저장됩니다."
       },
+      "mark_read_on_reply": {
+        "label": "답장하거나 전달하면 읽음으로 표시",
+        "description": "답장하거나 전달한 메시지는 열 때 읽음으로 표시하지 않도록 설정한 경우에도 읽음으로 표시됩니다."
+      },
       "return_to_list_after_action": {
         "label": "삭제, 보관, 이동 또는 읽지 않음으로 표시 후 목록으로 돌아가기",
         "description": "열려 있는 메시지를 삭제하거나 보관하거나 이동하거나 스팸으로 신고하거나 읽지 않음으로 표시한 후 다음 메시지를 열지 않고 메시지 목록으로 돌아갑니다."
@@ -3007,16 +3014,12 @@
       "loading": "필터를 불러오는 중...",
       "not_supported": "사용 중인 메일 서버는 이메일 필터를 지원하지 않아요.",
       "rule_name": "규칙 이름",
-      "rule_name_placeholder": "예: 뉴스레터 분류",
       "match_all": "모든 조건 만족",
       "match_any": "조건 중 하나라도 만족",
       "conditions": "조건",
       "add_condition": "조건 추가",
       "actions": "동작",
-      "add_action": "동작 추가",
       "remove_condition": "조건 제거",
-      "remove_action": "동작 제거",
-      "stop_processing": "이후 규칙 적용 안 함",
       "include_spam": "스팸으로 표시된 메시지도 이동",
       "attachment_type_placeholder": "예: pdf, doc, jpg",
       "value_placeholder_multi": "값 (쉼표로 여러 개 구분)",
@@ -3076,7 +3079,6 @@
       "condition_value": "조건 값",
       "header_placeholder": "예: X-Mailing-List",
       "size_bytes": "크기 (바이트)",
-      "size_placeholder": "예: 1000000",
       "system_managed": "시스템 관리 규칙",
       "opaque_warning": "시각적 에디터 외부에서 수정된 스크립트예요. 원본 Sieve 편집만 가능해요.",
       "open_sieve_editor": "원본 Sieve 에디터 열기",
@@ -3099,7 +3101,6 @@
       "reset_warning": "현재 스크립트가 지워지고 처음부터 다시 시작하게 돼요.",
       "reset_title": "시각적 편집기로 재설정할까요?",
       "confirm_reset": "초기화",
-      "validation_empty_name": "규칙 이름을 입력해 주세요",
       "validation_empty_conditions": "값을 포함한 조건이 하나 이상 필요해요",
       "validation_empty_actions": "동작이 하나 이상 필요해요",
       "validation_action_folder": "이 작업에 사용할 폴더를 선택하세요",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "참조 {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "이 폴더에 이미 있는 메일에도 적용",
-      "apply_existing_unsupported": "보낸 사람, 받는 사람, 제목 또는 헤더를 확인하고 이동, 복사, 읽음 표시, 별표 또는 태그를 하는 규칙만 기존 메일에 적용할 수 있어요.",
       "period_title": "기간 설정",
       "period_start": "시작일",
       "period_end": "종료일",
@@ -3160,10 +3159,6 @@
       "period_hint": "이 기간에 도착하는 메시지에 적용돼요. 한쪽을 비워 두면 그쪽은 제한이 없어요.",
       "validation_period_empty": "기간의 시작일 또는 종료일을 입력해 주세요",
       "validation_period_invalid": "기간에 시간을 포함한 올바른 날짜를 입력하거나 칸을 비워 두세요",
-      "apply_existing_period": "기간이 설정된 규칙은 그 기간에 도착한 메시지에만 적용되므로 기존 메시지에는 적용할 수 없어요.",
-      "apply_existing_in": "{folder}에 이미 있는 메일에도 적용",
-      "apply_existing_count": "{count, plural, other {{folder}에 이미 있는 메일 #개에도 적용}}",
-      "apply_existing_none": "{folder}에 이 규칙에 맞는 메일이 아직 없습니다.",
       "period_status_scheduled": "예정",
       "period_status_active": "활성",
       "period_status_expired": "만료",
@@ -4963,7 +4958,9 @@
       "overlap_more": "외 {count}개",
       "save": "저장",
       "cancel": "취소",
-      "color": "색상"
+      "color": "색상",
+      "expand": "크게 보기",
+      "restore_size": "원래 크기로"
     },
     "participants": {
       "availability": {
@@ -5002,7 +4999,9 @@
       "you_attendee": "나는 참석자예요",
       "no_participants": "참석자가 없어요",
       "limit_warning": "참석자가 주최자를 포함해 {max, plural, other {#명}}을 넘어요. 서버가 이 일정의 저장을 거부할 수 있어요. 관리자가 한도를 늘릴 수 있어요.",
-      "count": "참석자 {count}명"
+      "count": "참석자 {count}명",
+      "optional": "선택",
+      "optional_role": "선택"
     },
     "recurrence": {
       "title": "반복 일정",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, other {일정 #개를 찾았습니다}}"
     },
     "mini_has_events": "일정 있음",
-    "mini_week_number": "{week}주차"
+    "mini_week_number": "{week}주차",
+    "move_confirm_organizer_title": "\"{title}\" 일정을 {when}(으)로 옮길까요?",
+    "move_confirm_organizer_message": "참석자에게 변경 알림이 가고, 새 시간을 수락해 달라는 요청이 전송돼요.",
+    "move_confirm_organizer_confirm": "옮기고 알리기",
+    "move_confirm_attendee_title": "\"{title}\" 일정을 내 캘린더에서만 옮길까요?",
+    "move_confirm_attendee_message": "주최자가 아니에요. 주최자와 다른 참석자에게는 원래 시간 그대로이고, 주최자가 다음에 변경하면 내 변경 내용은 덮어써져요.",
+    "move_confirm_attendee_confirm": "내 일정만 옮기기"
   },
   "ux_pim_calendar": {
     "task_lists": "할 일 목록",
@@ -6196,7 +6201,9 @@
     "answer_for": "{name} 대신 응답",
     "no_write": "{name}의 초대는 볼 수 있지만 대신 응답할 수는 없습니다. 편집 권한을 요청하세요.",
     "also_invited": "나도 초대되어 있어 이 서버는 내 응답과 {name}의 응답을 구분하지 못합니다. 이 초대는 {name}이(가) 직접 응답해야 합니다.",
-    "answered_by": "{who}이(가) 응답함"
+    "answered_by": "{who}이(가) 응답함",
+    "organizer_owner": "{name}(내가 대신 보냄)",
+    "organizer_me": "나"
   },
   "free_busy_share": {
     "button": "내 일정 가능 여부를 {group}과(와) 공유",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark는 나와 공유된 캘린더의 바쁜 시간만 볼 수 있습니다. 이 사람들은 비어 있는지 공유하지 않은 것인지 구분할 수 없습니다.",
     "directory_off": "Bulwark가 이 서버에서 사람을 찾을 수 없습니다. 관리자가 Stalwart에서 디렉터리 조회를 켤 수 있습니다.",
     "not_looked_up": "이 주소를 찾을 수 없음",
-    "found": "찾은 빈 시간: {count}"
+    "found": "찾은 빈 시간: {count}",
+    "optional_ignored": "선택 참석자의 바쁜 시간은 고려하지 않아요."
+  },
+  "scheduling_assistant": {
+    "open": "참석 가능 여부…",
+    "title": "참석 가능 여부",
+    "description": "그리드를 클릭하거나 일정을 끌어서 옮기세요. 끝부분을 끌면 길이가 바뀝니다.",
+    "previous_day": "이전 날",
+    "next_day": "다음 날",
+    "you": "나",
+    "everyone": "모든 참석자",
+    "optional": "선택",
+    "event": "일정: {time}",
+    "keyboard_hint": "화살표 키로 일정을 15분씩 옮깁니다. Shift와 함께 누르면 길이가 바뀝니다.",
+    "use_time": "이 시간 사용",
+    "loading": "바쁜 시간을 불러오는 중…",
+    "outside_hours": "근무 시간 외",
+    "everyone_free": "모두 가능",
+    "not_checked": "알 수 없음"
   },
   "share_notifications": {
     "someone": "누군가",

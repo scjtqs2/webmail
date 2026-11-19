@@ -727,6 +727,8 @@ export function CalendarInvitationBanner({ email }: CalendarInvitationBannerProp
       && !participantForUser.participant.roles.attendee
     : false;
   const myParticipant = participantForUser && !isOnlyOrganizer ? participantForUser : null;
+  // The organizer marked the user as not required (ROLE=OPT-PARTICIPANT).
+  const userIsOptional = !!myParticipant?.participant.roles?.optional;
 
   const currentRsvp = rsvpStatus
     || myParticipant?.participant.participationStatus
@@ -1047,6 +1049,7 @@ export function CalendarInvitationBanner({ email }: CalendarInvitationBannerProp
     existingEvent
     || userIsOrganizer
     || (participationLabel && myParticipant)
+    || userIsOptional
     || actionNotice
     || (parsedEvent?.status && parsedEvent.status !== 'confirmed')
   );
@@ -1122,7 +1125,8 @@ export function CalendarInvitationBanner({ email }: CalendarInvitationBannerProp
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {parsedEvent?.sequence != null && parsedEvent.sequence > 0 && (
+            {/* A reply or proposal carries the event's sequence too: it is no update (#1755). */}
+            {!isResponseOnly && parsedEvent?.sequence != null && parsedEvent.sequence > 0 && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground whitespace-nowrap">
                 {t('event_updated', { sequence: parsedEvent.sequence })}
               </span>
@@ -1217,6 +1221,11 @@ export function CalendarInvitationBanner({ email }: CalendarInvitationBannerProp
                 getParticipationTone(currentRsvp),
               )}>
                 {t('your_response', { status: participationLabel })}
+              </span>
+            )}
+            {userIsOptional && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground" data-testid="invitation-optional">
+                {t('optional_role')}
               </span>
             )}
             {actionNotice && (

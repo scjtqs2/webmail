@@ -6,6 +6,7 @@
     "username_placeholder": "lietotajs@example.com",
     "password_label": "Parole",
     "password_placeholder": "Ievadiet paroli",
+    "forgot_password": "Aizmirsāt paroli?",
     "jmap_server_label": "Serveris",
     "jmap_server_auto_picked": "Serveris izvēlēts no jūsu e-pasta domēna.",
     "sign_in": "Pierakstīties",
@@ -23,6 +24,7 @@
       "oauth_discovery_failed": "SSO ir iespējots, bet autentifikācijas pakalpojums nav pieejams. Pārbaudiet OAuth iestatījumus.",
       "oauth_issuer_mismatch": "Pieteikšanās ar šo pakalpojumu sniedzēju nav pareizi iestatīta. Administratoram jānorāda tā izdevēja (issuer) adrese.",
       "token_exchange_failed": "Parole un kods tika pieņemti, taču pasta serveris atteicās sākt sesiju šai lietotnei. Lūdziet administratoram pārbaudīt OAuth klienta iestatījumus.",
+      "login_refused": "Pasta serveris noraidīja šo pierakstīšanos, pirms pārbaudīja jūsu kodu. Lūdziet administratoram pārbaudīt OAuth klienta iestatījumus.",
       "totp_required": "Nepieciešams divu faktoru autentifikācijas kods. Lūdzu, ievadiet kodu zemāk."
     },
     "show_password": "Rādīt paroli",
@@ -790,7 +792,8 @@
       "event_status_tentative": "Pagaidām",
       "event_status_cancelled": "Atcelts",
       "collapse": "Paslēpt detaļas",
-      "expand": "Rādīt detaļas"
+      "expand": "Rādīt detaļas",
+      "optional_role": "Jūsu dalība nav obligāta"
     },
     "send": "Sūtīt",
     "more": "vairāk",
@@ -2298,6 +2301,10 @@
         "seconds": "{seconds} sekundes",
         "unsupported": "Pašreizējais konts neziņo par aizturētas sūtīšanas atbalstu. Iestatījums joprojām tiks saglabāts citiem kontiem."
       },
+      "mark_read_on_reply": {
+        "label": "Atzīmēt kā izlasītu, kad atbildu vai pārsūtu",
+        "description": "Ziņojums, uz kuru atbildat vai kuru pārsūtāt, tiek atzīmēts kā izlasīts arī tad, ja ziņojumi atverot nekad netiek atzīmēti kā izlasīti."
+      },
       "return_to_list_after_action": {
         "label": "Atgriezties sarakstā pēc dzēšanas, arhivēšanas, pārvietošanas vai atzīmēšanas kā nelasītu",
         "description": "Pēc atvērtā ziņojuma dzēšanas, arhivēšanas, pārvietošanas, atzīmēšanas kā mēstules vai atzīmēšanas kā nelasīta atgriezieties ziņojumu sarakstā, nevis atveriet nākamo ziņojumu."
@@ -3007,16 +3014,12 @@
       "loading": "Ielādē filtrus...",
       "not_supported": "Jūsu pasta serveris neatbalsta filtrus.",
       "rule_name": "Noteikuma nosaukums",
-      "rule_name_placeholder": "piem., Ziņu izdevumu šķirošana",
       "match_all": "Atbilst visiem nosacījumiem",
       "match_any": "Atbilst jebkuram nosacījumam",
       "conditions": "Nosacījumi",
       "add_condition": "Pievienot nosacījumu",
       "actions": "Darbības",
-      "add_action": "Pievienot darbību",
       "remove_condition": "Noņemt nosacījumu",
-      "remove_action": "Noņemt darbību",
-      "stop_processing": "Nepiemērot nākamos noteikumus",
       "include_spam": "Pārvietot arī ziņas, kas atzīmētas kā mēstules",
       "attachment_type_placeholder": "piem. pdf, doc, jpg",
       "value_placeholder_multi": "Vērtība (vairākas atdalītas ar komatu)",
@@ -3076,7 +3079,6 @@
       "condition_value": "Nosacījuma vērtība",
       "header_placeholder": "piem., X-Mailing-List",
       "size_bytes": "Izmērs baitos",
-      "size_placeholder": "piem., 1000000",
       "system_managed": "Sistēmas pārvaldīts noteikums",
       "opaque_warning": "Šis skripts tika rediģēts ārpus vizuālā konstruktora. Pieejama tikai Sieve rediģēšana.",
       "open_sieve_editor": "Atvērt Sieve redaktoru",
@@ -3099,7 +3101,6 @@
       "reset_warning": "Tas dzēsīs pašreizējo skriptu un sāks no jauna.",
       "reset_title": "Atiestatīt uz vizuālo redaktoru?",
       "confirm_reset": "Atiestatīt",
-      "validation_empty_name": "Nepieciešams noteikuma nosaukums",
       "validation_empty_conditions": "Nepieciešams vismaz viens nosacījums ar vērtību",
       "validation_empty_actions": "Nepieciešama vismaz viena darbība",
       "validation_action_folder": "Atlasiet mapi šai darbībai",
@@ -3150,8 +3151,6 @@
       "suggest_cc": "Kopija {address}",
       "suggest_list": "List-Id",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Piemērot arī vēstulēm, kas jau ir šajā mapē",
-      "apply_existing_unsupported": "Esošajām vēstulēm var piemērot tikai noteikumus, kas pārbauda sūtītāju, adresātus, tematu vai galvenes un kas pārvieto, kopē, atzīmē kā izlasītu, ar zvaigznīti vai tagu.",
       "period_title": "Datumu diapazons",
       "period_start": "Sākuma datums",
       "period_end": "Beigu datums",
@@ -3160,10 +3159,6 @@
       "period_hint": "Attiecas uz ziņojumiem, kas pienāk šajā laika posmā. Atstājiet lauku tukšu, lai šo galu neierobežotu.",
       "validation_period_empty": "Norādiet laika posma sākuma vai beigu datumu",
       "validation_period_invalid": "Norādiet laika posmam derīgu datumu ar laiku vai atstājiet lauku tukšu",
-      "apply_existing_period": "Noteikums ar laika posmu darbojas tikai ar ziņojumiem, kas pienāk šajā posmā, tāpēc to nevar lietot esošajiem ziņojumiem.",
-      "apply_existing_in": "Piemērot arī vēstulēm, kas jau ir mapē {folder}",
-      "apply_existing_count": "{count, plural, zero {Piemērot arī # vēstulēm, kas jau ir mapē {folder}} one {Piemērot arī # vēstulei, kas jau ir mapē {folder}} other {Piemērot arī # vēstulēm, kas jau ir mapē {folder}}}",
-      "apply_existing_none": "Mapē {folder} vēl nav nevienas vēstules, kas atbilst šim noteikumam.",
       "period_status_scheduled": "ieplānots",
       "period_status_active": "aktīvs",
       "period_status_expired": "beidzies",
@@ -4962,7 +4957,9 @@
       "overlap_more": "Un vēl {count}",
       "save": "Saglabāt",
       "cancel": "Atcelt",
-      "color": "Krāsa"
+      "color": "Krāsa",
+      "expand": "Palielināt",
+      "restore_size": "Atjaunot izmēru"
     },
     "participants": {
       "availability": {
@@ -5001,7 +4998,9 @@
       "you_attendee": "Jūs esat dalībnieks",
       "no_participants": "Nav dalībnieku",
       "limit_warning": "Vairāk nekā {max, plural, one {# dalībnieks} other {# dalībnieki}}, ieskaitot organizatoru: serveris var atteikties saglabāt šo pasākumu. Administrators var palielināt ierobežojumu.",
-      "count": "{count, plural, one {# dalībnieks} other {# dalībnieki}}"
+      "count": "{count, plural, one {# dalībnieks} other {# dalībnieki}}",
+      "optional": "Neobligāts",
+      "optional_role": "neobligāts"
     },
     "recurrence": {
       "title": "Atkārtošana",
@@ -5458,7 +5457,13 @@
       "results": "{count, plural, zero {Atrasti # notikumi} one {Atrasts # notikums} other {Atrasti # notikumi}}"
     },
     "mini_has_events": "ir notikumi",
-    "mini_week_number": "{week}. nedēļa"
+    "mini_week_number": "{week}. nedēļa",
+    "move_confirm_organizer_title": "Pārvietot “{title}” uz {when}?",
+    "move_confirm_organizer_message": "Dalībnieki saņems atjauninājumu, un viņiem būs jāapstiprina jaunais laiks.",
+    "move_confirm_organizer_confirm": "Pārvietot un paziņot",
+    "move_confirm_attendee_title": "Pārvietot “{title}” tikai jūsu kalendārā?",
+    "move_confirm_attendee_message": "Jūs neesat organizators. Organizatoram un citiem dalībniekiem sapulce paliek tās laikā, un organizatora nākamais atjauninājums pārrakstīs jūsu izmaiņas.",
+    "move_confirm_attendee_confirm": "Pārvietot manu kopiju"
   },
   "ux_pim_calendar": {
     "task_lists": "Uzdevumu saraksti",
@@ -6196,7 +6201,9 @@
     "answer_for": "Atbildēt {name} vārdā",
     "no_write": "Jūs redzat {name} ielūgumus, bet nevarat atbildēt viņa vārdā. Palūdziet rediģēšanas piekļuvi.",
     "also_invited": "Arī jūs esat uzaicināts, un šis serveris nevar atšķirt jūsu atbildi no {name} atbildes. Uz šo jāatbild {name}.",
-    "answered_by": "Atbildēja {who}"
+    "answered_by": "Atbildēja {who}",
+    "organizer_owner": "{name} (sūtāt jūs)",
+    "organizer_me": "Jūs"
   },
   "free_busy_share": {
     "button": "Kopīgot manu brīvs/aizņemts ar {group}",
@@ -6307,7 +6314,25 @@
     "unknown_note": "Bulwark redz aizņemtos laikus tikai kalendāros, kas kopīgoti ar jums. Šiem cilvēkiem tas nevar atšķirt brīvu laiku no nekopīgota kalendāra.",
     "directory_off": "Bulwark šajā serverī nevar meklēt cilvēkus. Administrators var ieslēgt direktorija vaicājumus Stalwart.",
     "not_looked_up": "Šo adresi neizdevās atrast",
-    "found": "Atrasti brīvi laiki: {count}"
+    "found": "Atrasti brīvi laiki: {count}",
+    "optional_ignored": "Neobligāto dalībnieku aizņemtie laiki netiek ņemti vērā."
+  },
+  "scheduling_assistant": {
+    "open": "Pieejamība…",
+    "title": "Pieejamība",
+    "description": "Noklikšķiniet režģī vai velciet notikumu, lai to pārvietotu. Velciet tā beigas, lai mainītu ilgumu.",
+    "previous_day": "Iepriekšējā diena",
+    "next_day": "Nākamā diena",
+    "you": "Jūs",
+    "everyone": "Visi dalībnieki",
+    "optional": "Neobligāts",
+    "event": "Notikums: {time}",
+    "keyboard_hint": "Bulttaustiņi pārvieto notikumu par 15 minūtēm. Ar Shift tie maina ilgumu.",
+    "use_time": "Izmantot šo laiku",
+    "loading": "Ielādē aizņemtos laikus…",
+    "outside_hours": "Ārpus darba laika",
+    "everyone_free": "Visi brīvi",
+    "not_checked": "Nezināms"
   },
   "share_notifications": {
     "someone": "Kāds",

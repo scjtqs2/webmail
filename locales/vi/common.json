@@ -6,6 +6,7 @@
     "username_placeholder": "user@example.com",
     "password_label": "Mật khẩu",
     "password_placeholder": "Nhập mật khẩu của bạn",
+    "forgot_password": "Bạn quên mật khẩu?",
     "jmap_server_label": "Máy chủ",
     "jmap_server_auto_picked": "Máy chủ được chọn từ miền email của bạn.",
     "sign_in": "Đăng nhập",
@@ -23,7 +24,8 @@
       "totp_invalid": "Mã xác thực không hợp lệ. Vui lòng kiểm tra ứng dụng xác thực của bạn và thử lại.",
       "oauth_discovery_failed": "SSO đã được bật nhưng không thể liên lạc được với nhà cung cấp danh tính. Kiểm tra cấu hình OAuth của bạn.",
       "oauth_issuer_mismatch": "Đăng nhập qua nhà cung cấp này chưa được thiết lập đúng. Quản trị viên cần đặt địa chỉ issuer của nhà cung cấp.",
-      "token_exchange_failed": "Mật khẩu và mã của bạn đã được chấp nhận nhưng máy chủ thư từ chối bắt đầu phiên cho ứng dụng này. Yêu cầu quản trị viên của bạn kiểm tra cài đặt ứng dụng khách OAuth của nó."
+      "token_exchange_failed": "Mật khẩu và mã của bạn đã được chấp nhận nhưng máy chủ thư từ chối bắt đầu phiên cho ứng dụng này. Yêu cầu quản trị viên của bạn kiểm tra cài đặt ứng dụng khách OAuth của nó.",
+      "login_refused": "Máy chủ thư đã từ chối lần đăng nhập này trước khi kiểm tra mã của bạn. Hãy nhờ quản trị viên kiểm tra cài đặt ứng dụng khách OAuth."
     },
     "show_password": "Hiển thị mật khẩu",
     "hide_password": "Ẩn mật khẩu",
@@ -815,7 +817,8 @@
       "event_status_tentative": "Tạm thời",
       "event_status_cancelled": "Đã hủy",
       "expand": "Hiện chi tiết",
-      "collapse": "Ẩn chi tiết"
+      "collapse": "Ẩn chi tiết",
+      "optional_role": "Bạn là người tham dự không bắt buộc"
     },
     "send": "Gửi",
     "more": "Thêm",
@@ -2313,6 +2316,10 @@
         "seconds": "{seconds} giây",
         "unsupported": "Tài khoản hiện tại không hỗ trợ gửi thư trễ. Cài đặt này vẫn được lưu cho các tài khoản khác."
       },
+      "mark_read_on_reply": {
+        "label": "Đánh dấu đã đọc khi tôi trả lời hoặc chuyển tiếp",
+        "description": "Thư bạn trả lời hoặc chuyển tiếp sẽ được đánh dấu đã đọc, kể cả khi thư không bao giờ được đánh dấu đã đọc lúc mở."
+      },
       "return_to_list_after_action": {
         "label": "Quay lại danh sách sau khi xóa hoặc đánh dấu chưa đọc",
         "description": "Sau khi xóa thư đang mở hoặc đánh dấu thư là chưa đọc, quay lại danh sách thư thay vì mở thư tiếp theo."
@@ -3026,16 +3033,12 @@
       "loading": "Đang tải bộ lọc...",
       "not_supported": "Máy chủ thư của bạn không hỗ trợ bộ lọc email.",
       "rule_name": "Tên quy tắc",
-      "rule_name_placeholder": "Ví dụ: Sắp xếp các bản tin",
       "match_all": "Tất cả điều kiện phải đúng",
       "match_any": "Chỉ cần một điều kiện đúng",
       "conditions": "Điều kiện",
       "add_condition": "Thêm điều kiện",
       "actions": "Thao tác",
-      "add_action": "Thêm hành động",
       "remove_condition": "Xóa điều kiện",
-      "remove_action": "Xóa hành động",
-      "stop_processing": "Không áp dụng các quy tắc sau",
       "include_spam": "Đồng thời di chuyển các thư bị đánh dấu là thư rác",
       "attachment_type_placeholder": "Ví dụ: pdf, doc, jpg",
       "value_placeholder_multi": "Giá trị (phân tách nhiều giá trị bằng dấu phẩy)",
@@ -3095,7 +3098,6 @@
       "condition_value": "Giá trị điều kiện",
       "header_placeholder": "Ví dụ: X-Mailing-List",
       "size_bytes": "Kích thước tính bằng byte",
-      "size_placeholder": "Ví dụ: 1000000",
       "system_managed": "Quy tắc do hệ thống quản lý",
       "opaque_warning": "Tập lệnh này đã được chỉnh sửa bên ngoài trình tạo quy tắc trực quan. Chỉ có thể chỉnh sửa trực tiếp mã Sieve.",
       "open_sieve_editor": "Mở trình chỉnh sửa mã Sieve",
@@ -3118,7 +3120,6 @@
       "reset_warning": "Điều này sẽ loại bỏ tập lệnh hiện tại và bắt đầu mới.",
       "reset_title": "Đặt lại về trình tạo quy tắc trực quan?",
       "confirm_reset": "Đặt lại",
-      "validation_empty_name": "Tên quy tắc là bắt buộc",
       "validation_empty_conditions": "Cần có ít nhất một điều kiện có giá trị",
       "validation_empty_actions": "Cần có ít nhất một hành động",
       "validation_action_folder": "Chọn một thư mục cho hành động này",
@@ -3169,8 +3170,6 @@
       "suggest_cc": "Cc {address}",
       "suggest_list": "Id danh sách",
       "suggest_domain": "@{domain}",
-      "apply_existing": "Cũng áp dụng cho các thư hiện có trong thư mục này",
-      "apply_existing_unsupported": "Chỉ có thể chạy trên thư hiện có các quy tắc kiểm tra người gửi, người nhận, tiêu đề thư hoặc trường tiêu đề, đồng thời thực hiện thao tác di chuyển, sao chép, đánh dấu đã đọc, gắn dấu sao hoặc gắn thẻ.",
       "period_title": "Phạm vi ngày",
       "period_start": "Ngày bắt đầu",
       "period_end": "Ngày kết thúc",
@@ -3179,10 +3178,6 @@
       "period_hint": "Áp dụng cho thư đến trong khoảng thời gian này. Để trống một trường để không giới hạn đầu mốc tương ứng.",
       "validation_period_empty": "Nhập ngày bắt đầu hoặc ngày kết thúc cho khoảng thời gian",
       "validation_period_invalid": "Nhập ngày hợp lệ cùng với thời gian trong khoảng thời gian hoặc để trống trường",
-      "apply_existing_period": "Quy tắc có giới hạn thời gian chỉ áp dụng cho thư đến trong khoảng đó, nên không thể chạy trên các thư hiện có.",
-      "apply_existing_in": "Áp dụng cả cho các thư đã có trong {folder}",
-      "apply_existing_count": "{count, plural, other {Áp dụng cả cho # thư đã có trong {folder}}}",
-      "apply_existing_none": "Chưa có thư nào trong {folder} khớp với quy tắc này.",
       "period_status_scheduled": "Theo lịch trình",
       "period_status_active": "Hoạt động",
       "period_status_expired": "Hết hạn",
@@ -4975,7 +4970,9 @@
       "overlap_more": "Và {count} sự kiện khác",
       "save": "Lưu",
       "cancel": "Hủy",
-      "color": "Màu sắc"
+      "color": "Màu sắc",
+      "expand": "Mở rộng",
+      "restore_size": "Khôi phục kích thước"
     },
     "participants": {
       "availability": {
@@ -5014,7 +5011,9 @@
       "you_attendee": "Bạn là người tham dự",
       "no_participants": "Không có người tham gia",
       "limit_warning": "Nhiều hơn {max, plural, one {# người tham gia} other {# người tham gia}}, bao gồm cả người tổ chức: máy chủ có thể từ chối lưu sự kiện này. Quản trị viên có thể tăng giới hạn.",
-      "count": "{count, plural, one {# người tham gia} other {# người tham gia}}"
+      "count": "{count, plural, one {# người tham gia} other {# người tham gia}}",
+      "optional": "Không bắt buộc",
+      "optional_role": "không bắt buộc"
     },
     "recurrence": {
       "title": "Lặp lại",
@@ -5470,7 +5469,13 @@
       "results": "{count, plural, one {# sự kiện được tìm thấy} other {Đã tìm thấy # sự kiện}}"
     },
     "mini_has_events": "Có sự kiện",
-    "mini_week_number": "Tuần {week}"
+    "mini_week_number": "Tuần {week}",
+    "move_confirm_organizer_title": "Chuyển \"{title}\" sang {when}?",
+    "move_confirm_organizer_message": "Người tham dự sẽ nhận được bản cập nhật và được yêu cầu chấp nhận thời gian mới.",
+    "move_confirm_organizer_confirm": "Chuyển và thông báo",
+    "move_confirm_attendee_title": "Chỉ chuyển \"{title}\" trong lịch của bạn?",
+    "move_confirm_attendee_message": "Bạn không phải người tổ chức. Với người tổ chức và những người tham dự khác, cuộc họp vẫn giữ thời gian cũ, và lần cập nhật tiếp theo của người tổ chức sẽ ghi đè thay đổi của bạn.",
+    "move_confirm_attendee_confirm": "Chuyển bản của tôi"
   },
   "ux_pim_calendar": {
     "task_lists": "Danh sách công việc",
@@ -5569,7 +5574,9 @@
     "answer_for": "Trả lời thay {name}",
     "no_write": "Bạn xem được lời mời của {name} nhưng không thể trả lời thay. Hãy xin quyền chỉnh sửa.",
     "also_invited": "Bạn cũng được mời, và máy chủ này không phân biệt được câu trả lời của bạn với của {name}. {name} phải tự trả lời lời mời này.",
-    "answered_by": "Đã được {who} trả lời"
+    "answered_by": "Đã được {who} trả lời",
+    "organizer_owner": "{name} (do bạn gửi)",
+    "organizer_me": "Bạn"
   },
   "free_busy_share": {
     "button": "Chia sẻ lịch rảnh/bận của tôi với {group}",
@@ -5680,7 +5687,25 @@
     "unknown_note": "Bulwark chỉ thấy giờ bận trong các lịch được chia sẻ với bạn. Với những người này, nó không phân biệt được rảnh hay chưa chia sẻ.",
     "directory_off": "Bulwark không thể tra cứu người trên máy chủ này. Quản trị viên có thể bật truy vấn thư mục trong Stalwart.",
     "not_looked_up": "Không tra cứu được địa chỉ này",
-    "found": "Số khung giờ trống tìm thấy: {count}"
+    "found": "Số khung giờ trống tìm thấy: {count}",
+    "optional_ignored": "Giờ bận của người tham dự không bắt buộc không được tính."
+  },
+  "scheduling_assistant": {
+    "open": "Lịch rảnh…",
+    "title": "Lịch rảnh",
+    "description": "Bấm vào lưới hoặc kéo sự kiện để di chuyển. Kéo phần cuối để đổi thời lượng.",
+    "previous_day": "Ngày trước",
+    "next_day": "Ngày sau",
+    "you": "Bạn",
+    "everyone": "Tất cả người tham dự",
+    "optional": "Không bắt buộc",
+    "event": "Sự kiện: {time}",
+    "keyboard_hint": "Phím mũi tên dời sự kiện 15 phút. Kèm Shift thì đổi thời lượng.",
+    "use_time": "Dùng giờ này",
+    "loading": "Đang tải giờ bận…",
+    "outside_hours": "Ngoài giờ làm việc",
+    "everyone_free": "Mọi người đều rảnh",
+    "not_checked": "Không rõ"
   },
   "share_notifications": {
     "someone": "Ai đó",
