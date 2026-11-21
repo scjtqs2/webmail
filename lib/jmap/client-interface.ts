@@ -11,6 +11,12 @@ import type { SearchSnippetResult } from "@/lib/search-snippet";
 import type { StorageQuota } from "@/lib/quota";
 import type { MessagePriority } from "@/lib/message-priority";
 
+/** What a raw send asks of the mail server beyond its recipients (see SubmissionSendOptions in client.ts). */
+export interface RawSubmissionOptions {
+  requestDsn?: boolean;
+  requireTls?: boolean;
+}
+
 /** What `migrateKeyword` managed to do. */
 export interface KeywordMigration {
   /** Messages now carrying the new keyword. */
@@ -283,7 +289,9 @@ export interface IJMAPClient {
    * A page of a view. `threadCounts` (message count per thread id) comes with
    * the page when the server answers the Thread/get chained onto it.
    */
-  getEmails(mailboxId?: string, accountId?: string, limit?: number, position?: number, hasKeyword?: string, pinnedFirst?: boolean, extraFilter?: Record<string, unknown>, order?: SortLevel[]): Promise<{ emails: Email[]; hasMore: boolean; total: number; state?: string; threadCounts?: Record<string, number> }>;
+  getEmails(mailboxId?: string, accountId?: string, limit?: number, position?: number, hasKeyword?: string, pinnedFirst?: boolean, extraFilter?: Record<string, unknown>, order?: SortLevel[]): Promise<{ emails: Email[]; hasMore: boolean; total: number; state?: string; threadCounts?: Record<string, number>; draftThreads?: Record<string, string> }>;
+  /** Draft id -> thread id for the account's drafts (#1798). */
+  getDraftThreads?(accountId?: string): Promise<Record<string, string> | undefined>;
   /**
    * Sort properties the account's server advertises for Email/query
    * (`emailQuerySortOptions` in the mail capability, RFC 8621 §1.3), or null
@@ -404,6 +412,11 @@ export interface IJMAPClient {
   ): Promise<void>;
   moveEmail(emailId: string, toMailboxId: string, accountId?: string): Promise<void>;
   /**
+   * Put a message in one more mailbox and leave it in the ones it is in (a
+   * `mailboxIds/<id>: true` patch).
+   */
+  addEmailToMailbox(emailId: string, mailboxId: string, accountId?: string): Promise<void>;
+  /**
    * Take messages out of one mailbox and leave every other mailbox they are
    * in alone (a `mailboxIds/<id>: null` patch). A message must stay in at
    * least one mailbox, so the server refuses this for a message only in it.
@@ -517,8 +530,8 @@ export interface IJMAPClient {
     humanText?: string;
   }): Promise<void>;
 
-  sendRawEmail(blob: Blob, identityId: string, sentMailboxId: string, draftMailboxId?: string, delayedUntil?: string, envelopeRecipients?: string[], existingCopyId?: string): Promise<SendEmailResult>;
-  submitRawEmail(blob: Blob, identityId: string, delayedUntil?: string, envelopeRecipients?: string[], existingCopyId?: string): Promise<SendEmailResult>;
+  sendRawEmail(blob: Blob, identityId: string, sentMailboxId: string, draftMailboxId?: string, delayedUntil?: string, envelopeRecipients?: string[], existingCopyId?: string, submission?: RawSubmissionOptions): Promise<SendEmailResult>;
+  submitRawEmail(blob: Blob, identityId: string, delayedUntil?: string, envelopeRecipients?: string[], existingCopyId?: string, submission?: RawSubmissionOptions): Promise<SendEmailResult>;
   getScheduledEmails(limit?: number, position?: number): Promise<{ emails: ScheduledEmail[]; hasMore: boolean; total: number; totalByAccount?: Record<string, number>; nextPosition: number }>;
   /** Cancels a pending submission, then destroys its record. */
   cancelEmailSubmission(submissionId: string, accountId?: string): Promise<void>;

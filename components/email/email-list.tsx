@@ -28,6 +28,7 @@ import { useChooseMoveFolder } from "./move-to-dialog";
 import { resolveMoveOwnerAccountId } from "@/lib/move-targets";
 import { getMailboxPath } from "@/lib/utils";
 import { emptyFolderLabelKey, emptyFolderPrompt } from "@/lib/empty-folder-text";
+import { currentStoreEpoch } from "@/lib/store-epoch";
 import { usePluginSlotOffers } from "@/hooks/use-plugin-slot-offers";
 import { useAccountStore } from "@/stores/account-store";
 import { usePhishingReport } from "@/hooks/use-phishing-report";
@@ -74,7 +75,7 @@ import { PluginListFilters, useFolderListFiltered } from "./plugin-list-filters"
 import { PluginActions, useFolderAccountKind } from "@/components/plugins/plugin-actions";
 import { useUnreadFirstSection } from "@/hooks/use-unread-first-section";
 import { useTimeoutWhileMounted } from "@/hooks/use-timeout-while-mounted";
-import { unreadSectionRowCount } from "@/lib/unread-first";
+import { unreadSectionRowCount, unreadSectionSize, unreadSectionStep } from "@/lib/unread-first";
 import type { OpenableEmail } from "@/lib/plugin-sandbox/open-email";
 import { MvListSectionHeader } from "./mv-list-section-header";
 import { ListDateGroupHeader, LIST_DATE_GROUP_HEADER_HEIGHT } from "./list-date-group-header";
@@ -140,6 +141,8 @@ interface EmailListProps {
   onOpenAttachment?: (email: Email, attachment: Attachment) => void;
   loadAttachments?: LoadListAttachments;
   onEditDraft?: (email: Email) => void;
+  /** In Sent: a new message filled in as this one went out (#1781). */
+  onEditAsNew?: (email: Email) => void;
   isScheduledView?: boolean;
   onLoadMoreScheduled?: () => void;
   onCancelScheduledForEdit?: (email: Email) => void | Promise<void>;
@@ -236,6 +239,7 @@ export function EmailList({
   loadAttachments,
   onMoveToMailbox,
   onEditDraft,
+  onEditAsNew,
   isScheduledView = false,
   hideBatchToolbar = false,
   onLoadMoreScheduled,
@@ -285,6 +289,7 @@ export function EmailList({
     autoMarkExpandedThreadAsRead,
     collapseAllThreads,
     threadEmailCounts,
+    draftThreads,
     searchFilters,
     setSearchFilters,
     clearSearchFilters,
@@ -315,6 +320,7 @@ export function EmailList({
     autoMarkExpandedThreadAsRead: state.autoMarkExpandedThreadAsRead,
     collapseAllThreads: state.collapseAllThreads,
     threadEmailCounts: state.threadEmailCounts,
+    draftThreads: state.draftThreads,
     searchFilters: state.searchFilters,
     setSearchFilters: state.setSearchFilters,
     clearSearchFilters: state.clearSearchFilters,
@@ -333,6 +339,12 @@ export function EmailList({
     ?? (isUnifiedView ? (unifiedRole ?? undefined) : undefined);
   // Spam is pointless on your own outgoing mail, as in the context menu.
   const spamApplicable = spamApplicableIn(effectiveMailboxRole);
+  // Conversations with a reply saved as a draft (#1798). Not in Drafts,
+  // whose rows are the drafts.
+  const replyDraftThreadIds = useMemo(
+    () => (effectiveMailboxRole === 'drafts' ? new Set<string>() : new Set(draftThreads.values())),
+    [draftThreads, effectiveMailboxRole],
+  );
 
   // The folder the rows on screen were fetched for, taken when the rows
   // change. A click on another folder changes the selection at once while
@@ -379,6 +391,19 @@ export function EmailList({
   const unreadCollapsed = useSettingsStore((state) => state.mvUnreadSectionCollapsed);
   const restCollapsed = useSettingsStore((state) => state.mvEverythingElseCollapsed);
   const updateSetting = useSettingsStore((state) => state.updateSetting);
+  // Paging through the Unread section (#1791): the arrows next to its count.
+  const unreadPageSize = useSettingsStore((state) => unreadSectionSize(state.mvUnreadSectionSize));
+  const pageUnreadSection = useEmailStore((state) => state.pageUnreadSection);
+  const unreadPaging = useMemo(() => {
+    if (!unreadSection || !client) return null;
+    const newer = unreadSectionStep(unreadSection, unreadPageSize, 'newer') !== null;
+    const older = unreadSectionStep(unreadSection, unreadPageSize, 'older') !== null;
+    if (!newer && !older) return null;
+    return {
+      onNewer: newer ? () => pageUnreadSection(client, 'newer') : undefined,
+      onOlder: older ? () => pageUnreadSection(client, 'older') : undefined,
+    };
+  }, [unreadSection, unreadPageSize, client, pageUnreadSection]);
   const sections = useMemo(() => {
     if (!unreadSection) return null;
     const unread: ThreadGroup[] = [];
@@ -1151,6 +1176,7 @@ export function EmailList({
     if (!client || isProcessing || !currentMailbox) return;
 
     // "Empty Trash" / "Empty Spam" with the count, as the folder menu asks (mail-p3-5).
+    const epoch = currentStoreEpoch();
     const prompt = emptyFolderPrompt(currentMailbox, false);
     const confirmed = await confirmDialog({
       title: tRoot(prompt.title),
@@ -1158,11 +1184,13 @@ export function EmailList({
       confirmText: tRoot(prompt.confirm),
       variant: "destructive",
     });
-    if (!confirmed) return;
+    if (!confirmed || currentStoreEpoch() !== epoch) return;
 
     setIsProcessing(true);
     try {
       await emptyMailbox(client, currentMailbox.id);
+    } catch {
+      if (currentStoreEpoch() === epoch) toast.error(tRoot('mailbox_context_menu.toast_error_empty'));
     } finally {
       later(() => setIsProcessing(false), 500);
     }
@@ -1354,6 +1382,10 @@ export function EmailList({
               onToggle={() => updateSetting('mvUnreadSectionCollapsed', !unreadCollapsed)}
               shown={sectionRowCount}
               total={unreadSection.total}
+              position={unreadSection.position ?? 0}
+              paged={!!unreadPaging}
+              onNewer={unreadPaging?.onNewer}
+              onOlder={unreadPaging?.onOlder}
             />
           ) : (
             <MvListSectionHeader
@@ -1402,6 +1434,7 @@ export function EmailList({
           onOpenAttachment={rowHandlers.onOpenAttachment}
           loadAttachments={loadAttachments}
           listFolder={listFolder}
+          hasReplyDraft={replyDraftThreadIds.has(thread.latestEmail.threadId) && !thread.latestEmail.keywords?.$draft}
         />}
       </>
     );
@@ -1864,6 +1897,7 @@ export function EmailList({
           onMarkAsSpam={() => onMarkAsSpam?.(contextMenuEmail!)}
           onUndoSpam={() => onUndoSpam?.(contextMenuEmail!)}
           onEditDraft={() => onEditDraft?.(contextMenuEmail!)}
+          onEditAsNew={onEditAsNew ? () => onEditAsNew(contextMenuEmail!) : undefined}
           onCancelScheduledForEdit={onCancelScheduledForEdit ? () => onCancelScheduledForEdit(contextMenuEmail!) : undefined}
           onCancelScheduledSend={onCancelScheduledSend ? () => void onCancelScheduledSend(contextMenuEmail!) : undefined}
           onRescheduleScheduled={onRescheduleScheduled ? () => onRescheduleScheduled(contextMenuEmail!) : undefined}

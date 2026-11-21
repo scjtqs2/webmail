@@ -353,7 +353,9 @@
     "sections": {
       "unread": "未読",
       "everything_else": "その他すべて",
-      "unread_empty": "受信トレイのメッセージをすべて読みました。"
+      "unread_empty": "受信トレイのメッセージをすべて読みました。",
+      "unread_newer": "新しい未読",
+      "unread_older": "古い未読"
     },
     "columns": {
       "from": "差出人",
@@ -381,6 +383,8 @@
     "replied": "返信済み",
     "forwarded": "転送済み",
     "has_attachment": "添付ファイルあり",
+    "high_importance": "重要度: 高",
+    "low_importance": "重要度: 低",
     "conversations_range": "{total, number} 件中 {from}–{to, number} 件",
     "conversations_count": "{total}件中{count}件の会話",
     "conversations_count_plus": "{count}件以上の会話",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "高",
     "option_priority_normal": "標準",
     "option_priority_low": "低",
+    "file_in": "フォルダーに整理",
+    "file_in_chosen": "{folder} に整理",
+    "file_in_hint": "送信後、このメッセージと返信元のメッセージをこのフォルダーに移動します",
+    "file_in_none": "整理しない",
+    "file_in_failed": "送信しましたが、{folder} に整理できませんでした。",
+    "file_in_reply_elsewhere": "元のメッセージを {folder} に移動しました。返信は別のアカウントから送信されたため、送信済みに残ります。",
     "validation": {
       "recipient_required": "送信するには宛先を追加してください",
       "body_required": "メッセージを入力するかファイルを添付してください",
@@ -1297,6 +1307,10 @@
       "edit": "画像の説明を編集",
       "plain_text": "[画像: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "アップロードが多すぎます。{minutes, plural, other {#分}}後にもう一度お試しください。",
+    "retry_later": "アップロードが多すぎます。しばらくしてからもう一度お試しください。"
   },
   "attachment_rename": {
     "rename": "名前を変更",
@@ -2130,6 +2144,12 @@
         "label": "クイック返信",
         "description": "メッセージの下にクイック返信欄を表示します。"
       },
+      "reply_quote": {
+        "label": "返信の引用テキスト",
+        "description": "折りたたむ: 引用されたメッセージを ••• の後ろに隠します。展開する: 返信を開いたときに全文を表示します。",
+        "collapsed": "折りたたむ",
+        "expanded": "展開する"
+      },
       "auto_select_reply_identity": {
         "label": "返信元アドレスを自動選択",
         "description": "返信するとき、メッセージが送られてきたアドレスから送信します。"
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "返信または転送したら既読にする",
         "description": "返信または転送したメッセージは、開いても既読にしない設定のときでも既読になります。"
+      },
+      "message_double_click": {
+        "label": "メッセージをダブルクリック",
+        "description": "一覧のメッセージをダブルクリックしたときの動作です。",
+        "reading_pane": "閲覧ウィンドウで開く",
+        "new_window": "新しいウィンドウで開く"
       },
       "return_to_list_after_action": {
         "label": "削除、アーカイブ、移動、または未読にした後に一覧へ戻る",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count}件のメールを選択",
     "forward_as_attachments": "添付ファイルとして転送",
     "edit_draft": "下書きを編集",
+    "edit_as_new": "新規として編集",
     "cancel_scheduled_send": "送信をキャンセル",
     "reschedule_send": "再予約",
     "cancel_and_edit": "キャンセルして編集",
@@ -4112,6 +4139,12 @@
     "empty_spam": "迷惑メールを空にする",
     "empty_trash_confirm": "ゴミ箱の{count, plural, other {# 件のメッセージ}}をすべて完全に削除しますか？元に戻せません。",
     "empty_spam_confirm": "迷惑メールの{count, plural, other {# 件のメッセージ}}をすべて完全に削除しますか？元に戻せません。",
+    "empty_folder": "フォルダーを空にする…",
+    "empty_folder_title": "{folder} を空にしますか？",
+    "empty_folder_confirm_trash": "{folder} の{count, plural, other {# 件のメッセージ}}をすべてゴミ箱に移動しますか？",
+    "empty_folder_confirm_delete": "{folder} の{count, plural, other {# 件のメッセージ}}をすべて完全に削除しますか？元に戻せません。",
+    "empty_folder_move": "ゴミ箱に移動",
+    "empty_folder_delete": "完全に削除",
     "title_all_accounts": "{name} ({count}、すべてのアカウントで {total})",
     "title_all_accounts_only": "{name} (すべてのアカウントで {total})"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "ポケベル",
       "phone_video": "ビデオ",
       "phone_text": "テキスト",
+      "phone_custom": "カスタム…",
+      "phone_custom_label": "カスタムの種類",
+      "phone_custom_placeholder": "例: 車",
       "organization": "組織",
       "organization_placeholder": "会社名",
       "department": "部署",
@@ -5575,6 +5611,7 @@
     "search": "検索",
     "not_starred": "スターなし",
     "no_attachment": "添付ファイルなし",
+    "no_tags": "タグなし",
     "any_time": "期間指定なし",
     "past_week": "過去 1 週間",
     "past_month": "過去 1 か月",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "メールを転送",
         "body": "作成画面を開かずに、アカウント内のメッセージを添付ファイルごと転送します。各アドレスへの最初の転送の前に確認されます。"
+      },
+      "ui_notices": {
+        "title": "お知らせを表示",
+        "body": "アプリのメッセージが表示される画面下部に、プラグイン独自の小さなパネルを表示します（例: 着信時）。ページはふさがれず、入力を続けられ、閉じることもできます。どのお知らせにもプラグイン名が入ります。"
       },
       "ui_notifications": {
         "title": "通知を表示",

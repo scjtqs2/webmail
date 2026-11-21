@@ -353,7 +353,9 @@
     "sections": {
       "unread": "未读",
       "everything_else": "其他所有邮件",
-      "unread_empty": "您已读完收件箱中的所有邮件。"
+      "unread_empty": "您已读完收件箱中的所有邮件。",
+      "unread_newer": "较新的未读邮件",
+      "unread_older": "较早的未读邮件"
     },
     "columns": {
       "from": "发件人",
@@ -381,6 +383,8 @@
     "replied": "已回复",
     "forwarded": "已转发",
     "has_attachment": "有附件",
+    "high_importance": "重要性高",
+    "low_importance": "重要性低",
     "conversations_range": "第 {from}–{to, number} 个，共 {total, number} 个",
     "conversations_count": "共 {total} 个会话，当前显示 {count} 个",
     "conversations_count_plus": "{count}+ 个会话",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "高",
     "option_priority_normal": "普通",
     "option_priority_low": "低",
+    "file_in": "归档到文件夹",
+    "file_in_chosen": "归档到 {folder}",
+    "file_in_hint": "发送后，你的邮件和所回复的邮件会移到此文件夹",
+    "file_in_none": "不归档",
+    "file_in_failed": "已发送，但无法归档到 {folder}。",
+    "file_in_reply_elsewhere": "原邮件已移到 {folder}。回复是从其他账户发出的，因此保留在已发送中。",
     "validation": {
       "recipient_required": "请添加收件人",
       "body_required": "请输入邮件内容或添加附件",
@@ -1297,6 +1307,10 @@
       "edit": "编辑图片描述",
       "plain_text": "[图片：{alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "上传次数过多。请在 {minutes, plural, other {# 分钟}}后重试。",
+    "retry_later": "上传次数过多。请稍后重试。"
   },
   "attachment_rename": {
     "rename": "重命名",
@@ -2147,6 +2161,12 @@
         "label": "快速回复",
         "description": "在邮件下方显示快速回复框。"
       },
+      "reply_quote": {
+        "label": "回复中的引用文本",
+        "description": "折叠：将引用的邮件隐藏在 ••• 后面。展开：打开回复时完整显示。",
+        "collapsed": "折叠",
+        "expanded": "展开"
+      },
       "auto_select_reply_identity": {
         "label": "自动选择回复地址",
         "description": "回复时，从邮件发送到的地址发出。"
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "回复或转发时标为已读",
         "description": "你回复或转发的邮件会标为已读，即使设置为打开邮件时从不标为已读。"
+      },
+      "message_double_click": {
+        "label": "双击邮件",
+        "description": "在列表中双击邮件时的操作。",
+        "reading_pane": "在阅读窗格中打开",
+        "new_window": "在新窗口中打开"
       },
       "return_to_list_after_action": {
         "label": "删除、归档、移动或标记为未读后返回列表",
@@ -4012,6 +4038,7 @@
     "items_selected": "已选择 {count} 封邮件",
     "forward_as_attachments": "作为附件转发",
     "edit_draft": "编辑草稿",
+    "edit_as_new": "作为新邮件编辑",
     "cancel_scheduled_send": "取消发送",
     "reschedule_send": "重新计划",
     "cancel_and_edit": "取消并编辑",
@@ -4112,6 +4139,12 @@
     "empty_spam": "清空垃圾邮件",
     "empty_trash_confirm": "要永久删除已删除中的{count, plural, other {全部 # 封邮件}}吗？此操作无法撤销。",
     "empty_spam_confirm": "要永久删除垃圾邮件中的{count, plural, other {全部 # 封邮件}}吗？此操作无法撤销。",
+    "empty_folder": "清空文件夹…",
+    "empty_folder_title": "要清空“{folder}”吗？",
+    "empty_folder_confirm_trash": "要将“{folder}”中的{count, plural, other {全部 # 封邮件}}移到已删除吗？",
+    "empty_folder_confirm_delete": "要永久删除“{folder}”中的{count, plural, other {全部 # 封邮件}}吗？此操作无法撤销。",
+    "empty_folder_move": "移到已删除",
+    "empty_folder_delete": "永久删除",
     "title_all_accounts": "{name} ({count}、所有账户共 {total})",
     "title_all_accounts_only": "{name} (所有账户共 {total})"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "寻呼机",
       "phone_video": "视频",
       "phone_text": "短信",
+      "phone_custom": "自定义…",
+      "phone_custom_label": "自定义类型",
+      "phone_custom_placeholder": "例如：车载",
       "organization": "组织",
       "organization_placeholder": "公司名称",
       "department": "部门",
@@ -5575,6 +5611,7 @@
     "search": "搜索",
     "not_starred": "未加星标",
     "no_attachment": "无附件",
+    "no_tags": "无标签",
     "any_time": "任何时间",
     "past_week": "过去一周",
     "past_month": "过去一个月",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "转发您的邮件",
         "body": "无需打开撰写窗口，即可将您账户中的邮件连同附件一起转发。首次转发到每个地址前都会征求您的同意。"
+      },
+      "ui_notices": {
+        "title": "显示提示",
+        "body": "在屏幕底部（应用消息出现的位置）显示插件自己的小面板，例如有来电时。它不会挡住页面，你可以继续输入，也可以关闭它。每条提示都会注明插件名称。"
       },
       "ui_notifications": {
         "title": "显示通知",

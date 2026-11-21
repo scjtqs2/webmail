@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Ulæste",
       "everything_else": "Alt andet",
-      "unread_empty": "Du har læst alle beskeder i indbakken."
+      "unread_empty": "Du har læst alle beskeder i indbakken.",
+      "unread_newer": "Nyere ulæste",
+      "unread_older": "Ældre ulæste"
     },
     "columns": {
       "from": "Fra",
@@ -381,6 +383,8 @@
     "replied": "Besvaret",
     "forwarded": "Videresendt",
     "has_attachment": "Har vedhæftning",
+    "high_importance": "Høj prioritet",
+    "low_importance": "Lav prioritet",
     "conversations_range": "{from}–{to, number} af {total, number}",
     "conversations_count": "{count} af {total} samtaler",
     "conversations_count_plus": "{count}+ samtaler",
@@ -1109,6 +1113,12 @@
     "option_priority_high": "Høj",
     "option_priority_normal": "Normal",
     "option_priority_low": "Lav",
+    "file_in": "Arkivér i mappe",
+    "file_in_chosen": "Arkivér i {folder}",
+    "file_in_hint": "Når den er sendt, kommer din besked og den, du svarer på, i denne mappe",
+    "file_in_none": "Arkivér ikke",
+    "file_in_failed": "Sendt, men kunne ikke arkiveres i {folder}.",
+    "file_in_reply_elsewhere": "Originalen er flyttet til {folder}. Dit svar bliver i Sendt, da det blev sendt fra en anden konto.",
     "validation": {
       "recipient_required": "Tilføj en modtager for at sende",
       "body_required": "Skriv en besked eller vedhæft en fil",
@@ -1297,6 +1307,10 @@
       "edit": "Rediger billedbeskrivelse",
       "plain_text": "[Billede: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "For mange uploads. Prøv igen om {minutes, plural, one {# minut} other {# minutter}}.",
+    "retry_later": "For mange uploads. Prøv igen senere."
   },
   "attachment_rename": {
     "rename": "Omdøb",
@@ -2150,6 +2164,12 @@
         "label": "Hurtigt svar",
         "description": "Vis feltet til hurtigt svar under beskeder."
       },
+      "reply_quote": {
+        "label": "Citeret tekst i svar",
+        "description": "Foldet sammen skjuler de citerede beskeder bag •••. Foldet ud viser dem helt, når du åbner et svar.",
+        "collapsed": "Foldet sammen",
+        "expanded": "Foldet ud"
+      },
       "auto_select_reply_identity": {
         "label": "Svar fra modtaget adresse",
         "description": "Når du svarer, send fra den adresse, beskeden blev sendt til."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Markér som læst, når jeg svarer eller videresender",
         "description": "En besked, du svarer på eller videresender, markeres som læst, også når beskeder aldrig markeres som læst ved åbning."
+      },
+      "message_double_click": {
+        "label": "Dobbeltklik på en besked",
+        "description": "Hvad et dobbeltklik på en besked i listen gør.",
+        "reading_pane": "Åbn i læseruden",
+        "new_window": "Åbn i et nyt vindue"
       },
       "return_to_list_after_action": {
         "label": "Vend tilbage til listen efter sletning, arkivering, flytning eller markering som ulæst",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-mails valgt",
     "forward_as_attachments": "Videresend som vedhæftede filer",
     "edit_draft": "Redigér kladde",
+    "edit_as_new": "Redigér som ny",
     "cancel_scheduled_send": "Annuller afsendelse",
     "reschedule_send": "Planlæg om",
     "cancel_and_edit": "Annuller og redigér",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Tøm spam",
     "empty_trash_confirm": "Slet {count, plural, one {beskeden} other {alle # beskeder}} i papirkurven for altid? Det kan ikke fortrydes.",
     "empty_spam_confirm": "Slet {count, plural, one {beskeden} other {alle # beskeder}} i spam for altid? Det kan ikke fortrydes.",
+    "empty_folder": "Tøm mappe…",
+    "empty_folder_title": "Tøm {folder}?",
+    "empty_folder_confirm_trash": "Flyt {count, plural, one {beskeden} other {alle # beskeder}} i {folder} til papirkurven?",
+    "empty_folder_confirm_delete": "Slet {count, plural, one {beskeden} other {alle # beskeder}} i {folder} for altid? Det kan ikke fortrydes.",
+    "empty_folder_move": "Flyt til papirkurven",
+    "empty_folder_delete": "Slet for altid",
     "title_all_accounts": "{name} ({count}, {total} i alle konti)",
     "title_all_accounts_only": "{name} ({total} i alle konti)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Personsøger",
       "phone_video": "Video",
       "phone_text": "Tekst",
+      "phone_custom": "Tilpasset…",
+      "phone_custom_label": "Egen type",
+      "phone_custom_placeholder": "f.eks. Bil",
       "organization": "Organisation",
       "organization_placeholder": "Virksomhedsnavn",
       "department": "Afdeling",
@@ -5864,6 +5900,7 @@
     "search": "Søg",
     "not_starred": "Uden stjerne",
     "no_attachment": "Uden vedhæftninger",
+    "no_tags": "Uden tags",
     "any_time": "Når som helst",
     "past_week": "Seneste uge",
     "past_month": "Seneste måned",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Videresende din post",
         "body": "Videresende beskeder fra din konto med vedhæftninger uden at åbne editoren. Du bliver spurgt før første videresendelse til hver adresse."
+      },
+      "ui_notices": {
+        "title": "Vise meddelelser",
+        "body": "Vise sit eget lille panel nederst på skærmen, hvor appens beskeder vises, for eksempel ved et indgående opkald. Det blokerer ikke siden, du kan skrive videre og lukke det. Hver meddelelse nævner plugin'et."
       },
       "ui_notifications": {
         "title": "Vise notifikationer",

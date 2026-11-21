@@ -297,7 +297,9 @@
     "sections": {
       "unread": "לא נקראו",
       "everything_else": "כל השאר",
-      "unread_empty": "קראת את כל ההודעות בתיבת הדואר הנכנס."
+      "unread_empty": "קראת את כל ההודעות בתיבת הדואר הנכנס.",
+      "unread_newer": "שלא נקראו, חדשות יותר",
+      "unread_older": "שלא נקראו, ישנות יותר"
     },
     "columns": {
       "from": "מאת",
@@ -325,6 +327,8 @@
     "replied": "נענה",
     "forwarded": "הועבר",
     "has_attachment": "כולל קובץ מצורף",
+    "high_importance": "חשיבות גבוהה",
+    "low_importance": "חשיבות נמוכה",
     "conversations_range": "{from}–{to, number} מתוך {total, number}",
     "conversations_count": "{count}מתוך שיחות{total}",
     "conversations_count_plus": "{count}+ שיחות",
@@ -1033,6 +1037,12 @@
     "option_priority_high": "גבוהה",
     "option_priority_normal": "רגילה",
     "option_priority_low": "נמוכה",
+    "file_in": "תיוק בתיקייה",
+    "file_in_chosen": "תיוק ב-{folder}",
+    "file_in_hint": "לאחר השליחה, ההודעה שלך וההודעה שעליה ענית יעברו לתיקייה זו",
+    "file_in_none": "ללא תיוק",
+    "file_in_failed": "נשלח, אך לא ניתן היה לתייק ב-{folder}.",
+    "file_in_reply_elsewhere": "ההודעה המקורית הועברה ל-{folder}. התשובה נשארת בפריטים שנשלחו, כי נשלחה מחשבון אחר.",
     "validation": {
       "recipient_required": "הוסף נמען לשליחה",
       "body_required": "כתוב הודעה או צרף קובץ",
@@ -1241,6 +1251,10 @@
       "edit": "עריכת תיאור התמונה",
       "plain_text": "[תמונה: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "יותר מדי העלאות. נסו שוב בעוד {minutes, plural, one {דקה אחת} two {שתי דקות} other {# דקות}}.",
+    "retry_later": "יותר מדי העלאות. נסו שוב מאוחר יותר."
   },
   "attachment_rename": {
     "rename": "שנה שם",
@@ -2080,6 +2094,12 @@
         "label": "תשובה מהירה",
         "description": "הצגת תיבת התשובה המהירה מתחת להודעות."
       },
+      "reply_quote": {
+        "label": "טקסט מצוטט בתשובות",
+        "description": "מכווץ מסתיר את ההודעות המצוטטות מאחורי •••. מורחב מציג אותן במלואן כשפותחים תשובה.",
+        "collapsed": "מכווץ",
+        "expanded": "מורחב"
+      },
       "auto_select_reply_identity": {
         "label": "בחירה אוטומטית בכתובת תשובה",
         "description": "בעת תשובה, לשלוח מהכתובת שאליה נשלחה ההודעה."
@@ -2248,6 +2268,12 @@
       "mark_read_on_reply": {
         "label": "סימון כנקרא כשאני עונה או מעביר",
         "description": "הודעה שעונים עליה או מעבירים אותה מסומנת כנקראה, גם כשהודעות אף פעם לא מסומנות כנקראו בפתיחה."
+      },
+      "message_double_click": {
+        "label": "לחיצה כפולה על הודעה",
+        "description": "מה קורה בלחיצה כפולה על הודעה ברשימה.",
+        "reading_pane": "פתיחה בחלונית הקריאה",
+        "new_window": "פתיחה בחלון חדש"
       },
       "return_to_list_after_action": {
         "label": "חזור לרשימה לאחר מחיקה, העברה לארכיון, העברה לתיקייה או סימון שלא נקראו",
@@ -3957,6 +3983,7 @@
     "items_selected": "נבחרו הודעות דוא\"ל מסוג{count}",
     "forward_as_attachments": "העבר כקבצים מצורפים",
     "edit_draft": "ערוך טיוטה",
+    "edit_as_new": "ערוך כהודעה חדשה",
     "cancel_scheduled_send": "ביטול שליחה",
     "reschedule_send": "תזמן מחדש",
     "cancel_and_edit": "בטל וערוך",
@@ -4472,6 +4499,9 @@
       "phone_pager": "ביפר",
       "phone_video": "וידאו",
       "phone_text": "טקסט",
+      "phone_custom": "מותאם אישית…",
+      "phone_custom_label": "סוג מותאם אישית",
+      "phone_custom_placeholder": "למשל: רכב",
       "organization": "ארגון",
       "organization_placeholder": "שם החברה",
       "department": "מחלקה",
@@ -5444,6 +5474,7 @@
     "search": "חיפוש",
     "not_starred": "ללא כוכב",
     "no_attachment": "ללא קבצים מצורפים",
+    "no_tags": "ללא תגים",
     "any_time": "בכל זמן",
     "past_week": "השבוע האחרון",
     "past_month": "החודש האחרון",
@@ -5968,6 +5999,12 @@
     "empty_spam": "ריקון הספאם",
     "empty_trash_confirm": "למחוק לצמיתות {count, plural, one {את ההודעה} two {את שתי ההודעות} other {את כל # ההודעות}} באשפה? אי אפשר לבטל את זה.",
     "empty_spam_confirm": "למחוק לצמיתות {count, plural, one {את ההודעה} two {את שתי ההודעות} other {את כל # ההודעות}} בספאם? אי אפשר לבטל את זה.",
+    "empty_folder": "ריקון התיקייה…",
+    "empty_folder_title": "לרוקן את {folder}?",
+    "empty_folder_confirm_trash": "להעביר {count, plural, one {את ההודעה} two {את שתי ההודעות} other {את כל # ההודעות}} מהתיקייה {folder} לאשפה?",
+    "empty_folder_confirm_delete": "למחוק לצמיתות {count, plural, one {את ההודעה} two {את שתי ההודעות} other {את כל # ההודעות}} בתיקייה {folder}? אי אפשר לבטל את זה.",
+    "empty_folder_move": "העברה לאשפה",
+    "empty_folder_delete": "מחיקה לצמיתות",
     "title_all_accounts": "{name} ({count}, {total} בכל החשבונות)",
     "title_all_accounts_only": "{name} ({total} בכל החשבונות)"
   },
@@ -7084,6 +7121,10 @@
       "email_forward": {
         "title": "העברת הדואר שלכם",
         "body": "העברת הודעות מהחשבון שלכם יחד עם הקבצים המצורפים, בלי לפתוח את חלון הכתיבה. לפני ההעברה הראשונה לכל כתובת תתבקשו לאשר."
+      },
+      "ui_notices": {
+        "title": "הצגת הודעות",
+        "body": "הצגת חלונית קטנה משלו בתחתית המסך, במקום שבו מופיעות הודעות האפליקציה, למשל בשיחה נכנסת. היא לא חוסמת את הדף, אפשר להמשיך להקליד ולסגור אותה. כל הודעה מציינת את שם התוסף."
       },
       "ui_notifications": {
         "title": "הצגת התראות",

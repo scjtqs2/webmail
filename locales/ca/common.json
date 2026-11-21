@@ -353,7 +353,9 @@
     "sections": {
       "unread": "No llegits",
       "everything_else": "Tota la resta",
-      "unread_empty": "Has llegit tots els missatges de la safata d'entrada."
+      "unread_empty": "Has llegit tots els missatges de la safata d'entrada.",
+      "unread_newer": "Sense llegir més recents",
+      "unread_older": "Sense llegir més antics"
     },
     "columns": {
       "from": "De",
@@ -381,6 +383,8 @@
     "replied": "Respost",
     "forwarded": "Reenviat",
     "has_attachment": "Té adjunt",
+    "high_importance": "Importància alta",
+    "low_importance": "Importància baixa",
     "conversations_range": "{from}–{to, number} de {total, number}",
     "conversations_count": "{count} de {total} converses",
     "conversations_count_plus": "{count}+ converses",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Alta",
     "option_priority_normal": "Normal",
     "option_priority_low": "Baixa",
+    "file_in": "Arxiva a una carpeta",
+    "file_in_chosen": "Arxiva a {folder}",
+    "file_in_hint": "Un cop enviat, el teu missatge i el que respons van a aquesta carpeta",
+    "file_in_none": "No arxivis",
+    "file_in_failed": "Enviat, però no s'ha pogut arxivar a {folder}.",
+    "file_in_reply_elsewhere": "Original mogut a {folder}. La resposta es queda a Enviats, perquè ha sortit d'un altre compte.",
     "validation": {
       "recipient_required": "Afegiu un destinatari per enviar",
       "body_required": "Escriviu un missatge o adjunteu un fitxer",
@@ -1297,6 +1307,10 @@
       "edit": "Edita la descripció de la imatge",
       "plain_text": "[Imatge: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Massa pujades. Torneu-ho a provar d'aquí a {minutes, plural, one {# minut} other {# minuts}}.",
+    "retry_later": "Massa pujades. Torneu-ho a provar més tard."
   },
   "attachment_rename": {
     "rename": "Canvia el nom",
@@ -2150,6 +2164,12 @@
         "label": "Resposta ràpida",
         "description": "Mostra el quadre de resposta ràpida sota els missatges."
       },
+      "reply_quote": {
+        "label": "Text citat a les respostes",
+        "description": "Replegat amaga els missatges citats darrere de •••. Desplegat els mostra sencers quan obres una resposta.",
+        "collapsed": "Replegat",
+        "expanded": "Desplegat"
+      },
       "auto_select_reply_identity": {
         "label": "Respon des de l'adreça de recepció",
         "description": "En respondre, envia des de l’adreça a la qual es va enviar el missatge."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Marca com a llegit quan responc o reenvio",
         "description": "Un missatge que respons o reenvies es marca com a llegit, també quan els missatges no es marquen mai com a llegits en obrir-los."
+      },
+      "message_double_click": {
+        "label": "Doble clic en un missatge",
+        "description": "Què fa un doble clic en un missatge de la llista.",
+        "reading_pane": "Obre al panell de lectura",
+        "new_window": "Obre en una finestra nova"
       },
       "return_to_list_after_action": {
         "label": "Torna a la llista després de suprimir, arxivar, moure o marcar com a no llegit",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} correus seleccionats",
     "forward_as_attachments": "Reenvia com a fitxers adjunts",
     "edit_draft": "Edita l'esborrany",
+    "edit_as_new": "Edita com a missatge nou",
     "cancel_scheduled_send": "Cancel·la l'enviament",
     "reschedule_send": "Reprograma",
     "cancel_and_edit": "Cancel·la i edita",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Buida el correu brossa",
     "empty_trash_confirm": "Vols suprimir per sempre {count, plural, one {el missatge} other {els # missatges}} de la paperera? No es pot desfer.",
     "empty_spam_confirm": "Vols suprimir per sempre {count, plural, one {el missatge} other {els # missatges}} del correu brossa? No es pot desfer.",
+    "empty_folder": "Buida la carpeta…",
+    "empty_folder_title": "Vols buidar {folder}?",
+    "empty_folder_confirm_trash": "Vols moure {count, plural, one {el missatge} other {els # missatges}} de {folder} a la paperera?",
+    "empty_folder_confirm_delete": "Vols suprimir per sempre {count, plural, one {el missatge} other {els # missatges}} de {folder}? No es pot desfer.",
+    "empty_folder_move": "Mou a la paperera",
+    "empty_folder_delete": "Suprimeix per sempre",
     "title_all_accounts": "{name} ({count}, {total} a tots els comptes)",
     "title_all_accounts_only": "{name} ({total} a tots els comptes)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Buscapersones",
       "phone_video": "Vídeo",
       "phone_text": "SMS",
+      "phone_custom": "Personalitzat…",
+      "phone_custom_label": "Tipus personalitzat",
+      "phone_custom_placeholder": "p. ex., Cotxe",
       "organization": "Organització",
       "organization_placeholder": "Nom de l'empresa",
       "department": "Departament",
@@ -5864,6 +5900,7 @@
     "search": "Cerca",
     "not_starred": "Sense destacar",
     "no_attachment": "Sense adjunts",
+    "no_tags": "Sense etiquetes",
     "any_time": "Qualsevol data",
     "past_week": "Darrera setmana",
     "past_month": "Darrer mes",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Reenviar el vostre correu",
         "body": "Reenviar missatges del vostre compte amb els adjunts, sense obrir l'editor. Se us pregunta abans del primer reenviament a cada adreça."
+      },
+      "ui_notices": {
+        "title": "Mostrar avisos",
+        "body": "Mostrar un petit tauler propi a la part inferior de la pantalla, on apareixen els missatges de l'aplicació, per exemple per a una trucada entrant. No bloqueja la pàgina, podeu continuar escrivint i tancar-lo. Cadascun indica el nom del connector."
       },
       "ui_notifications": {
         "title": "Mostrar notificacions",

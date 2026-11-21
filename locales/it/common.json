@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Da leggere",
       "everything_else": "Tutto il resto",
-      "unread_empty": "Hai letto tutti i messaggi della posta in arrivo."
+      "unread_empty": "Hai letto tutti i messaggi della posta in arrivo.",
+      "unread_newer": "Non letti più recenti",
+      "unread_older": "Non letti meno recenti"
     },
     "columns": {
       "from": "Da",
@@ -381,6 +383,8 @@
     "replied": "Risposto",
     "forwarded": "Inoltrato",
     "has_attachment": "Con allegato",
+    "high_importance": "Priorità alta",
+    "low_importance": "Priorità bassa",
     "conversations_range": "{from}–{to, number} di {total, number}",
     "conversations_count": "{count} di {total} conversazioni",
     "conversations_count_plus": "{count}+ conversazioni",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Alta",
     "option_priority_normal": "Normale",
     "option_priority_low": "Bassa",
+    "file_in": "Archivia in cartella",
+    "file_in_chosen": "Archivia in {folder}",
+    "file_in_hint": "Dopo l'invio, il tuo messaggio e quello a cui rispondi finiscono in questa cartella",
+    "file_in_none": "Non archiviare",
+    "file_in_failed": "Inviato, ma non è stato possibile archiviarlo in {folder}.",
+    "file_in_reply_elsewhere": "Originale spostato in {folder}. La risposta resta in Inviati, perché è partita da un altro account.",
     "validation": {
       "recipient_required": "Aggiungi un destinatario per inviare",
       "body_required": "Scrivi un messaggio o allega un file",
@@ -1297,6 +1307,10 @@
       "edit": "Modifica descrizione dell'immagine",
       "plain_text": "[Immagine: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Troppi caricamenti. Riprova tra {minutes, plural, one {# minuto} other {# minuti}}.",
+    "retry_later": "Troppi caricamenti. Riprova più tardi."
   },
   "attachment_rename": {
     "rename": "Rinomina",
@@ -2130,6 +2144,12 @@
         "label": "Risposta rapida",
         "description": "Mostra la casella di risposta rapida sotto i messaggi."
       },
+      "reply_quote": {
+        "label": "Testo citato nelle risposte",
+        "description": "Compresso nasconde i messaggi citati dietro •••. Espanso li mostra per intero quando apri una risposta.",
+        "collapsed": "Compresso",
+        "expanded": "Espanso"
+      },
       "auto_select_reply_identity": {
         "label": "Seleziona automaticamente l'indirizzo di risposta",
         "description": "Quando rispondi, invia dall’indirizzo a cui è stato inviato il messaggio."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Segna come letto quando rispondo o inoltro",
         "description": "Un messaggio a cui rispondi o che inoltri viene segnato come letto, anche quando i messaggi non vengono mai segnati come letti all'apertura."
+      },
+      "message_double_click": {
+        "label": "Doppio clic su un messaggio",
+        "description": "Cosa fa un doppio clic su un messaggio nell'elenco.",
+        "reading_pane": "Apri nel riquadro di lettura",
+        "new_window": "Apri in una nuova finestra"
       },
       "return_to_list_after_action": {
         "label": "Torna all'elenco dopo l'eliminazione, l'archiviazione, lo spostamento o il contrassegno come non letto",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} messaggi selezionati",
     "forward_as_attachments": "Inoltra come allegati",
     "edit_draft": "Modifica bozza",
+    "edit_as_new": "Modifica come nuovo",
     "cancel_scheduled_send": "Annulla invio",
     "reschedule_send": "Riprogramma",
     "cancel_and_edit": "Annulla e modifica",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Svuota spam",
     "empty_trash_confirm": "Eliminare per sempre {count, plural, one {il messaggio} other {tutti i # messaggi}} nel cestino? Non si può annullare.",
     "empty_spam_confirm": "Eliminare per sempre {count, plural, one {il messaggio} other {tutti i # messaggi}} nello spam? Non si può annullare.",
+    "empty_folder": "Svuota cartella…",
+    "empty_folder_title": "Svuotare {folder}?",
+    "empty_folder_confirm_trash": "Spostare {count, plural, one {il messaggio} other {tutti i # messaggi}} di {folder} nel cestino?",
+    "empty_folder_confirm_delete": "Eliminare per sempre {count, plural, one {il messaggio} other {tutti i # messaggi}} di {folder}? Non si può annullare.",
+    "empty_folder_move": "Sposta nel cestino",
+    "empty_folder_delete": "Elimina per sempre",
     "title_all_accounts": "{name} ({count}, {total} in tutti gli account)",
     "title_all_accounts_only": "{name} ({total} in tutti gli account)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Cercapersone",
       "phone_video": "Video",
       "phone_text": "SMS",
+      "phone_custom": "Personalizzato…",
+      "phone_custom_label": "Tipo personalizzato",
+      "phone_custom_placeholder": "es. Auto",
       "organization": "Organizzazione",
       "organization_placeholder": "Nome azienda",
       "department": "Reparto",
@@ -5575,6 +5611,7 @@
     "search": "Cerca",
     "not_starred": "Non preferiti",
     "no_attachment": "Senza allegati",
+    "no_tags": "Senza etichette",
     "any_time": "Qualsiasi data",
     "past_week": "Ultima settimana",
     "past_month": "Ultimo mese",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Inoltrare la tua posta",
         "body": "Inoltrare messaggi dal tuo account con i loro allegati, senza aprire l'editor. Ti viene chiesto prima del primo inoltro a ciascun indirizzo."
+      },
+      "ui_notices": {
+        "title": "Mostrare avvisi",
+        "body": "Mostrare un piccolo pannello proprio in basso sullo schermo, dove compaiono i messaggi dell'app, ad esempio per una chiamata in arrivo. Non blocca la pagina, puoi continuare a scrivere e chiuderlo. Ognuno indica il nome del plugin."
       },
       "ui_notifications": {
         "title": "Mostrare notifiche",

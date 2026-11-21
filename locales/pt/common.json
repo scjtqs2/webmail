@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Não lidos",
       "everything_else": "Todo o resto",
-      "unread_empty": "Você leu todas as mensagens da caixa de entrada."
+      "unread_empty": "Você leu todas as mensagens da caixa de entrada.",
+      "unread_newer": "Não lidas mais recentes",
+      "unread_older": "Não lidas mais antigas"
     },
     "columns": {
       "from": "De",
@@ -381,6 +383,8 @@
     "replied": "Respondido",
     "forwarded": "Encaminhado",
     "has_attachment": "Com anexo",
+    "high_importance": "Importância alta",
+    "low_importance": "Importância baixa",
     "conversations_range": "{from}–{to, number} de {total, number}",
     "conversations_count": "{count} de {total} conversas",
     "conversations_count_plus": "{count}+ conversas",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Alta",
     "option_priority_normal": "Normal",
     "option_priority_low": "Baixa",
+    "file_in": "Arquivar em pasta",
+    "file_in_chosen": "Arquivar em {folder}",
+    "file_in_hint": "Depois de enviada, a sua mensagem e a que está a responder vão para esta pasta",
+    "file_in_none": "Não arquivar",
+    "file_in_failed": "Enviado, mas não foi possível arquivar em {folder}.",
+    "file_in_reply_elsewhere": "Original movido para {folder}. A sua resposta fica em Enviados, porque saiu de outra conta.",
     "validation": {
       "recipient_required": "Adicione um destinatário para enviar",
       "body_required": "Escreva uma mensagem ou anexe um arquivo",
@@ -1297,6 +1307,10 @@
       "edit": "Editar descrição da imagem",
       "plain_text": "[Imagem: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Demasiados carregamentos. Tente novamente dentro de {minutes, plural, one {# minuto} other {# minutos}}.",
+    "retry_later": "Demasiados carregamentos. Tente novamente mais tarde."
   },
   "attachment_rename": {
     "rename": "Renomear",
@@ -2130,6 +2144,12 @@
         "label": "Resposta rápida",
         "description": "Mostrar a caixa de resposta rápida abaixo das mensagens."
       },
+      "reply_quote": {
+        "label": "Texto citado nas respostas",
+        "description": "Recolhido oculta as mensagens citadas atrás de •••. Expandido as mostra por completo quando você abre uma resposta.",
+        "collapsed": "Recolhido",
+        "expanded": "Expandido"
+      },
       "auto_select_reply_identity": {
         "label": "Responder do endereço que recebeu a mensagem",
         "description": "Ao responder, enviar do endereço para o qual a mensagem foi enviada."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Marcar como lida ao responder ou encaminhar",
         "description": "Uma mensagem que você responde ou encaminha é marcada como lida, mesmo quando as mensagens nunca são marcadas como lidas ao abrir."
+      },
+      "message_double_click": {
+        "label": "Clique duplo em uma mensagem",
+        "description": "O que um clique duplo em uma mensagem da lista faz.",
+        "reading_pane": "Abrir no painel de leitura",
+        "new_window": "Abrir em uma nova janela"
       },
       "return_to_list_after_action": {
         "label": "Voltar à lista após excluir, arquivar, mover ou marcar como não lida",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-mails selecionados",
     "forward_as_attachments": "Encaminhar como anexos",
     "edit_draft": "Editar rascunho",
+    "edit_as_new": "Editar como nova",
     "cancel_scheduled_send": "Cancelar envio",
     "reschedule_send": "Reprogramar",
     "cancel_and_edit": "Cancelar e editar",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Esvaziar spam",
     "empty_trash_confirm": "Excluir permanentemente {count, plural, one {a mensagem} other {as # mensagens}} da Lixeira? Não é possível desfazer.",
     "empty_spam_confirm": "Excluir permanentemente {count, plural, one {a mensagem} other {as # mensagens}} do Spam? Não é possível desfazer.",
+    "empty_folder": "Esvaziar pasta…",
+    "empty_folder_title": "Esvaziar {folder}?",
+    "empty_folder_confirm_trash": "Mover {count, plural, one {a mensagem} other {as # mensagens}} de {folder} para a Lixeira?",
+    "empty_folder_confirm_delete": "Excluir permanentemente {count, plural, one {a mensagem} other {as # mensagens}} de {folder}? Não é possível desfazer.",
+    "empty_folder_move": "Mover para a Lixeira",
+    "empty_folder_delete": "Excluir permanentemente",
     "title_all_accounts": "{name} ({count}, {total} em todas as contas)",
     "title_all_accounts_only": "{name} ({total} em todas as contas)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Pager",
       "phone_video": "Vídeo",
       "phone_text": "Texto",
+      "phone_custom": "Personalizado…",
+      "phone_custom_label": "Tipo personalizado",
+      "phone_custom_placeholder": "p. ex., Carro",
       "organization": "Organização",
       "organization_placeholder": "Nome da empresa",
       "department": "Departamento",
@@ -5575,6 +5611,7 @@
     "search": "Pesquisar",
     "not_starred": "Sem estrela",
     "no_attachment": "Sem anexos",
+    "no_tags": "Sem etiquetas",
     "any_time": "Qualquer data",
     "past_week": "Última semana",
     "past_month": "Último mês",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Encaminhar seus e-mails",
         "body": "Encaminhar mensagens da sua conta com os anexos, sem abrir o editor. Você é consultado antes do primeiro encaminhamento para cada endereço."
+      },
+      "ui_notices": {
+        "title": "Mostrar avisos",
+        "body": "Mostrar um pequeno painel próprio na parte inferior do ecrã, onde aparecem as mensagens da aplicação, por exemplo para uma chamada recebida. Não bloqueia a página, pode continuar a escrever e fechá-lo. Cada um indica o nome do plugin."
       },
       "ui_notifications": {
         "title": "Mostrar notificações",

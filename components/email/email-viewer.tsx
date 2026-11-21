@@ -161,6 +161,7 @@ import { useThemeStore } from "@/stores/theme-store";
 import { EmailIdentityBadge } from "./email-identity-badge";
 import { ExternalSenderChip } from "./external-sender-chip";
 import { ReceivedLabelChip } from "./received-label-chip";
+import { ImportanceChip } from "./importance-chip";
 import { UnsubscribeBanner } from "./unsubscribe-banner";
 import { CalendarInvitationBanner } from "./calendar-invitation-banner";
 import { ReadReceiptBanner } from "./read-receipt-banner";
@@ -347,6 +348,8 @@ export interface EmailViewerProps {
    */
   replyDraft?: { preview?: string; onEdit: () => void; onDiscard: () => void } | null;
   onEditDraft?: () => void;
+  /** In Sent: a new message filled in as this one went out (#1781). */
+  onEditAsNew?: () => void;
   onCancelScheduledForEdit?: () => void;
   /** Stop a scheduled message from going out; it goes back to Drafts. */
   onCancelScheduledSend?: () => void;
@@ -1039,6 +1042,7 @@ export function MvExpandedConversationCard({
             )}
             <ExternalSenderChip from={email.from} accountId={email.sourceClientAccountId} className="self-center" />
             <ReceivedLabelChip email={email} className="self-center" />
+            <ImportanceChip email={email} className="self-center" />
             <ConversationDate date={emailListDate(email)} timeFormat={timeFormat} variant={compact ? 'list' : shortDates ? 'short' : 'mv'} />
           </span>
           <MessageRecipientsLine
@@ -1288,6 +1292,7 @@ function ReaderMoreMenu({ menu, options, label, mailboxes, moveHeading, selected
       onForward={options.onForward}
       onForwardAsAttachment={options.onForwardAsAttachment}
       onEditDraft={options.onEditDraft}
+      onEditAsNew={options.onEditAsNew}
       onArchive={options.onArchive}
       onMoveToInbox={options.onMoveToInbox}
       onDelete={options.onDelete}
@@ -1501,6 +1506,7 @@ export function EmailViewer({
   replyComposerOpen,
   replyDraft,
   onEditDraft,
+  onEditAsNew,
   onCancelScheduledForEdit,
   onCancelScheduledSend,
   onRescheduleScheduled,
@@ -4641,6 +4647,7 @@ export function EmailViewer({
     onForward,
     onForwardAsAttachment,
     onEditDraft,
+    onEditAsNew,
     onArchive,
     onDelete,
     onMarkAsRead: (read) => onMarkAsRead?.(email.id, read),
@@ -5556,6 +5563,7 @@ export function EmailViewer({
                     )}
                     <ExternalSenderChip from={email.from} accountId={email.sourceClientAccountId} />
                     <ReceivedLabelChip email={email} />
+                    <ImportanceChip email={email} />
                     <EmailIdentityBadge email={email} identities={identities} />
                     {shouldShowUnsubBanner && listHeaders?.listUnsubscribe && (
                       <UnsubscribeBanner
@@ -5690,6 +5698,7 @@ export function EmailViewer({
                 <BrandVerifiedBadge domain={brandDomain} />
                 <ExternalSenderChip from={email.from} accountId={email.sourceClientAccountId} />
                 <ReceivedLabelChip email={email} />
+                <ImportanceChip email={email} />
                 <EmailIdentityBadge email={email} identities={identities} />
                 {shouldShowUnsubBanner && listHeaders?.listUnsubscribe && (
                   <UnsubscribeBanner

@@ -353,7 +353,9 @@
     "sections": {
       "unread": "未讀",
       "everything_else": "其他所有郵件",
-      "unread_empty": "您已讀完收件匣中的所有郵件。"
+      "unread_empty": "您已讀完收件匣中的所有郵件。",
+      "unread_newer": "較新的未讀郵件",
+      "unread_older": "較舊的未讀郵件"
     },
     "columns": {
       "from": "寄件者",
@@ -381,6 +383,8 @@
     "replied": "已回覆",
     "forwarded": "已轉寄",
     "has_attachment": "有附件",
+    "high_importance": "重要性高",
+    "low_importance": "重要性低",
     "conversations_range": "第 {from}–{to, number} 封，共 {total, number} 封",
     "conversations_count": "顯示 {count} 個對話串，共 {total} 個",
     "conversations_count_plus": "{count}+ 個對話串",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "高",
     "option_priority_normal": "一般",
     "option_priority_low": "低",
+    "file_in": "歸檔到資料夾",
+    "file_in_chosen": "歸檔到 {folder}",
+    "file_in_hint": "傳送後，您的郵件和所回覆的郵件會移到此資料夾",
+    "file_in_none": "不歸檔",
+    "file_in_failed": "已傳送，但無法歸檔到 {folder}。",
+    "file_in_reply_elsewhere": "原始郵件已移到 {folder}。回覆是從其他帳號寄出的，因此保留在寄件備份中。",
     "validation": {
       "recipient_required": "請新增收件者",
       "body_required": "請輸入郵件內容或新增附件",
@@ -1297,6 +1307,10 @@
       "edit": "編輯圖片描述",
       "plain_text": "[圖片：{alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "上傳次數過多。請在 {minutes, plural, other {# 分鐘}}後再試一次。",
+    "retry_later": "上傳次數過多。請稍後再試一次。"
   },
   "attachment_rename": {
     "rename": "重新命名",
@@ -2150,6 +2164,12 @@
         "label": "快速回覆",
         "description": "在郵件下方顯示快速回覆框。"
       },
+      "reply_quote": {
+        "label": "回覆中的引用文字",
+        "description": "摺疊：將引用的郵件隱藏在 ••• 後面。展開：開啟回覆時完整顯示。",
+        "collapsed": "摺疊",
+        "expanded": "展開"
+      },
       "auto_select_reply_identity": {
         "label": "使用收件地址回覆",
         "description": "回覆時，從郵件寄達的地址寄出。"
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "回覆或轉寄時標為已讀",
         "description": "你回覆或轉寄的郵件會標為已讀，即使設定為開啟郵件時從不標為已讀。"
+      },
+      "message_double_click": {
+        "label": "按兩下郵件",
+        "description": "在清單中按兩下郵件時的動作。",
+        "reading_pane": "在閱讀窗格中開啟",
+        "new_window": "在新視窗中開啟"
       },
       "return_to_list_after_action": {
         "label": "刪除、封存、移動或標示為未讀後回到清單",
@@ -4012,6 +4038,7 @@
     "items_selected": "已選取 {count} 封郵件",
     "forward_as_attachments": "以附件形式轉寄",
     "edit_draft": "編輯草稿",
+    "edit_as_new": "以新郵件編輯",
     "cancel_scheduled_send": "取消傳送",
     "reschedule_send": "重新排程",
     "cancel_and_edit": "取消並編輯",
@@ -4112,6 +4139,12 @@
     "empty_spam": "清空垃圾郵件",
     "empty_trash_confirm": "要永久刪除垃圾桶中的{count, plural, other {全部 # 封郵件}}嗎？此動作無法復原。",
     "empty_spam_confirm": "要永久刪除垃圾郵件中的{count, plural, other {全部 # 封郵件}}嗎？此動作無法復原。",
+    "empty_folder": "清空資料夾…",
+    "empty_folder_title": "要清空「{folder}」嗎？",
+    "empty_folder_confirm_trash": "要將「{folder}」中的{count, plural, other {全部 # 封郵件}}移到垃圾桶嗎？",
+    "empty_folder_confirm_delete": "要永久刪除「{folder}」中的{count, plural, other {全部 # 封郵件}}嗎？此動作無法復原。",
+    "empty_folder_move": "移到垃圾桶",
+    "empty_folder_delete": "永久刪除",
     "title_all_accounts": "{name} ({count}、所有帳號共 {total})",
     "title_all_accounts_only": "{name} (所有帳號共 {total})"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "呼叫器",
       "phone_video": "視訊",
       "phone_text": "簡訊",
+      "phone_custom": "自訂…",
+      "phone_custom_label": "自訂類型",
+      "phone_custom_placeholder": "例如：車用",
       "organization": "組織",
       "organization_placeholder": "公司名稱",
       "department": "部門",
@@ -5864,6 +5900,7 @@
     "search": "搜尋",
     "not_starred": "未加星號",
     "no_attachment": "無附件",
+    "no_tags": "無標籤",
     "any_time": "任何時間",
     "past_week": "過去一週",
     "past_month": "過去一個月",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "轉寄您的郵件",
         "body": "不必開啟撰寫視窗，即可將您帳號中的郵件連同附件一起轉寄。第一次轉寄到每個地址前都會先徵求您的同意。"
+      },
+      "ui_notices": {
+        "title": "顯示提示",
+        "body": "在畫面底部（應用程式訊息出現的位置）顯示外掛程式自己的小面板，例如有來電時。它不會擋住頁面，你可以繼續輸入，也可以關閉它。每則提示都會註明外掛程式名稱。"
       },
       "ui_notifications": {
         "title": "顯示通知",

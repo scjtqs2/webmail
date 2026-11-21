@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Ungelesen",
       "everything_else": "Alles andere",
-      "unread_empty": "Sie haben alle Nachrichten im Posteingang gelesen."
+      "unread_empty": "Sie haben alle Nachrichten im Posteingang gelesen.",
+      "unread_newer": "Neuere ungelesene",
+      "unread_older": "Ältere ungelesene"
     },
     "columns": {
       "from": "Von",
@@ -381,6 +383,8 @@
     "replied": "Beantwortet",
     "forwarded": "Weitergeleitet",
     "has_attachment": "Mit Anhang",
+    "high_importance": "Hohe Wichtigkeit",
+    "low_importance": "Niedrige Wichtigkeit",
     "conversations_range": "{from}–{to, number} von {total, number}",
     "conversations_count": "{count} von {total} Unterhaltungen",
     "conversations_count_plus": "{count}+ Unterhaltungen",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Hoch",
     "option_priority_normal": "Normal",
     "option_priority_low": "Niedrig",
+    "file_in": "In Ordner ablegen",
+    "file_in_chosen": "Ablegen in {folder}",
+    "file_in_hint": "Nach dem Senden kommen Ihre Nachricht und die beantwortete Nachricht in diesen Ordner",
+    "file_in_none": "Nicht ablegen",
+    "file_in_failed": "Gesendet, konnte aber nicht in {folder} abgelegt werden.",
+    "file_in_reply_elsewhere": "Original nach {folder} verschoben. Ihre Antwort bleibt in Gesendet, da sie von einem anderen Konto verschickt wurde.",
     "validation": {
       "recipient_required": "Fügen Sie einen Empfänger hinzu, um zu senden",
       "body_required": "Nachricht schreiben oder Datei anhängen",
@@ -1297,6 +1307,10 @@
       "edit": "Bildbeschreibung bearbeiten",
       "plain_text": "[Bild: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Zu viele Uploads. Versuchen Sie es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
+    "retry_later": "Zu viele Uploads. Versuchen Sie es später erneut."
   },
   "attachment_rename": {
     "rename": "Umbenennen",
@@ -2147,6 +2161,12 @@
         "label": "Schnellantwort",
         "description": "Das Feld für die Schnellantwort unter Nachrichten anzeigen."
       },
+      "reply_quote": {
+        "label": "Zitierter Text in Antworten",
+        "description": "Eingeklappt verbirgt die zitierten Nachrichten hinter •••. Ausgeklappt zeigt sie vollständig, wenn Sie eine Antwort öffnen.",
+        "collapsed": "Eingeklappt",
+        "expanded": "Ausgeklappt"
+      },
       "auto_select_reply_identity": {
         "label": "Antwortadresse automatisch wählen",
         "description": "Beim Antworten von der Adresse senden, an die die E-Mail ursprünglich ging."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Als gelesen markieren, wenn ich antworte oder weiterleite",
         "description": "Eine Nachricht, auf die Sie antworten oder die Sie weiterleiten, wird als gelesen markiert, auch wenn Nachrichten beim Öffnen nie als gelesen markiert werden."
+      },
+      "message_double_click": {
+        "label": "Doppelklick auf eine Nachricht",
+        "description": "Was ein Doppelklick auf eine Nachricht in der Liste tut.",
+        "reading_pane": "Im Lesebereich öffnen",
+        "new_window": "In neuem Fenster öffnen"
       },
       "return_to_list_after_action": {
         "label": "Nach Löschen, Archivieren, Verschieben oder Ungelesen-Markieren zur Liste zurückkehren",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} E-Mails ausgewählt",
     "forward_as_attachments": "Als Anhänge weiterleiten",
     "edit_draft": "Entwurf bearbeiten",
+    "edit_as_new": "Als neue Nachricht bearbeiten",
     "cancel_scheduled_send": "Senden abbrechen",
     "reschedule_send": "Neu planen",
     "cancel_and_edit": "Abbrechen und bearbeiten",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Spam leeren",
     "empty_trash_confirm": "{count, plural, one {Die Nachricht} other {Alle # Nachrichten}} im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.",
     "empty_spam_confirm": "{count, plural, one {Die Nachricht} other {Alle # Nachrichten}} im Spam endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "empty_folder": "Ordner leeren…",
+    "empty_folder_title": "{folder} leeren?",
+    "empty_folder_confirm_trash": "{count, plural, one {Die Nachricht} other {Alle # Nachrichten}} in {folder} in den Papierkorb verschieben?",
+    "empty_folder_confirm_delete": "{count, plural, one {Die Nachricht} other {Alle # Nachrichten}} in {folder} endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "empty_folder_move": "In den Papierkorb",
+    "empty_folder_delete": "Endgültig löschen",
     "title_all_accounts": "{name} ({count}, {total} in allen Konten)",
     "title_all_accounts_only": "{name} ({total} in allen Konten)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Pager",
       "phone_video": "Video",
       "phone_text": "SMS",
+      "phone_custom": "Eigener Typ…",
+      "phone_custom_label": "Eigener Typ",
+      "phone_custom_placeholder": "z. B. Auto",
       "organization": "Organisation",
       "organization_placeholder": "Firmenname",
       "department": "Abteilung",
@@ -5575,6 +5611,7 @@
     "search": "Suchen",
     "not_starred": "Nicht markiert",
     "no_attachment": "Ohne Anhänge",
+    "no_tags": "Ohne Labels",
     "any_time": "Beliebig",
     "past_week": "Letzte Woche",
     "past_month": "Letzter Monat",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "E-Mails weiterleiten",
         "body": "Nachrichten aus Ihrem Konto samt Anhängen weiterleiten, ohne den Editor zu öffnen. Vor der ersten Weiterleitung an eine Adresse werden Sie gefragt."
+      },
+      "ui_notices": {
+        "title": "Eigene Hinweisfelder anzeigen",
+        "body": "Ein kleines eigenes Feld unten am Bildschirm zeigen, wo auch die Meldungen der App erscheinen, etwa bei einem eingehenden Anruf. Es sperrt die Seite nicht, Sie können weitertippen und es schließen. Jeder Hinweis nennt das Plugin."
       },
       "ui_notifications": {
         "title": "Benachrichtigungen anzeigen",

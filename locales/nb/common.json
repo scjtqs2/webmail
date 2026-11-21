@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Uleste",
       "everything_else": "Alt annet",
-      "unread_empty": "Du har lest alle meldingene i innboksen."
+      "unread_empty": "Du har lest alle meldingene i innboksen.",
+      "unread_newer": "Nyere uleste",
+      "unread_older": "Eldre uleste"
     },
     "columns": {
       "from": "Fra",
@@ -381,6 +383,8 @@
     "replied": "Besvart",
     "forwarded": "Videresendt",
     "has_attachment": "Har vedlegg",
+    "high_importance": "Høy prioritet",
+    "low_importance": "Lav prioritet",
     "conversations_range": "{from}–{to, number} av {total, number}",
     "conversations_count": "{count} av {total} samtaler",
     "conversations_count_plus": "{count}+ samtaler",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Høy",
     "option_priority_normal": "Normal",
     "option_priority_low": "Lav",
+    "file_in": "Arkiver i mappe",
+    "file_in_chosen": "Arkiver i {folder}",
+    "file_in_hint": "Når den er sendt, havner meldingen din og den du svarer på, i denne mappen",
+    "file_in_none": "Ikke arkiver",
+    "file_in_failed": "Sendt, men kunne ikke arkiveres i {folder}.",
+    "file_in_reply_elsewhere": "Originalen er flyttet til {folder}. Svaret ditt blir liggende i Sendt, siden det ble sendt fra en annen konto.",
     "validation": {
       "recipient_required": "Legg til minst én mottaker før du sender",
       "body_required": "Skriv en melding eller legg ved en fil",
@@ -1297,6 +1307,10 @@
       "edit": "Rediger bildebeskrivelse",
       "plain_text": "[Bilde: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "For mange opplastinger. Prøv igjen om {minutes, plural, one {# minutt} other {# minutter}}.",
+    "retry_later": "For mange opplastinger. Prøv igjen senere."
   },
   "attachment_rename": {
     "rename": "Gi nytt navn",
@@ -2150,6 +2164,12 @@
         "label": "Hurtigsvar",
         "description": "Vis feltet for hurtigsvar under meldinger."
       },
+      "reply_quote": {
+        "label": "Sitert tekst i svar",
+        "description": "Sammenslått skjuler de siterte meldingene bak •••. Utvidet viser dem i sin helhet når du åpner et svar.",
+        "collapsed": "Sammenslått",
+        "expanded": "Utvidet"
+      },
       "auto_select_reply_identity": {
         "label": "Svar fra mottatt adresse",
         "description": "Når du svarer, send fra adressen meldingen ble sendt til."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Merk som lest når jeg svarer eller videresender",
         "description": "En melding du svarer på eller videresender, merkes som lest, også når meldinger aldri merkes som lest ved åpning."
+      },
+      "message_double_click": {
+        "label": "Dobbeltklikk på en melding",
+        "description": "Hva et dobbeltklikk på en melding i listen gjør.",
+        "reading_pane": "Åpne i leseruten",
+        "new_window": "Åpne i et nytt vindu"
       },
       "return_to_list_after_action": {
         "label": "Gå tilbake til listen etter sletting, arkivering, flytting eller merking som ulest",
@@ -4012,6 +4038,7 @@
     "items_selected": "Valgt: {count}",
     "forward_as_attachments": "Videresend som vedlegg",
     "edit_draft": "Rediger utkast",
+    "edit_as_new": "Rediger som ny",
     "cancel_scheduled_send": "Avbryt sending",
     "reschedule_send": "Planlegg på nytt",
     "cancel_and_edit": "Avbryt og rediger",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Tøm søppelpost",
     "empty_trash_confirm": "Slette {count, plural, one {meldingen} other {alle # meldingene}} i papirkurven for godt? Dette kan ikke angres.",
     "empty_spam_confirm": "Slette {count, plural, one {meldingen} other {alle # meldingene}} i søppelpost for godt? Dette kan ikke angres.",
+    "empty_folder": "Tøm mappe…",
+    "empty_folder_title": "Tømme {folder}?",
+    "empty_folder_confirm_trash": "Flytte {count, plural, one {meldingen} other {alle # meldingene}} i {folder} til papirkurven?",
+    "empty_folder_confirm_delete": "Slette {count, plural, one {meldingen} other {alle # meldingene}} i {folder} for godt? Dette kan ikke angres.",
+    "empty_folder_move": "Flytt til papirkurven",
+    "empty_folder_delete": "Slett for godt",
     "title_all_accounts": "{name} ({count}, {total} i alle kontoer)",
     "title_all_accounts_only": "{name} ({total} i alle kontoer)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Personsøker",
       "phone_video": "Video",
       "phone_text": "SMS",
+      "phone_custom": "Egendefinert…",
+      "phone_custom_label": "Egen type",
+      "phone_custom_placeholder": "f.eks. Bil",
       "organization": "Organisasjon",
       "organization_placeholder": "Selskapsnavn",
       "department": "Avdeling",
@@ -5864,6 +5900,7 @@
     "search": "Søk",
     "not_starred": "Uten stjerne",
     "no_attachment": "Uten vedlegg",
+    "no_tags": "Uten etiketter",
     "any_time": "Når som helst",
     "past_week": "Siste uke",
     "past_month": "Siste måned",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Videresende e-posten din",
         "body": "Videresende meldinger fra kontoen din med vedlegg, uten å åpne redigeringsvinduet. Du blir spurt før første videresending til hver adresse."
+      },
+      "ui_notices": {
+        "title": "Vise egne varselpaneler",
+        "body": "Vise et eget lite panel nederst på skjermen, der appens meldinger vises, for eksempel ved en innkommende samtale. Det blokkerer ikke siden, du kan skrive videre og lukke det. Hvert varsel navngir programtillegget."
       },
       "ui_notifications": {
         "title": "Vise varsler",

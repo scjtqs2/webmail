@@ -7,6 +7,7 @@ import { IncompleteDeleteError } from "./delete-error";
 import { downloadAllowed, saveBlobAs, type DownloadKind } from "@/lib/download-guard";
 import { ArchiveEmailsError } from "./archive-error";
 import { generateUUID } from '@/lib/utils';
+import { applyListPriority, LIST_PRIORITY_PROPERTIES } from '@/lib/message-priority';
 import { isStandInId, standInsIn, withRealIds, withStandInsBack } from './stand-in-ids';
 import { isLocalBlobId } from '@/lib/store/outbox/items';
 import { UNDO_HOLD_MARGIN_SECONDS, undoDelaySeconds } from '@/lib/outgoing/undo-delay';
@@ -33,6 +34,7 @@ import { fileNodeDepth } from "./filenode-depth";
 import { contactFromWire, contactToWire } from "./contact-wire";
 import { SchedulingDeniedError } from "./scheduling-error";
 import { jmapError, jmapErrorFailedIds, jmapErrorType, jmapSetError, type JmapError, type JmapErrorInfo } from "./jmap-error";
+import { markUploadRefused, uploadRefusedError } from "./upload-errors";
 import { isServerSetKeyword } from "./server-keywords";
 import { PrincipalsRequestError } from "./principals-error";
 import { buildShareSetCalls, failAll, parseShareTargets, readShareSetResults, SET_METHOD, type ShareChange, type ShareChangeResult, type ShareTarget } from "./share-batch";
@@ -230,10 +232,16 @@ function reportMethodErrors(methodCalls: JMAPMethodCall[], response: JMAPRespons
 
 export class RateLimitError extends Error {
   retryAfterMs: number;
-  constructor(retryAfterMs: number) {
+  /**
+   * The answer's Retry-After as sent (null without one); undefined when no
+   * request went out because the client was still waiting from an earlier 429.
+   */
+  retryAfterHeader?: string | null;
+  constructor(retryAfterMs: number, retryAfterHeader?: string | null) {
     super('Rate limited by server');
     this.name = 'RateLimitError';
     this.retryAfterMs = retryAfterMs;
+    this.retryAfterHeader = retryAfterHeader;
   }
 }
 
@@ -537,6 +545,8 @@ const EMAIL_LIST_PROPERTIES = [
   "header:Authentication-Results:all",
   // Whose those results are: only the receiving server's count (#1740).
   "header:Received:all",
+  // X-Priority and Importance, for the high/low priority mark on rows (#1809).
+  ...LIST_PRIORITY_PROPERTIES,
 ] as const;
 
 function headerStrings(raw: unknown): string[] | undefined {
@@ -551,11 +561,13 @@ function headerStrings(raw: unknown): string[] | undefined {
  * topAuthenticationResultsOnReceipt); the rest, and all of a message from an
  * imported file, are left out and marked authenticationResultsIgnored. A row
  * without the Received lines (the offline store keeps only what it synced)
- * is judged by its results alone, as before.
+ * is judged by its results alone, as before. The priority headers become
+ * `priority` (applyListPriority).
  */
 function applyListAuthenticationResults(emails: Email[]): Email[] {
   for (const email of emails) {
     const record = email as unknown as Record<string, unknown>;
+    applyListPriority(record);
     const headers = headerStrings(record["header:Authentication-Results:all"]);
     const received = headerStrings(record["header:Received:all"]);
     delete record["header:Authentication-Results:all"];
@@ -1023,6 +1035,43 @@ function threadCountsFrom(methodResponse: unknown): Record<string, number> | und
   return counts;
 }
 
+/**
+ * How many of the account's drafts a list page reads the conversations of
+ * (#1798). A draft beyond them leaves its row without the "Draft" marker.
+ */
+export const DRAFT_THREADS_LIMIT = 200;
+
+/**
+ * Draft id -> thread id from the Email/get chained onto a list request
+ * (#1798); undefined when the server did not answer it.
+ */
+function draftThreadsFrom(methodResponses: unknown[] | undefined): Record<string, string> | undefined {
+  const answer = methodResponses?.find((r) => Array.isArray(r) && r[2] === "draftThreads") as [string, { list?: Email[] }] | undefined;
+  if (!answer || answer[0] !== "Email/get" || !Array.isArray(answer[1]?.list)) return undefined;
+  const threads: Record<string, string> = {};
+  for (const draft of answer[1].list) {
+    if (typeof draft.id === "string" && typeof draft.threadId === "string") threads[draft.id] = draft.threadId;
+  }
+  return threads;
+}
+
+/** The calls that read the account's drafts and their conversations (#1798). */
+function draftThreadCalls(accountId: string): JMAPMethodCall[] {
+  return [
+    ["Email/query", {
+      accountId,
+      filter: { hasKeyword: "$draft" },
+      sort: [{ property: "receivedAt", isAscending: false }],
+      limit: DRAFT_THREADS_LIMIT,
+    }, "draftIds"],
+    ["Email/get", {
+      accountId,
+      "#ids": { resultOf: "draftIds", name: "Email/query", path: "/ids" },
+      properties: ["id", "threadId"],
+    }, "draftThreads"],
+  ];
+}
+
 function computeHasMore(position: number, emailCount: number, total: number, limit: number): boolean {
   if (total > 0) return (position + emailCount) < total;
   return emailCount === limit;
@@ -1420,21 +1469,36 @@ export function prunableSubmissionIds(
     .map((submission) => submission.id);
 }
 
-function isSmimeEmail(email: Email): boolean {
-  const types: string[] = [];
-  const collect = (part: Email['bodyStructure']): void => {
-    if (!part) return;
-    if (part.type) types.push(part.type.toLowerCase());
-    part.subParts?.forEach(collect);
-  };
-  collect(email.bodyStructure);
-  email.attachments?.forEach(att => types.push((att.type || '').toLowerCase()));
-  return types.some(type =>
-    type.includes('pkcs7') ||
-    type.includes('x-pkcs7') ||
-    type === 'application/pkcs7-mime' ||
-    type === 'application/pkcs7-signature'
-  );
+const PKCS7_MIME = new Set(['application/pkcs7-mime', 'application/x-pkcs7-mime']);
+const PKCS7_SIGNATURE = new Set(['application/pkcs7-signature', 'application/x-pkcs7-signature']);
+const mediaType = (type: string | undefined): string => (type ?? '').split(';')[0].trim().toLowerCase();
+
+/**
+ * Whether a scheduled message is S/MIME as a whole, which a cancelled send
+ * can't bring back as a draft: the plugin has to sign or encrypt it again.
+ * The message's own type decides, as in the S/MIME plugin, which builds
+ * and reads S/MIME at the top level only:
+ *
+ * - encrypted or opaque signed: the message itself is application/pkcs7-mime;
+ * - detached signed: the message itself is multipart/signed and holds a
+ *   pkcs7 signature part;
+ * - without a body structure from the server: every attachment listed is
+ *   pkcs7-mime.
+ *
+ * A pkcs7 type further down decides nothing: a certificate chain (.p7b),
+ * the smime.p7s of a forwarded signed message, a .p7m file sent along or a
+ * signed part inside another multipart belong to an ordinary message,
+ * which "Cancel and edit" has to restore, not delete.
+ */
+export function isSmimeEmail(email: Pick<Email, 'bodyStructure' | 'attachments'>): boolean {
+  const root = email.bodyStructure;
+  if (!root) {
+    const attachments = email.attachments ?? [];
+    return attachments.length > 0 && attachments.every((att) => PKCS7_MIME.has(mediaType(att.type)));
+  }
+  if (PKCS7_MIME.has(mediaType(root.type))) return true;
+  return mediaType(root.type) === 'multipart/signed'
+    && (root.subParts ?? []).some((sub) => PKCS7_SIGNATURE.has(mediaType(sub.type)));
 }
 
 /**
@@ -2048,7 +2112,7 @@ export class JMAPClient implements IJMAPClient {
     if (response.status === 429) {
       const retryAfterMs = JMAPClient.parseRetryAfter(response);
       if (!opts?.transfer) this.setRateLimited(retryAfterMs);
-      throw new RateLimitError(retryAfterMs);
+      throw new RateLimitError(retryAfterMs, response.headers.get('Retry-After'));
     }
 
     // Only the session and the API URL: an upload or a download may be refused
@@ -3151,7 +3215,7 @@ export class JMAPClient implements IJMAPClient {
   // Throws when the page cannot be read. Answering with an empty page made a
   // failed refresh empty the list, and callers could not tell it from an
   // empty folder.
-  async getEmails(mailboxId?: string, accountId?: string, limit: number = 50, position: number = 0, hasKeyword?: string, pinnedFirst?: boolean, extraFilter?: Record<string, unknown>, order: SortLevel[] = []): Promise<{ emails: Email[], hasMore: boolean, total: number, state?: string, threadCounts?: Record<string, number> }> {
+  async getEmails(mailboxId?: string, accountId?: string, limit: number = 50, position: number = 0, hasKeyword?: string, pinnedFirst?: boolean, extraFilter?: Record<string, unknown>, order: SortLevel[] = []): Promise<{ emails: Email[], hasMore: boolean, total: number, state?: string, threadCounts?: Record<string, number>, draftThreads?: Record<string, string> }> {
     const targetAccountId = accountId || this.accountId;
     const simple: { inMailbox?: string; hasKeyword?: string } = {};
     if (mailboxId) {
@@ -3181,6 +3245,9 @@ export class JMAPClient implements IJMAPClient {
     const built = rider
       ? { sort: buildEmailSort(order, { pinnedFirst, polarity: rider.guess }), keywordSortSupported: true }
       : await this.buildListSort(targetAccountId, pinnedFirst === true, order);
+    // The drafts' conversations ride along only where the server takes the
+    // calls: the list, the drafts' two and the sort probe's.
+    const withDraftThreads = this.getMaxCallsInRequest() >= 5 + (rider?.calls.length ?? 0);
     const query = (sort: ReturnType<typeof buildEmailSort>, extra: JMAPMethodCall[] = []) => this.request([
       ["Email/query", {
         accountId: targetAccountId,
@@ -3202,6 +3269,10 @@ export class JMAPClient implements IJMAPClient {
         accountId: targetAccountId,
         "#ids": { resultOf: "1", name: "Email/get", path: "/list/*/threadId" },
       }, "2"],
+      // The conversations the account's drafts belong to, for the list's
+      // "Draft" marker (#1798): one keyword query for the whole page, its
+      // size bounded by the number of drafts, in the same round trip.
+      ...(withDraftThreads ? draftThreadCalls(targetAccountId) : []),
       ...extra,
     ]);
 
@@ -3264,10 +3335,20 @@ export class JMAPClient implements IJMAPClient {
       // The Email collection state this page was read at; the store keeps
       // it so a later push can be applied with Email/changes.
       const state = typeof getResponse.state === 'string' ? getResponse.state : undefined;
-      return { emails, hasMore, total, state, threadCounts: threadCountsFrom(response.methodResponses?.[2]) };
+      return {
+        emails, hasMore, total, state,
+        threadCounts: threadCountsFrom(response.methodResponses?.[2]),
+        draftThreads: draftThreadsFrom(response.methodResponses),
+      };
     }
 
     throw new Error(methodErrorMessage(response, 'Failed to get emails'));
+  }
+
+  /** The account's drafts and their conversations (#1798), for a list shown without reading a page. */
+  async getDraftThreads(accountId?: string): Promise<Record<string, string> | undefined> {
+    const response = await this.request(draftThreadCalls(accountId || this.accountId));
+    return draftThreadsFrom(response.methodResponses);
   }
 
   async getEmailsInMailbox(mailboxId: string): Promise<Email[]> {
@@ -4433,6 +4514,16 @@ export class JMAPClient implements IJMAPClient {
     }
   }
 
+  async addEmailToMailbox(emailId: string, mailboxId: string, accountId?: string): Promise<void> {
+    const response = await this.request([
+      ["Email/set", {
+        accountId: accountId || this.accountId,
+        update: { [emailId]: { [`mailboxIds/${pointerToken(mailboxId)}`]: true } },
+      }, "0"],
+    ]);
+    assertSetSucceeded(response, 'Failed to add to folder');
+  }
+
   async removeEmailsFromMailbox(emailIds: string[], mailboxId: string, accountId?: string): Promise<void> {
     if (emailIds.length === 0) return;
     // A pointer patch, not a full mailboxIds replacement: the other mailboxes
@@ -4465,43 +4556,69 @@ export class JMAPClient implements IJMAPClient {
   async emptyMailbox(mailboxId: string, accountId?: string): Promise<number> {
     const targetAccountId = accountId || this.accountId;
     const batchSize = Math.min(500, this.getMaxObjectsInSet());
-    let totalDestroyed = 0;
+    const destroyedIds: string[] = [];
+    const notDestroyed: Record<string, JmapErrorInfo> = {};
+    let unknownIds: string[] = [];
+    let refusal: unknown;
 
-    // Destroy in batches until the mailbox is empty. Never gate the loop on
-    // Email/query's `total`: it is only guaranteed when `calculateTotal` is
-    // requested, and Stalwart omits it otherwise, which used to stop the loop
-    // after the first batch and leave folders with >500 emails mostly intact.
-    while (true) {
-      const response = await this.request([
-        ["Email/query", {
-          accountId: targetAccountId,
-          filter: { inMailbox: mailboxId },
-          limit: batchSize,
-        }, "0"],
-        ["Email/set", {
-          accountId: targetAccountId,
-          "#destroy": { resultOf: "0", name: "Email/query", path: "/ids" },
-        }, "1"],
-      ]);
+    // A short page is the tail only after every destroy in it was confirmed.
+    // Email/query can omit total, so a full page always needs another query.
+    // Messages the server refuses stay in the folder and come back in the next
+    // page: keep going while a page deletes something, so one refused message
+    // doesn't keep the rest of the folder.
+    try {
+      while (true) {
+        unknownIds = [];
+        const response = await this.request([
+          ["Email/query", {
+            accountId: targetAccountId,
+            filter: { inMailbox: mailboxId },
+            limit: batchSize,
+          }, "0"],
+          ["Email/set", {
+            accountId: targetAccountId,
+            "#destroy": { resultOf: "0", name: "Email/query", path: "/ids" },
+          }, "1"],
+        ]);
 
-      const queryResult = response.methodResponses?.[0]?.[1];
-      const setResult = response.methodResponses?.[1]?.[1];
-      const found: string[] = queryResult?.ids || [];
-      const destroyed = setResult?.destroyed?.length || 0;
-      totalDestroyed += destroyed;
-
-      if (found.length === 0) break;
-      // The server refused everything in this batch (missing permission,
-      // immutable mail): say so, instead of reporting the folder as emptied.
-      if (destroyed === 0) {
-        assertSetSucceeded(response, 'Failed to empty folder');
-        throw new Error('Failed to empty folder');
+        const [queryName, query] = response.methodResponses?.find(([, , tag]) => tag === "0") ?? [];
+        const [setName, result] = response.methodResponses?.find(([, , tag]) => tag === "1") ?? [];
+        const ids: string[] | undefined = queryName === "Email/query" && Array.isArray(query?.ids) ? query.ids : undefined;
+        const refused: Record<string, JmapErrorInfo> = (setName === "Email/set" && result?.notDestroyed) || {};
+        const destroyed = new Set<string>(setName === "Email/set" && Array.isArray(result?.destroyed) ? result.destroyed : []);
+        let destroyedNow = 0;
+        for (const id of ids ?? []) {
+          if (Object.hasOwn(refused, id)) {
+            notDestroyed[id] = refused[id];
+          } else if (destroyed.has(id)) {
+            delete notDestroyed[id];
+            destroyedIds.push(id);
+            destroyedNow++;
+          } else {
+            unknownIds.push(id);
+          }
+        }
+        if (!ids || setName !== "Email/set" || unknownIds.length > 0) {
+          assertSetSucceeded(response, 'Failed to empty folder');
+          throw new Error('Failed to empty folder');
+        }
+        try {
+          assertSetSucceeded(response, 'Failed to empty folder');
+        } catch (error) {
+          refusal = error;
+        }
+        if (ids.length < batchSize || destroyedNow === 0) break;
       }
-      // A short page means we just handled the tail of the mailbox.
-      if (found.length < batchSize) break;
+    } catch (error) {
+      if (destroyedIds.length === 0) throw error;
+      // The current page's ids are unavailable if its response was lost.
+      throw new IncompleteDeleteError({ destroyedIds, notDestroyed, unknownIds, unattemptedIds: [] }, error);
     }
-
-    return totalDestroyed;
+    if (refusal) {
+      if (destroyedIds.length === 0) throw refusal;
+      throw new IncompleteDeleteError({ destroyedIds, notDestroyed, unknownIds: [], unattemptedIds: [] }, refusal);
+    }
+    return destroyedIds.length;
   }
 
   async moveMailboxContents(
@@ -4514,37 +4631,70 @@ export class JMAPClient implements IJMAPClient {
     const batchSize = Math.min(500, this.getMaxObjectsInGet(), this.getMaxObjectsInSet());
     const patch: Record<string, unknown> = { mailboxIds: { [toMailboxId]: true } };
     if (markAsRead) patch["keywords/$seen"] = true;
-    let totalMoved = 0;
+    const movedIds: string[] = [];
+    const notMoved: Record<string, JmapErrorInfo> = {};
+    let refusal: unknown;
 
     // Moved emails leave the folder, so the next query returns the next page.
     // `update` is keyed by id and cannot take a result reference, hence the
-    // separate query per batch.
-    while (true) {
-      const queryResponse = await this.request([
-        ["Email/query", {
-          accountId: targetAccountId,
-          filter: { inMailbox: fromMailboxId },
-          limit: batchSize,
-        }, "0"],
-      ]);
-      const ids: string[] = queryResponse.methodResponses?.[0]?.[1]?.ids || [];
-      if (ids.length === 0) break;
+    // separate query per batch. As in emptyMailbox, messages the server
+    // refuses stay and come back in the next page: keep going while a page
+    // moves something, and report what moved (IncompleteDeleteError), so one
+    // refused message doesn't keep the rest of the folder.
+    try {
+      while (true) {
+        const queryResponse = await this.request([
+          ["Email/query", {
+            accountId: targetAccountId,
+            filter: { inMailbox: fromMailboxId },
+            limit: batchSize,
+          }, "0"],
+        ]);
+        const ids: string[] = queryResponse.methodResponses?.[0]?.[1]?.ids || [];
+        if (ids.length === 0) break;
 
-      // A refused update leaves the ids in the folder, and the next query
-      // would return them again forever.
-      const setResponse = await this.request([
-        ["Email/set", {
-          accountId: targetAccountId,
-          update: Object.fromEntries(ids.map(id => [id, patch])),
-        }, "0"],
-      ]);
-      this.assertEmailSetSucceeded(setResponse, 'move the folder contents');
-
-      totalMoved += ids.length;
-      if (ids.length < batchSize) break;
+        const setResponse = await this.request([
+          ["Email/set", {
+            accountId: targetAccountId,
+            update: Object.fromEntries(ids.map(id => [id, patch])),
+          }, "0"],
+        ]);
+        const [setName, result] = setResponse.methodResponses?.[0] ?? [];
+        const updated: Record<string, unknown> = (setName === "Email/set" && result?.updated) || {};
+        const refused: Record<string, JmapErrorInfo> = (setName === "Email/set" && result?.notUpdated) || {};
+        let movedNow = 0;
+        let unconfirmed = setName !== "Email/set";
+        for (const id of ids) {
+          if (Object.hasOwn(refused, id)) {
+            notMoved[id] = refused[id];
+          } else if (Object.hasOwn(updated, id)) {
+            delete notMoved[id];
+            movedIds.push(id);
+            movedNow++;
+          } else {
+            unconfirmed = true;
+          }
+        }
+        if (unconfirmed) {
+          this.assertEmailSetSucceeded(setResponse, 'move the folder contents');
+          throw new Error('Failed to move the folder contents');
+        }
+        try {
+          this.assertEmailSetSucceeded(setResponse, 'move the folder contents');
+        } catch (error) {
+          refusal = error;
+        }
+        if (ids.length < batchSize || movedNow === 0) break;
+      }
+    } catch (error) {
+      if (movedIds.length === 0) throw error;
+      throw new IncompleteDeleteError({ destroyedIds: movedIds, notDestroyed: notMoved, unknownIds: [], unattemptedIds: [] }, error);
     }
-
-    return totalMoved;
+    if (refusal) {
+      if (movedIds.length === 0) throw refusal;
+      throw new IncompleteDeleteError({ destroyedIds: movedIds, notDestroyed: notMoved, unknownIds: [], unattemptedIds: [] }, refusal);
+    }
+    return movedIds.length;
   }
 
   async markMailboxAsRead(mailboxId: string, accountId?: string): Promise<number> {
@@ -6713,7 +6863,8 @@ export class JMAPClient implements IJMAPClient {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(xhr.responseText);
         } else {
-          reject(new Error(`Failed to upload file: ${xhr.status} - ${xhr.responseText}`));
+          // Retry-After only counts for 429: too many uploads.
+          reject(uploadRefusedError(xhr.status, xhr.responseText, xhr.status === 429 ? xhr.getResponseHeader('Retry-After') : null));
         }
       });
       xhr.onerror = () => settle(() => reject(new Error('Upload network error')));
@@ -6793,10 +6944,16 @@ export class JMAPClient implements IJMAPClient {
           method: 'POST',
           headers: { 'Content-Type': file.type || 'application/octet-stream' },
           body: file,
-        }, { timeoutMs: JMAPClient.TRANSFER_TIMEOUT_MS });
+        }, { timeoutMs: JMAPClient.TRANSFER_TIMEOUT_MS }).catch((error: unknown) => {
+          // The server answered this upload with 429: too many uploads.
+          if (error instanceof RateLimitError && error.retryAfterHeader !== undefined) {
+            markUploadRefused(error, 429, error.retryAfterHeader);
+          }
+          throw error;
+        });
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Failed to upload file: ${response.status} - ${errorText}`);
+          throw uploadRefusedError(response.status, errorText, response.headers.get('Retry-After'));
         }
         responseText = await response.text();
       }
@@ -12508,6 +12665,8 @@ export class JMAPClient implements IJMAPClient {
     envelopeRecipients?: string[],
     /** The offline outbox found this message's copy on the server: submit that one. */
     existingCopyId?: string,
+    /** Delivery notifications and required TLS, as the composer set them for the send a plugin completes. */
+    submission?: Pick<SubmissionSendOptions, 'requestDsn' | 'requireTls'>,
   ): Promise<SendEmailResult> {
     const holdForSeconds = delayedUntil ? this.validateDelayedUntil(delayedUntil) : undefined;
     // Upload the raw message
@@ -12519,7 +12678,7 @@ export class JMAPClient implements IJMAPClient {
     const importMailboxId = draftMailboxId || sentMailboxId;
     const identities = await this.beforeSubmission(() => this.getIdentities());
     const identity = identities.find(item => item.id === identityId);
-    const envelope = createDelayedSubmissionEnvelope(identity?.email || this.username, holdForSeconds, envelopeRecipients);
+    const envelope = createDelayedSubmissionEnvelope(identity?.email || this.username, holdForSeconds, envelopeRecipients, submission);
     // These raw/S-MIME paths submit through the primary submission account, so
     // report that as the owning account rather than leaving it unset.
     const submissionAccountId = this.getSubmissionAccountId();
@@ -12580,6 +12739,8 @@ export class JMAPClient implements IJMAPClient {
     envelopeRecipients?: string[],
     /** The offline outbox found this message's copy on the server: submit that one. */
     existingCopyId?: string,
+    /** As on sendRawEmail. */
+    submission?: Pick<SubmissionSendOptions, 'requestDsn' | 'requireTls'>,
   ): Promise<SendEmailResult> {
     const mailboxes = await this.beforeSubmission(() => this.getMailboxes());
     const draftsMailbox = mailboxes.find(mb => mb.role === 'drafts');
@@ -12594,7 +12755,7 @@ export class JMAPClient implements IJMAPClient {
 
     const identities = await this.beforeSubmission(() => this.getIdentities());
     const identity = identities.find(item => item.id === identityId);
-    const envelope = createDelayedSubmissionEnvelope(identity?.email || this.username, holdForSeconds, envelopeRecipients);
+    const envelope = createDelayedSubmissionEnvelope(identity?.email || this.username, holdForSeconds, envelopeRecipients, submission);
     const submissionAccountId = this.getSubmissionAccountId();
 
     //Temporarily import the raw email into Drafts to satisfy JMAP's requirement that an EmailSubmission references an existing Email.

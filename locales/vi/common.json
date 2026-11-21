@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Chưa đọc",
       "everything_else": "Các thư còn lại",
-      "unread_empty": "Bạn đã đọc tất cả thư trong hộp thư đến của mình."
+      "unread_empty": "Bạn đã đọc tất cả thư trong hộp thư đến của mình.",
+      "unread_newer": "Thư chưa đọc mới hơn",
+      "unread_older": "Thư chưa đọc cũ hơn"
     },
     "columns": {
       "from": "Từ",
@@ -381,6 +383,8 @@
     "replied": "Đã trả lời",
     "forwarded": "Đã chuyển tiếp",
     "has_attachment": "Có tệp đính kèm",
+    "high_importance": "Mức quan trọng cao",
+    "low_importance": "Mức quan trọng thấp",
     "conversations_range": "{from}–{to, number} trong số {total, number}",
     "conversations_count": "{count} trong số {total} cuộc trò chuyện",
     "conversations_count_plus": "{count}+ cuộc trò chuyện",
@@ -1111,6 +1115,12 @@
     "option_priority_high": "Cao",
     "option_priority_normal": "Bình thường",
     "option_priority_low": "Thấp",
+    "file_in": "Lưu vào thư mục",
+    "file_in_chosen": "Lưu vào {folder}",
+    "file_in_hint": "Sau khi gửi, thư của bạn và thư bạn trả lời sẽ chuyển vào thư mục này",
+    "file_in_none": "Không lưu",
+    "file_in_failed": "Đã gửi, nhưng không thể lưu vào {folder}.",
+    "file_in_reply_elsewhere": "Đã chuyển thư gốc vào {folder}. Thư trả lời vẫn ở mục Đã gửi vì được gửi từ tài khoản khác.",
     "validation": {
       "recipient_required": "Thêm người nhận để gửi",
       "body_required": "Viết nội dung thư hoặc đính kèm tệp",
@@ -1309,6 +1319,10 @@
       "edit": "Chỉnh sửa mô tả hình ảnh",
       "plain_text": "[Hình ảnh: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Quá nhiều lượt tải lên. Hãy thử lại sau {minutes, plural, other {# phút}}.",
+    "retry_later": "Quá nhiều lượt tải lên. Hãy thử lại sau."
   },
   "attachment_rename": {
     "rename": "Đổi tên",
@@ -2162,6 +2176,12 @@
         "label": "Trả lời nhanh",
         "description": "Hiển thị khung trả lời nhanh bên dưới thư."
       },
+      "reply_quote": {
+        "label": "Văn bản trích dẫn trong thư trả lời",
+        "description": "Thu gọn ẩn các thư được trích dẫn sau •••. Mở rộng hiển thị đầy đủ khi bạn mở thư trả lời.",
+        "collapsed": "Thu gọn",
+        "expanded": "Mở rộng"
+      },
       "auto_select_reply_identity": {
         "label": "Trả lời bằng địa chỉ nhận thư",
         "description": "Khi trả lời, gửi từ địa chỉ mà thư đã được gửi đến."
@@ -2319,6 +2339,12 @@
       "mark_read_on_reply": {
         "label": "Đánh dấu đã đọc khi tôi trả lời hoặc chuyển tiếp",
         "description": "Thư bạn trả lời hoặc chuyển tiếp sẽ được đánh dấu đã đọc, kể cả khi thư không bao giờ được đánh dấu đã đọc lúc mở."
+      },
+      "message_double_click": {
+        "label": "Nhấp đúp vào thư",
+        "description": "Điều xảy ra khi nhấp đúp vào một thư trong danh sách.",
+        "reading_pane": "Mở trong ngăn đọc",
+        "new_window": "Mở trong cửa sổ mới"
       },
       "return_to_list_after_action": {
         "label": "Quay lại danh sách sau khi xóa hoặc đánh dấu chưa đọc",
@@ -4024,6 +4050,7 @@
     "items_selected": "{count} email đã chọn",
     "forward_as_attachments": "Chuyển tiếp dưới dạng tệp đính kèm",
     "edit_draft": "Chỉnh sửa bản nháp",
+    "edit_as_new": "Chỉnh sửa thành thư mới",
     "cancel_scheduled_send": "Hủy gửi",
     "reschedule_send": "Lên lịch lại",
     "cancel_and_edit": "Hủy và chỉnh sửa",
@@ -4124,6 +4151,12 @@
     "empty_spam": "Dọn sạch Thư rác",
     "empty_trash_confirm": "Xóa vĩnh viễn {count, plural, other {tất cả # thư}} trong Thùng rác? Không thể hoàn tác.",
     "empty_spam_confirm": "Xóa vĩnh viễn {count, plural, other {tất cả # thư}} trong Thư rác? Không thể hoàn tác.",
+    "empty_folder": "Làm trống thư mục…",
+    "empty_folder_title": "Làm trống {folder}?",
+    "empty_folder_confirm_trash": "Chuyển {count, plural, other {tất cả # thư}} trong {folder} vào Thùng rác?",
+    "empty_folder_confirm_delete": "Xóa vĩnh viễn {count, plural, other {tất cả # thư}} trong {folder}? Không thể hoàn tác.",
+    "empty_folder_move": "Chuyển vào Thùng rác",
+    "empty_folder_delete": "Xóa vĩnh viễn",
     "title_all_accounts": "{name} ({count}, {total} trong mọi tài khoản)",
     "title_all_accounts_only": "{name} ({total} trong mọi tài khoản)"
   },
@@ -4631,6 +4664,9 @@
       "phone_pager": "Máy nhắn tin",
       "phone_video": "Video",
       "phone_text": "Văn bản",
+      "phone_custom": "Tùy chỉnh…",
+      "phone_custom_label": "Loại tùy chỉnh",
+      "phone_custom_placeholder": "vd: Xe hơi",
       "organization": "Tổ chức",
       "organization_placeholder": "Tên công ty",
       "department": "Phòng ban",
@@ -5876,6 +5912,7 @@
     "search": "Tìm kiếm",
     "not_starred": "Không được gắn dấu sao",
     "no_attachment": "Không có tệp đính kèm",
+    "no_tags": "Không có thẻ",
     "any_time": "Bất cứ lúc nào",
     "past_week": "Tuần trước",
     "past_month": "Tháng trước",
@@ -7123,6 +7160,10 @@
       "email_forward": {
         "title": "Chuyển tiếp thư của bạn",
         "body": "Chuyển tiếp thư từ tài khoản của bạn cùng tệp đính kèm mà không mở khung soạn thư. Plugin sẽ hỏi trước khi chuyển tiếp lần đầu đến từng địa chỉ."
+      },
+      "ui_notices": {
+        "title": "Hiển thị khung thông báo",
+        "body": "Hiển thị một bảng nhỏ của riêng nó ở cuối màn hình, nơi các tin nhắn của ứng dụng xuất hiện, ví dụ khi có cuộc gọi đến. Nó không chặn trang, bạn có thể tiếp tục gõ và đóng nó. Mỗi thông báo đều nêu tên plugin."
       },
       "ui_notifications": {
         "title": "Hiển thị thông báo",

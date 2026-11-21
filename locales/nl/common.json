@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Ongelezen",
       "everything_else": "Al het andere",
-      "unread_empty": "Je hebt alle berichten in je inbox gelezen."
+      "unread_empty": "Je hebt alle berichten in je inbox gelezen.",
+      "unread_newer": "Nieuwere ongelezen",
+      "unread_older": "Oudere ongelezen"
     },
     "columns": {
       "from": "Van",
@@ -381,6 +383,8 @@
     "replied": "Beantwoord",
     "forwarded": "Doorgestuurd",
     "has_attachment": "Met bijlage",
+    "high_importance": "Hoge urgentie",
+    "low_importance": "Lage urgentie",
     "conversations_range": "{from}–{to, number} van {total, number}",
     "conversations_count": "{count} van {total} gesprekken",
     "conversations_count_plus": "{count}+ gesprekken",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Hoog",
     "option_priority_normal": "Normaal",
     "option_priority_low": "Laag",
+    "file_in": "In map opbergen",
+    "file_in_chosen": "Opbergen in {folder}",
+    "file_in_hint": "Na verzenden gaan je bericht en het bericht waarop je antwoordt naar deze map",
+    "file_in_none": "Niet opbergen",
+    "file_in_failed": "Verzonden, maar opbergen in {folder} is mislukt.",
+    "file_in_reply_elsewhere": "Origineel verplaatst naar {folder}. Je antwoord blijft in Verzonden, omdat het vanaf een ander account is verstuurd.",
     "validation": {
       "recipient_required": "Voeg een ontvanger toe om te verzenden",
       "body_required": "Schrijf een bericht of voeg een bestand toe",
@@ -1297,6 +1307,10 @@
       "edit": "Beschrijving van de afbeelding bewerken",
       "plain_text": "[Afbeelding: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Te veel uploads. Probeer het over {minutes, plural, one {# minuut} other {# minuten}} opnieuw.",
+    "retry_later": "Te veel uploads. Probeer het later opnieuw."
   },
   "attachment_rename": {
     "rename": "Naam wijzigen",
@@ -2130,6 +2144,12 @@
         "label": "Snel antwoorden",
         "description": "Het vak voor snel antwoorden onder berichten tonen."
       },
+      "reply_quote": {
+        "label": "Geciteerde tekst in antwoorden",
+        "description": "Ingeklapt verbergt de geciteerde berichten achter •••. Uitgeklapt toont ze volledig als u een antwoord opent.",
+        "collapsed": "Ingeklapt",
+        "expanded": "Uitgeklapt"
+      },
       "auto_select_reply_identity": {
         "label": "Antwoordadres automatisch selecteren",
         "description": "Bij beantwoorden verzenden vanaf het adres waarnaar het bericht is gestuurd."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Als gelezen markeren wanneer ik antwoord of doorstuur",
         "description": "Een bericht dat u beantwoordt of doorstuurt, wordt als gelezen gemarkeerd, ook als berichten bij openen nooit als gelezen worden gemarkeerd."
+      },
+      "message_double_click": {
+        "label": "Dubbelklikken op een bericht",
+        "description": "Wat dubbelklikken op een bericht in de lijst doet.",
+        "reading_pane": "Openen in het leesvenster",
+        "new_window": "Openen in een nieuw venster"
       },
       "return_to_list_after_action": {
         "label": "Terug naar lijst na verwijderen, archiveren, verplaatsen of markeren als ongelezen",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-mails geselecteerd",
     "forward_as_attachments": "Doorsturen als bijlagen",
     "edit_draft": "Concept bewerken",
+    "edit_as_new": "Bewerken als nieuw",
     "cancel_scheduled_send": "Verzenden annuleren",
     "reschedule_send": "Opnieuw plannen",
     "cancel_and_edit": "Annuleren en bewerken",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Spam legen",
     "empty_trash_confirm": "{count, plural, one {Het bericht} other {Alle # berichten}} in de prullenbak definitief verwijderen? Dit kan niet ongedaan worden.",
     "empty_spam_confirm": "{count, plural, one {Het bericht} other {Alle # berichten}} in spam definitief verwijderen? Dit kan niet ongedaan worden.",
+    "empty_folder": "Map leegmaken…",
+    "empty_folder_title": "{folder} leegmaken?",
+    "empty_folder_confirm_trash": "{count, plural, one {Het bericht} other {Alle # berichten}} in {folder} naar de prullenbak verplaatsen?",
+    "empty_folder_confirm_delete": "{count, plural, one {Het bericht} other {Alle # berichten}} in {folder} definitief verwijderen? Dit kan niet ongedaan worden.",
+    "empty_folder_move": "Naar prullenbak",
+    "empty_folder_delete": "Definitief verwijderen",
     "title_all_accounts": "{name} ({count}, {total} in alle accounts)",
     "title_all_accounts_only": "{name} ({total} in alle accounts)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Pieper",
       "phone_video": "Video",
       "phone_text": "SMS",
+      "phone_custom": "Aangepast…",
+      "phone_custom_label": "Eigen type",
+      "phone_custom_placeholder": "bijv. Auto",
       "organization": "Organisatie",
       "organization_placeholder": "Bedrijfsnaam",
       "department": "Afdeling",
@@ -5575,6 +5611,7 @@
     "search": "Zoeken",
     "not_starred": "Zonder ster",
     "no_attachment": "Zonder bijlagen",
+    "no_tags": "Zonder labels",
     "any_time": "Altijd",
     "past_week": "Afgelopen week",
     "past_month": "Afgelopen maand",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Je e-mail doorsturen",
         "body": "Berichten uit je account met hun bijlagen doorsturen, zonder de editor te openen. Voor de eerste keer doorsturen naar een adres wordt het je gevraagd."
+      },
+      "ui_notices": {
+        "title": "Eigen meldingsvensters tonen",
+        "body": "Een klein eigen paneel onderaan het scherm tonen, waar ook de berichten van de app verschijnen, bijvoorbeeld bij een inkomend gesprek. Het blokkeert de pagina niet, u kunt verder typen en het sluiten. Elke melding noemt de plug-in."
       },
       "ui_notifications": {
         "title": "Meldingen tonen",

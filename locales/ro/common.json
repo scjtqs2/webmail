@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Necitite",
       "everything_else": "Toate celelalte",
-      "unread_empty": "Ai citit toate mesajele din inbox."
+      "unread_empty": "Ai citit toate mesajele din inbox.",
+      "unread_newer": "Necitite mai noi",
+      "unread_older": "Necitite mai vechi"
     },
     "columns": {
       "from": "De la",
@@ -381,6 +383,8 @@
     "replied": "Răspuns",
     "forwarded": "Redirecționat",
     "has_attachment": "Cu atașament",
+    "high_importance": "Importanță ridicată",
+    "low_importance": "Importanță scăzută",
     "conversations_range": "{from}–{to, number} din {total, number}",
     "conversations_count": "{count} din conversațiile de pe {total}",
     "conversations_count_plus": "{count}+ conversations",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Ridicată",
     "option_priority_normal": "Normală",
     "option_priority_low": "Scăzută",
+    "file_in": "Arhivează în dosar",
+    "file_in_chosen": "Arhivează în {folder}",
+    "file_in_hint": "După trimitere, mesajul tău și cel la care răspunzi ajung în acest dosar",
+    "file_in_none": "Nu arhiva",
+    "file_in_failed": "Trimis, dar nu a putut fi arhivat în {folder}.",
+    "file_in_reply_elsewhere": "Originalul a fost mutat în {folder}. Răspunsul rămâne în Trimise, deoarece a plecat din alt cont.",
     "validation": {
       "recipient_required": "Adăugați un destinatar căruia să îi trimiteți mesajul",
       "body_required": "Scrieți un mesaj sau atașați un fișier",
@@ -1297,6 +1307,10 @@
       "edit": "Editați descrierea imaginii",
       "plain_text": "[Imagine: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Prea multe încărcări. Încercați din nou peste {minutes, plural, one {# minut} few {# minute} other {# de minute}}.",
+    "retry_later": "Prea multe încărcări. Încercați din nou mai târziu."
   },
   "attachment_rename": {
     "rename": "Redenumește",
@@ -2150,6 +2164,12 @@
         "label": "Răspuns rapid",
         "description": "Afișează caseta de răspuns rapid sub mesaje."
       },
+      "reply_quote": {
+        "label": "Textul citat în răspunsuri",
+        "description": "Restrâns ascunde mesajele citate în spatele •••. Extins le afișează complet când deschideți un răspuns.",
+        "collapsed": "Restrâns",
+        "expanded": "Extins"
+      },
       "auto_select_reply_identity": {
         "label": "Răspunde de la adresa de la care a fost primit mesajul",
         "description": "Când răspundeți, trimiteți de la adresa la care a fost trimis mesajul."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Marchează ca citit când răspund sau redirecționez",
         "description": "Un mesaj la care răspundeți sau pe care îl redirecționați este marcat ca citit, chiar și când mesajele nu sunt niciodată marcate ca citite la deschidere."
+      },
+      "message_double_click": {
+        "label": "Dublu clic pe un mesaj",
+        "description": "Ce face un dublu clic pe un mesaj din listă.",
+        "reading_pane": "Deschide în panoul de citire",
+        "new_window": "Deschide într-o fereastră nouă"
       },
       "return_to_list_after_action": {
         "label": "Revenire la listă după ștergere, arhivare, mutare sau marcare ca necitit",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-mailuri selectate",
     "forward_as_attachments": "Redirecționează ca atașamente",
     "edit_draft": "Editează schița",
+    "edit_as_new": "Editează ca mesaj nou",
     "cancel_scheduled_send": "Anulează trimiterea",
     "reschedule_send": "Reprogramare",
     "cancel_and_edit": "Anulează și editează",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Golește spamul",
     "empty_trash_confirm": "Ștergeți definitiv {count, plural, one {mesajul} few {toate cele # mesaje} other {toate cele # de mesaje}} din coșul de gunoi? Nu se poate anula.",
     "empty_spam_confirm": "Ștergeți definitiv {count, plural, one {mesajul} few {toate cele # mesaje} other {toate cele # de mesaje}} din spam? Nu se poate anula.",
+    "empty_folder": "Golește dosarul…",
+    "empty_folder_title": "Goliți {folder}?",
+    "empty_folder_confirm_trash": "Mutați {count, plural, one {mesajul} few {toate cele # mesaje} other {toate cele # de mesaje}} din {folder} în coșul de gunoi?",
+    "empty_folder_confirm_delete": "Ștergeți definitiv {count, plural, one {mesajul} few {toate cele # mesaje} other {toate cele # de mesaje}} din {folder}? Nu se poate anula.",
+    "empty_folder_move": "Mută în coșul de gunoi",
+    "empty_folder_delete": "Șterge definitiv",
     "title_all_accounts": "{name} ({count}, {total} în toate conturile)",
     "title_all_accounts_only": "{name} ({total} în toate conturile)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Pager",
       "phone_video": "Video",
       "phone_text": "Text",
+      "phone_custom": "Personalizat…",
+      "phone_custom_label": "Tip personalizat",
+      "phone_custom_placeholder": "de ex., Mașină",
       "organization": "Organizare",
       "organization_placeholder": "Numele companiei",
       "department": "Departament",
@@ -5864,6 +5900,7 @@
     "search": "Caută",
     "not_starred": "Fără stea",
     "no_attachment": "Fără anexe",
+    "no_tags": "Fără etichete",
     "any_time": "Oricând",
     "past_week": "Ultima săptămână",
     "past_month": "Ultima lună",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Redirecționarea mesajelor dvs.",
         "body": "Redirecționează mesaje din contul dvs. împreună cu atașamentele, fără a deschide editorul. Sunteți întrebat înainte de prima redirecționare către fiecare adresă."
+      },
+      "ui_notices": {
+        "title": "Afișare panouri de notificare",
+        "body": "Afișează un mic panou propriu în partea de jos a ecranului, unde apar mesajele aplicației, de exemplu pentru un apel primit. Nu blochează pagina, puteți continua să scrieți și îl puteți închide. Fiecare numește pluginul."
       },
       "ui_notifications": {
         "title": "Afișarea notificărilor",

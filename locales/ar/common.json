@@ -353,7 +353,9 @@
     "sections": {
       "unread": "غير مقروءة",
       "everything_else": "كل الرسائل الأخرى",
-      "unread_empty": "لقد قرأت كل الرسائل في صندوق الوارد."
+      "unread_empty": "لقد قرأت كل الرسائل في صندوق الوارد.",
+      "unread_newer": "غير المقروءة الأحدث",
+      "unread_older": "غير المقروءة الأقدم"
     },
     "columns": {
       "from": "من",
@@ -381,6 +383,8 @@
     "replied": "تم الرد عليها",
     "forwarded": "تمت إعادة توجيهها",
     "has_attachment": "تحتوي على مرفق",
+    "high_importance": "أهمية عالية",
+    "low_importance": "أهمية منخفضة",
     "conversations_range": "{from}–{to, number} من {total, number}",
     "conversations_count": "{count} من {total} محادثة",
     "conversations_count_plus": "{count}+ محادثة",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "عالية",
     "option_priority_normal": "عادية",
     "option_priority_low": "منخفضة",
+    "file_in": "حفظ في مجلد",
+    "file_in_chosen": "حفظ في {folder}",
+    "file_in_hint": "بعد الإرسال، تنتقل رسالتك والرسالة التي ترد عليها إلى هذا المجلد",
+    "file_in_none": "بدون حفظ",
+    "file_in_failed": "تم الإرسال، لكن تعذّر الحفظ في {folder}.",
+    "file_in_reply_elsewhere": "نُقلت الرسالة الأصلية إلى {folder}. يبقى ردك في المرسلة لأنه أُرسل من حساب آخر.",
     "validation": {
       "recipient_required": "أضف مستلمًا للإرسال",
       "body_required": "اكتب رسالة أو أرفق ملفًا",
@@ -1297,6 +1307,10 @@
       "edit": "تعديل وصف الصورة",
       "plain_text": "[صورة: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "عمليات رفع كثيرة جدًا. حاول مرة أخرى بعد {minutes, plural, zero {# دقيقة} one {دقيقة واحدة} two {دقيقتين} few {# دقائق} many {# دقيقة} other {# دقيقة}}.",
+    "retry_later": "عمليات رفع كثيرة جدًا. حاول مرة أخرى لاحقًا."
   },
   "attachment_rename": {
     "rename": "إعادة التسمية",
@@ -2150,6 +2164,12 @@
         "label": "الرد السريع",
         "description": "إظهار مربع الرد السريع أسفل الرسائل."
       },
+      "reply_quote": {
+        "label": "النص المقتبس في الردود",
+        "description": "مطوي يخفي الرسائل المقتبسة خلف •••. موسّع يعرضها كاملة عند فتح رد.",
+        "collapsed": "مطوي",
+        "expanded": "موسّع"
+      },
       "auto_select_reply_identity": {
         "label": "الرد من العنوان المستلَم إليه",
         "description": "عند الرد، الإرسال من العنوان الذي أُرسلت إليه الرسالة."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "وضع علامة مقروءة عند الرد أو إعادة التوجيه",
         "description": "تُعلَّم الرسالة التي ترد عليها أو تعيد توجيهها كمقروءة، حتى إذا كانت الرسائل لا تُعلَّم كمقروءة أبدًا عند فتحها."
+      },
+      "message_double_click": {
+        "label": "النقر المزدوج على رسالة",
+        "description": "ما يحدث عند النقر المزدوج على رسالة في القائمة.",
+        "reading_pane": "فتح في جزء القراءة",
+        "new_window": "فتح في نافذة جديدة"
       },
       "return_to_list_after_action": {
         "label": "العودة إلى القائمة بعد الحذف أو الأرشفة أو النقل أو التمييز كغير مقروء",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} رسالة محددة",
     "forward_as_attachments": "إعادة التوجيه كمرفقات",
     "edit_draft": "تعديل المسودة",
+    "edit_as_new": "تعديل كرسالة جديدة",
     "cancel_scheduled_send": "إلغاء الإرسال",
     "reschedule_send": "إعادة الجدولة",
     "cancel_and_edit": "إلغاء والتعديل",
@@ -4112,6 +4139,12 @@
     "empty_spam": "إفراغ البريد العشوائي",
     "empty_trash_confirm": "حذف {count, plural, zero {الرسائل} one {الرسالة} two {الرسالتين} few {كل الرسائل الـ#} many {كل الرسائل الـ#} other {كل الرسائل الـ#}} في المهملات نهائيًا؟ لا يمكن التراجع عن ذلك.",
     "empty_spam_confirm": "حذف {count, plural, zero {الرسائل} one {الرسالة} two {الرسالتين} few {كل الرسائل الـ#} many {كل الرسائل الـ#} other {كل الرسائل الـ#}} في البريد العشوائي نهائيًا؟ لا يمكن التراجع عن ذلك.",
+    "empty_folder": "إفراغ المجلد…",
+    "empty_folder_title": "إفراغ {folder}؟",
+    "empty_folder_confirm_trash": "نقل {count, plural, zero {الرسائل} one {الرسالة} two {الرسالتين} few {كل الرسائل الـ#} many {كل الرسائل الـ#} other {كل الرسائل الـ#}} في {folder} إلى المهملات؟",
+    "empty_folder_confirm_delete": "حذف {count, plural, zero {الرسائل} one {الرسالة} two {الرسالتين} few {كل الرسائل الـ#} many {كل الرسائل الـ#} other {كل الرسائل الـ#}} في {folder} نهائيًا؟ لا يمكن التراجع عن ذلك.",
+    "empty_folder_move": "نقل إلى المهملات",
+    "empty_folder_delete": "حذف نهائيًا",
     "title_all_accounts": "{name} ({count}، {total} في كل الحسابات)",
     "title_all_accounts_only": "{name} ({total} في كل الحسابات)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "جهاز نداء",
       "phone_video": "فيديو",
       "phone_text": "رسائل نصية",
+      "phone_custom": "مخصص…",
+      "phone_custom_label": "نوع مخصص",
+      "phone_custom_placeholder": "مثلًا: السيارة",
       "organization": "المؤسسة",
       "organization_placeholder": "اسم الشركة",
       "department": "القسم",
@@ -5864,6 +5900,7 @@
     "search": "بحث",
     "not_starred": "بدون نجمة",
     "no_attachment": "بدون مرفقات",
+    "no_tags": "بدون وسوم",
     "any_time": "أي وقت",
     "past_week": "الأسبوع الماضي",
     "past_month": "الشهر الماضي",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "إعادة توجيه بريدك",
         "body": "إعادة توجيه رسائل من حسابك مع مرفقاتها دون فتح محرر الرسائل. يُطلب إذنك قبل أول إعادة توجيه إلى كل عنوان."
+      },
+      "ui_notices": {
+        "title": "عرض التنبيهات",
+        "body": "عرض لوحة صغيرة خاصة به أسفل الشاشة، حيث تظهر رسائل التطبيق، مثلًا عند ورود مكالمة. لا تحجب الصفحة، ويمكنك متابعة الكتابة وإغلاقها. يذكر كل تنبيه اسم الإضافة."
       },
       "ui_notifications": {
         "title": "عرض الإشعارات",

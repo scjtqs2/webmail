@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Non lus",
       "everything_else": "Tout le reste",
-      "unread_empty": "Vous avez lu tous les messages de votre boîte de réception."
+      "unread_empty": "Vous avez lu tous les messages de votre boîte de réception.",
+      "unread_newer": "Non lus plus récents",
+      "unread_older": "Non lus plus anciens"
     },
     "columns": {
       "from": "De",
@@ -381,6 +383,8 @@
     "replied": "Répondu",
     "forwarded": "Transféré",
     "has_attachment": "Avec pièce jointe",
+    "high_importance": "Importance haute",
+    "low_importance": "Importance faible",
     "conversations_range": "{from}–{to, number} sur {total, number}",
     "conversations_count": "{count} sur {total} conversations",
     "conversations_count_plus": "{count}+ conversations",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Haute",
     "option_priority_normal": "Normale",
     "option_priority_low": "Basse",
+    "file_in": "Classer dans un dossier",
+    "file_in_chosen": "Classer dans {folder}",
+    "file_in_hint": "Après l'envoi, votre message et celui auquel vous répondez vont dans ce dossier",
+    "file_in_none": "Ne pas classer",
+    "file_in_failed": "Envoyé, mais impossible de le classer dans {folder}.",
+    "file_in_reply_elsewhere": "Original déplacé vers {folder}. Votre réponse reste dans Envoyés, car elle est partie d'un autre compte.",
     "validation": {
       "recipient_required": "Ajoutez un destinataire pour envoyer",
       "body_required": "Rédigez un message ou joignez un fichier",
@@ -1297,6 +1307,10 @@
       "edit": "Modifier la description de l'image",
       "plain_text": "[Image : {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Trop d'envois de fichiers. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+    "retry_later": "Trop d'envois de fichiers. Réessayez plus tard."
   },
   "attachment_rename": {
     "rename": "Renommer",
@@ -2130,6 +2144,12 @@
         "label": "Réponse rapide",
         "description": "Afficher la zone de réponse rapide sous les messages."
       },
+      "reply_quote": {
+        "label": "Texte cité dans les réponses",
+        "description": "Réduit masque les messages cités derrière •••. Développé les affiche en entier à l'ouverture d'une réponse.",
+        "collapsed": "Réduit",
+        "expanded": "Développé"
+      },
       "auto_select_reply_identity": {
         "label": "Sélection automatique de l'adresse de réponse",
         "description": "Lors d’une réponse, envoyer depuis l’adresse à laquelle le message a été envoyé."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Marquer comme lu quand je réponds ou transfère",
         "description": "Un message auquel vous répondez ou que vous transférez est marqué comme lu, même quand les messages ne sont jamais marqués comme lus à l'ouverture."
+      },
+      "message_double_click": {
+        "label": "Double-clic sur un message",
+        "description": "Ce que fait un double-clic sur un message de la liste.",
+        "reading_pane": "Ouvrir dans le volet de lecture",
+        "new_window": "Ouvrir dans une nouvelle fenêtre"
       },
       "return_to_list_after_action": {
         "label": "Revenir à la liste après suppression, archivage, déplacement ou marquage comme non lu",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} emails sélectionnés",
     "forward_as_attachments": "Transférer en pièces jointes",
     "edit_draft": "Modifier le brouillon",
+    "edit_as_new": "Modifier comme nouveau",
     "cancel_scheduled_send": "Annuler l’envoi",
     "reschedule_send": "Replanifier",
     "cancel_and_edit": "Annuler et modifier",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Vider le spam",
     "empty_trash_confirm": "Supprimer définitivement {count, plural, one {le message} other {les # messages}} de la corbeille ? Impossible de revenir en arrière.",
     "empty_spam_confirm": "Supprimer définitivement {count, plural, one {le message} other {les # messages}} du spam ? Impossible de revenir en arrière.",
+    "empty_folder": "Vider le dossier…",
+    "empty_folder_title": "Vider {folder} ?",
+    "empty_folder_confirm_trash": "Déplacer {count, plural, one {le message} other {les # messages}} de {folder} dans la corbeille ?",
+    "empty_folder_confirm_delete": "Supprimer définitivement {count, plural, one {le message} other {les # messages}} de {folder} ? Impossible de revenir en arrière.",
+    "empty_folder_move": "Déplacer dans la corbeille",
+    "empty_folder_delete": "Supprimer définitivement",
     "title_all_accounts": "{name} ({count}, {total} dans tous les comptes)",
     "title_all_accounts_only": "{name} ({total} dans tous les comptes)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Bip",
       "phone_video": "Vidéo",
       "phone_text": "SMS",
+      "phone_custom": "Personnalisé…",
+      "phone_custom_label": "Type personnalisé",
+      "phone_custom_placeholder": "p. ex. Voiture",
       "organization": "Organisation",
       "organization_placeholder": "Nom de l'entreprise",
       "department": "Département",
@@ -5575,6 +5611,7 @@
     "search": "Rechercher",
     "not_starred": "Non suivis",
     "no_attachment": "Sans pièces jointes",
+    "no_tags": "Sans étiquettes",
     "any_time": "N'importe quand",
     "past_week": "Semaine dernière",
     "past_month": "Mois dernier",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Transférer vos e-mails",
         "body": "Transférer des messages de votre compte avec leurs pièces jointes, sans ouvrir l'éditeur. Vous êtes consulté avant le premier transfert vers chaque adresse."
+      },
+      "ui_notices": {
+        "title": "Afficher des avis",
+        "body": "Afficher un petit panneau en bas de l'écran, là où apparaissent les messages de l'application, par exemple pour un appel entrant. Il ne bloque pas la page, vous pouvez continuer à taper et le fermer. Chacun indique le nom du plugin."
       },
       "ui_notifications": {
         "title": "Afficher des notifications",

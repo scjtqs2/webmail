@@ -4,7 +4,8 @@
 
 import type { AppInfoView, InstalledPlugin, Permission } from '../plugin-types';
 import { labelRawSend } from '@/lib/outgoing/classification-raw';
-import { completesComposeTakeover } from '@/lib/outgoing/compose-takeover';
+import { completesComposeTakeover, composeTakeoverOptions } from '@/lib/outgoing/compose-takeover';
+import { takeoverSubmission, withTakeoverHeaders } from '@/lib/outgoing/takeover-headers';
 import { getOutboxHooks } from '@/lib/offline/outbox-hooks';
 import { fetchConfig } from '@/hooks/use-config';
 import { IS_LITE } from '../lite';
@@ -76,6 +77,7 @@ import { doNotificationsShow } from './host-api-notify';
 import { doAccountDataGet, doAccountDataSet, doUserFindPeople, doUserGetMailAccounts, doUserGetSelf } from './host-api-account';
 import { setSectionTitle } from './section-titles';
 import { setSidePanel } from './side-panels';
+import { closeNotice, showNotice } from './notices';
 import { requestPanel } from './panel-requests';
 import { requestPageNavigation } from './page-navigation';
 import { requestCalendarView } from './calendar-navigation';
@@ -220,6 +222,10 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   'ui.alert': null,
   'ui.prompt': null,
   'ui.openDialog': null,
+  // One of the plugin's frames in the toasts' stack, without taking the
+  // focus; at most a few at a time.
+  'ui.showNotice': 'ui:notices',
+  'ui.closeNotice': 'ui:notices',
   'ui.rerenderEmail': null,
   'ui.rerenderFetchedEmails': null,
   'ui.openExternalUrl': null,
@@ -544,6 +550,13 @@ function isApiPostPathAllowed(path: string, allowlist: readonly string[]): boole
  * WebDAV, CalDAV), change sign-in, admin or plugin state, or belong to the
  * setup wizard. A plugin talks to its own sidecar routes instead.
  *
+ * The translation route is not on the list: the Translate plugin posts to it
+ * by name in its `apiPostPaths`, which the admin sees and accepts at install.
+ * It returns only the translation of the text the plugin sends, goes to a
+ * fixed upstream (MyMemory, or the admin's LibreTranslate) and honours the
+ * no-third-party mode, so it hands the plugin no user data and no reach the
+ * admin didn't accept.
+ *
  * Listed by their segment under `/api/`, not as `/api/...` strings: the Lite
  * build reads every such string in a client chunk as an endpoint the browser
  * calls and refuses the ones it has no stand-in for (scripts/lite/verify.mjs).
@@ -554,9 +567,9 @@ const PLUGIN_POST_DENIED_ROUTES = new Set([
   'admin',
   'auth',
   'caldav',
-  // The user's agenda, a server-side fetch of any URL, and a third-party
-  // relay: each is data or reach a plugin gets only through its own
-  // permission-gated API, not through a POST with the user's cookies.
+  // The user's agenda and a server-side fetch of any URL: each is data or
+  // reach a plugin gets only through its own permission-gated API, not
+  // through a POST with the user's cookies.
   'calendar-agenda',
   'dev-jmap',
   'fetch-ical',
@@ -570,7 +583,6 @@ const PLUGIN_POST_DENIED_ROUTES = new Set([
   'settings',
   'setup',
   'system',
-  'translate',
   'webdav',
   'wopi',
 ]);
@@ -907,15 +919,21 @@ async function doJmapSendRaw(
   // The classification label goes into the top-level header block, outside
   // what the plugin signed or encrypted (lib/outgoing/classification-raw.ts).
   const labelled = labelRawSend(copy, identityId, opts?.labelToken);
-  const blob = new Blob([labelled.buffer as ArrayBuffer], { type: 'message/rfc822' });
+  // So do the Reply-To, read receipt and priority of the composer send this
+  // completes: the plugin isn't told about them (lib/outgoing/takeover-headers.ts).
+  const takeover = composeTakeoverOptions(pluginId, identityId);
+  const complete = withTakeoverHeaders(labelled, takeover);
+  const submission = takeoverSubmission(takeover);
+  const blob = new Blob([complete.buffer as ArrayBuffer], { type: 'message/rfc822' });
   return useEmailStore.getState().sendRawEmail(
     client,
     blob,
     identityId,
     opts?.delayedUntil,
     opts?.envelopeRecipients,
-    // Completing the composer's send: offline mode may keep it (#523).
-    { outbox: completesComposeTakeover(pluginId, identityId) },
+    // Completing the composer's send: offline mode may keep it (#523). Its
+    // delivery notifications and required TLS go to the server with it.
+    { outbox: completesComposeTakeover(pluginId, identityId), ...(submission ? { submission } : {}) },
   );
 }
 
@@ -945,12 +963,15 @@ async function doJmapSubmitRaw(
   const copy = new Uint8Array(view.byteLength);
   copy.set(view);
   const labelled = labelRawSend(copy, identityId, opts?.labelToken);
-  const blob = new Blob([labelled.buffer as ArrayBuffer], { type: 'message/rfc822' });
+  const takeover = composeTakeoverOptions(pluginId, identityId);
+  const complete = withTakeoverHeaders(labelled, takeover);
+  const submission = takeoverSubmission(takeover);
+  const blob = new Blob([complete.buffer as ArrayBuffer], { type: 'message/rfc822' });
 
   // Completing the composer's send while offline: kept in the outbox (#523).
   const outbox = completesComposeTakeover(pluginId, identityId) ? getOutboxHooks() : null;
   if (outbox?.shouldQueue(client)) {
-    return outbox.queueRaw(client, blob, { identityId, delayedUntil: opts?.delayedUntil, envelopeRecipients: opts?.envelopeRecipients, submitOnly: true });
+    return outbox.queueRaw(client, blob, { identityId, delayedUntil: opts?.delayedUntil, envelopeRecipients: opts?.envelopeRecipients, submitOnly: true, ...(submission ? { submission } : {}) });
   }
 
   return client.submitRawEmail(
@@ -958,6 +979,8 @@ async function doJmapSubmitRaw(
     identityId,
     opts?.delayedUntil,
     opts?.envelopeRecipients,
+    undefined,
+    submission,
   );
 }
 
@@ -1314,8 +1337,13 @@ export async function doGetPublicKeyFromWKD(email: string): Promise<WkdResult> {
   const hash = await getWkdHash(localPart);
 
   const urls = [
-    `https://openpgpkey.${domain}/.well-known/openpgpkey/hu/${hash}?l=${encodeURIComponent(localPart)}`,
-    `https://${domain}/.well-known/openpgpkey/hu/${hash}?l=${encodeURIComponent(localPart)}`
+    // Advanced method (draft-koch-openpgp-webkey-service 3.1): the domain is part of the path.
+    `https://openpgpkey.${domain}/.well-known/openpgpkey/${domain}/hu/${hash}?l=${encodeURIComponent(localPart)}`,
+    // Direct method.
+    `https://${domain}/.well-known/openpgpkey/hu/${hash}?l=${encodeURIComponent(localPart)}`,
+    // Not in the spec: the direct layout on the openpgpkey subdomain, a common
+    // misconfiguration. Tried last so correctly configured hosts always win.
+    `https://openpgpkey.${domain}/.well-known/openpgpkey/hu/${hash}?l=${encodeURIComponent(localPart)}`
   ];
 
   for (const url of urls) {
@@ -2307,6 +2335,8 @@ export async function dispatchApiCall(
         anchor: opts.anchor === 'trigger' ? triggerAnchor() ?? undefined : undefined,
       });
     }
+    case 'ui.showNotice': return showNotice(plugin, args[0], opts?.toastSignal);
+    case 'ui.closeNotice': closeNotice(plugin.id, args[0]); return undefined;
     case 'ui.rerenderEmail': {
       // Re-run the onRenderEmailBody hook for the currently open message. Used
       // by crypto plugins after they change decryption state (e.g. an S/MIME key

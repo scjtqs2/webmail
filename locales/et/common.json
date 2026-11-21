@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Lugemata",
       "everything_else": "Kõik muu",
-      "unread_empty": "Oled kõik postkasti kirjad läbi lugenud."
+      "unread_empty": "Oled kõik postkasti kirjad läbi lugenud.",
+      "unread_newer": "Uuemad lugemata",
+      "unread_older": "Vanemad lugemata"
     },
     "columns": {
       "from": "Saatja",
@@ -381,6 +383,8 @@
     "replied": "Vastatud",
     "forwarded": "Edastatud",
     "has_attachment": "Sisaldab manust",
+    "high_importance": "Kõrge tähtsus",
+    "low_importance": "Madal tähtsus",
     "conversations_range": "{from}–{to, number} / {total, number}",
     "conversations_count": "{count} vestlust {total}-st",
     "conversations_count_plus": "{count}+ vestlust",
@@ -1111,6 +1115,12 @@
     "option_priority_high": "Kõrge",
     "option_priority_normal": "Tavaline",
     "option_priority_low": "Madal",
+    "file_in": "Pane kausta",
+    "file_in_chosen": "Pane kausta {folder}",
+    "file_in_hint": "Pärast saatmist lähevad sinu kiri ja kiri, millele vastad, sellesse kausta",
+    "file_in_none": "Ära pane kausta",
+    "file_in_failed": "Saadetud, kuid kausta {folder} panemine ebaõnnestus.",
+    "file_in_reply_elsewhere": "Algne kiri teisaldati kausta {folder}. Vastus jääb kausta Saadetud, sest see saadeti teiselt kontolt.",
     "validation": {
       "recipient_required": "Saatmiseks lisa saaja",
       "body_required": "Kirjuta sõnum või lisa fail",
@@ -1297,6 +1307,10 @@
       "edit": "Muuda pildi kirjeldust",
       "plain_text": "[Pilt: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Liiga palju üleslaadimisi. Proovige uuesti {minutes, plural, one {# minuti} other {# minuti}} pärast.",
+    "retry_later": "Liiga palju üleslaadimisi. Proovige hiljem uuesti."
   },
   "attachment_rename": {
     "rename": "Nimeta ümber",
@@ -2150,6 +2164,12 @@
         "label": "Kiirvastus",
         "description": "Näita kiirvastuse kasti kirjade all."
       },
+      "reply_quote": {
+        "label": "Tsiteeritud tekst vastustes",
+        "description": "Ahendatud peidab tsiteeritud kirjad ••• taha. Laiendatud näitab neid vastuse avamisel tervikuna.",
+        "collapsed": "Ahendatud",
+        "expanded": "Laiendatud"
+      },
       "auto_select_reply_identity": {
         "label": "Vasta kirja saanud aadressilt",
         "description": "Vastamisel saada aadressilt, kuhu kiri saadeti."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Märgi loetuks, kui vastan või edastan",
         "description": "Kiri, millele vastad või mille edastad, märgitakse loetuks ka siis, kui kirju avamisel kunagi loetuks ei märgita."
+      },
+      "message_double_click": {
+        "label": "Topeltklõps kirjal",
+        "description": "Mida teeb topeltklõps loendis oleval kirjal.",
+        "reading_pane": "Ava lugemispaanil",
+        "new_window": "Ava uues aknas"
       },
       "return_to_list_after_action": {
         "label": "Naase loendisse pärast kustutamist, arhiveerimist, liigutamist või lugemata märkimist",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-kirja valitud",
     "forward_as_attachments": "Edasta manustena",
     "edit_draft": "Muuda mustandit",
+    "edit_as_new": "Muuda uue kirjana",
     "cancel_scheduled_send": "Tühista saatmine",
     "reschedule_send": "Muuda ajastust",
     "cancel_and_edit": "Tühista ja muuda",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Tühjenda rämpspost",
     "empty_trash_confirm": "Kas kustutada prügikastist {count, plural, one {kiri} other {kõik # kirja}} jäädavalt? Seda ei saa tagasi võtta.",
     "empty_spam_confirm": "Kas kustutada rämpspostist {count, plural, one {kiri} other {kõik # kirja}} jäädavalt? Seda ei saa tagasi võtta.",
+    "empty_folder": "Tühjenda kaust…",
+    "empty_folder_title": "Kas tühjendada {folder}?",
+    "empty_folder_confirm_trash": "Kas teisaldada kaustast {folder} {count, plural, one {kiri} other {kõik # kirja}} prügikasti?",
+    "empty_folder_confirm_delete": "Kas kustutada kaustast {folder} {count, plural, one {kiri} other {kõik # kirja}} jäädavalt? Seda ei saa tagasi võtta.",
+    "empty_folder_move": "Teisalda prügikasti",
+    "empty_folder_delete": "Kustuta jäädavalt",
     "title_all_accounts": "{name} ({count}, {total} kõigil kontodel)",
     "title_all_accounts_only": "{name} ({total} kõigil kontodel)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Pager",
       "phone_video": "Video",
       "phone_text": "Tekstisõnum",
+      "phone_custom": "Kohandatud…",
+      "phone_custom_label": "Oma tüüp",
+      "phone_custom_placeholder": "nt Auto",
       "organization": "Organisatsioon",
       "organization_placeholder": "Ettevõtte nimi",
       "department": "Osakond",
@@ -5864,6 +5900,7 @@
     "search": "Otsi",
     "not_starred": "Tähistamata",
     "no_attachment": "Manusteta",
+    "no_tags": "Siltideta",
     "any_time": "Igal ajal",
     "past_week": "Viimane nädal",
     "past_month": "Viimane kuu",
@@ -7111,6 +7148,10 @@
       "email_forward": {
         "title": "Sinu kirjade edasisaatmine",
         "body": "Saadab sinu konto kirju koos manustega edasi ilma koostajat avamata. Enne esimest edasisaatmist igale aadressile küsitakse sinult luba."
+      },
+      "ui_notices": {
+        "title": "Teadete kuvamine",
+        "body": "Kuvada ekraani allservas oma väike paneel, kus ilmuvad ka rakenduse teated, näiteks sissetuleva kõne korral. See ei blokeeri lehte, saate edasi kirjutada ja selle sulgeda. Igaüks nimetab pistikprogrammi."
       },
       "ui_notifications": {
         "title": "Näita märguandeid",

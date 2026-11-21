@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Olvasatlan",
       "everything_else": "Minden más",
-      "unread_empty": "A beérkezett üzenetek mappában minden üzenetet elolvastál."
+      "unread_empty": "A beérkezett üzenetek mappában minden üzenetet elolvastál.",
+      "unread_newer": "Újabb olvasatlanok",
+      "unread_older": "Régebbi olvasatlanok"
     },
     "columns": {
       "from": "Feladó",
@@ -381,6 +383,8 @@
     "replied": "Megválaszolva",
     "forwarded": "Továbbítva",
     "has_attachment": "Melléklettel",
+    "high_importance": "Magas fontosság",
+    "low_importance": "Alacsony fontosság",
     "conversations_range": "{from}–{to, number} / {total, number}",
     "conversations_count": "{count} / {total} beszélgetés",
     "conversations_count_plus": "{count}+ beszélgetés",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Magas",
     "option_priority_normal": "Normál",
     "option_priority_low": "Alacsony",
+    "file_in": "Iktatás mappába",
+    "file_in_chosen": "Iktatás ide: {folder}",
+    "file_in_hint": "Küldés után az üzenete és a megválaszolt levél ebbe a mappába kerül",
+    "file_in_none": "Ne iktassa",
+    "file_in_failed": "Elküldve, de nem sikerült ide iktatni: {folder}.",
+    "file_in_reply_elsewhere": "Az eredeti áthelyezve ide: {folder}. A válasz az Elküldöttek között marad, mert másik fiókból ment ki.",
     "validation": {
       "recipient_required": "Adj meg egy címzettet a küldéshez",
       "body_required": "Írj üzenetet vagy csatolj fájlt",
@@ -1297,6 +1307,10 @@
       "edit": "Képleírás szerkesztése",
       "plain_text": "[Kép: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Túl sok feltöltés. Próbálja újra {minutes, plural, one {# perc} other {# perc}} múlva.",
+    "retry_later": "Túl sok feltöltés. Próbálja újra később."
   },
   "attachment_rename": {
     "rename": "Átnevezés",
@@ -2150,6 +2164,12 @@
         "label": "Gyors válasz",
         "description": "A gyors válasz mező megjelenítése az üzenetek alatt."
       },
+      "reply_quote": {
+        "label": "Idézett szöveg a válaszokban",
+        "description": "Összecsukva az idézett üzenetek a ••• mögött maradnak. Kibontva teljes egészében látszanak, amikor megnyit egy választ.",
+        "collapsed": "Összecsukva",
+        "expanded": "Kibontva"
+      },
       "auto_select_reply_identity": {
         "label": "Válasz a fogadott címről",
         "description": "Válaszkor arról a címről küldjön, amelyre az üzenet érkezett."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Olvasottnak jelölés válaszkor vagy továbbításkor",
         "description": "A megválaszolt vagy továbbított üzenet olvasottként lesz megjelölve akkor is, ha az üzenetek megnyitáskor soha nem lesznek olvasottak."
+      },
+      "message_double_click": {
+        "label": "Dupla kattintás egy üzeneten",
+        "description": "Mit tesz a dupla kattintás egy üzeneten a listában.",
+        "reading_pane": "Megnyitás az olvasóablakban",
+        "new_window": "Megnyitás új ablakban"
       },
       "return_to_list_after_action": {
         "label": "Visszatérés a listához törlés, archiválás, áthelyezés vagy olvasatlanként jelölés után",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-mail kijelölve",
     "forward_as_attachments": "Továbbítás mellékletként",
     "edit_draft": "Piszkozat szerkesztése",
+    "edit_as_new": "Szerkesztés új üzenetként",
     "cancel_scheduled_send": "Küldés megszakítása",
     "reschedule_send": "Átütemezés",
     "cancel_and_edit": "Mégse és szerkesztés",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Spam ürítése",
     "empty_trash_confirm": "Véglegesen törli {count, plural, one {az üzenetet} other {mind a # üzenetet}} a kukából? Ez nem vonható vissza.",
     "empty_spam_confirm": "Véglegesen törli {count, plural, one {az üzenetet} other {mind a # üzenetet}} a spamből? Ez nem vonható vissza.",
+    "empty_folder": "Mappa ürítése…",
+    "empty_folder_title": "Kiüríti a(z) {folder} mappát?",
+    "empty_folder_confirm_trash": "Áthelyezi {count, plural, one {az üzenetet} other {mind a # üzenetet}} a(z) {folder} mappából a kukába?",
+    "empty_folder_confirm_delete": "Véglegesen törli {count, plural, one {az üzenetet} other {mind a # üzenetet}} a(z) {folder} mappából? Ez nem vonható vissza.",
+    "empty_folder_move": "Áthelyezés a kukába",
+    "empty_folder_delete": "Végleges törlés",
     "title_all_accounts": "{name} ({count}, {total} az összes fiókban)",
     "title_all_accounts_only": "{name} ({total} az összes fiókban)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Személyhívó",
       "phone_video": "Videó",
       "phone_text": "SMS",
+      "phone_custom": "Egyéni…",
+      "phone_custom_label": "Egyéni típus",
+      "phone_custom_placeholder": "pl. Autó",
       "organization": "Szervezet",
       "organization_placeholder": "Cégnév",
       "department": "Részleg",
@@ -5864,6 +5900,7 @@
     "search": "Keresés",
     "not_starred": "Csillag nélkül",
     "no_attachment": "Csatolmány nélkül",
+    "no_tags": "Címke nélkül",
     "any_time": "Bármikor",
     "past_week": "Elmúlt hét",
     "past_month": "Elmúlt hónap",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Leveleid továbbítása",
         "body": "Üzeneteket továbbít a fiókodból a mellékleteikkel együtt, a szerkesztő megnyitása nélkül. Minden címre az első továbbítás előtt megkérdez."
+      },
+      "ui_notices": {
+        "title": "Saját értesítőpanelek megjelenítése",
+        "body": "Saját kis panel megjelenítése a képernyő alján, ahol az alkalmazás üzenetei is megjelennek, például bejövő hívásnál. Nem zárolja az oldalt, tovább gépelhet és bezárhatja. Mindegyik megnevezi a bővítményt."
       },
       "ui_notifications": {
         "title": "Értesítések megjelenítése",

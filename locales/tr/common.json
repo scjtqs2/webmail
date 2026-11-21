@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Okunmamış",
       "everything_else": "Diğer her şey",
-      "unread_empty": "Gelen kutusundaki tüm iletileri okudunuz."
+      "unread_empty": "Gelen kutusundaki tüm iletileri okudunuz.",
+      "unread_newer": "Daha yeni okunmamışlar",
+      "unread_older": "Daha eski okunmamışlar"
     },
     "columns": {
       "from": "Kimden",
@@ -381,6 +383,8 @@
     "replied": "Yanıtlandı",
     "forwarded": "İletildi",
     "has_attachment": "Ek içeriyor",
+    "high_importance": "Yüksek önem",
+    "low_importance": "Düşük önem",
     "conversations_range": "{total, number} içinde {from}–{to, number}",
     "conversations_count": "{total} konuşmadan {count} tanesi",
     "conversations_count_plus": "{count}+ konuşma",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Yüksek",
     "option_priority_normal": "Normal",
     "option_priority_low": "Düşük",
+    "file_in": "Klasöre kaldır",
+    "file_in_chosen": "{folder} klasörüne kaldır",
+    "file_in_hint": "Gönderildikten sonra iletiniz ve yanıtladığınız ileti bu klasöre taşınır",
+    "file_in_none": "Kaldırma",
+    "file_in_failed": "Gönderildi, ancak {folder} klasörüne kaldırılamadı.",
+    "file_in_reply_elsewhere": "Orijinal {folder} klasörüne taşındı. Yanıtınız başka bir hesaptan gittiği için Gönderilenler'de kalıyor.",
     "validation": {
       "recipient_required": "Göndermek için bir alıcı ekleyin",
       "body_required": "Bir ileti yazın veya dosya ekleyin",
@@ -1297,6 +1307,10 @@
       "edit": "Görsel açıklamasını düzenle",
       "plain_text": "[Görsel: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Çok fazla yükleme. {minutes, plural, one {# dakika} other {# dakika}} sonra yeniden deneyin.",
+    "retry_later": "Çok fazla yükleme. Daha sonra yeniden deneyin."
   },
   "attachment_rename": {
     "rename": "Yeniden adlandır",
@@ -2147,6 +2161,12 @@
         "label": "Hızlı yanıt",
         "description": "İletilerin altında hızlı yanıt kutusunu göster."
       },
+      "reply_quote": {
+        "label": "Yanıtlarda alıntılanan metin",
+        "description": "Daraltılmış, alıntılanan iletileri ••• arkasına gizler. Genişletilmiş, bir yanıtı açtığınızda bunları tam olarak gösterir.",
+        "collapsed": "Daraltılmış",
+        "expanded": "Genişletilmiş"
+      },
       "auto_select_reply_identity": {
         "label": "Yanıt Adresini Otomatik Seç",
         "description": "Yanıtlarken, iletinin gönderildiği adresten gönder."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Yanıtladığımda veya ilettiğimde okundu olarak işaretle",
         "description": "Yanıtladığınız veya ilettiğiniz bir ileti, iletiler açıldığında hiç okundu olarak işaretlenmese bile okundu olarak işaretlenir."
+      },
+      "message_double_click": {
+        "label": "İletiye çift tıklama",
+        "description": "Listedeki bir iletiye çift tıklamanın ne yapacağı.",
+        "reading_pane": "Okuma bölmesinde aç",
+        "new_window": "Yeni pencerede aç"
       },
       "return_to_list_after_action": {
         "label": "Silme, arşivleme, taşıma veya okunmadı olarak işaretlemeden sonra listeye dön",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} e-posta seçildi",
     "forward_as_attachments": "Ek olarak ilet",
     "edit_draft": "Taslağı Düzenle",
+    "edit_as_new": "Yeni olarak düzenle",
     "cancel_scheduled_send": "Göndermeyi iptal et",
     "reschedule_send": "Yeniden zamanla",
     "cancel_and_edit": "İptal et ve düzenle",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Spam klasörünü boşalt",
     "empty_trash_confirm": "Çöp Kutusundaki {count, plural, one {ileti} other {# iletinin tümü}} kalıcı olarak silinsin mi? Bu geri alınamaz.",
     "empty_spam_confirm": "Spam klasöründeki {count, plural, one {ileti} other {# iletinin tümü}} kalıcı olarak silinsin mi? Bu geri alınamaz.",
+    "empty_folder": "Klasörü boşalt…",
+    "empty_folder_title": "{folder} boşaltılsın mı?",
+    "empty_folder_confirm_trash": "{folder} klasöründeki {count, plural, one {ileti} other {# iletinin tümü}} Çöp Kutusuna taşınsın mı?",
+    "empty_folder_confirm_delete": "{folder} klasöründeki {count, plural, one {ileti} other {# iletinin tümü}} kalıcı olarak silinsin mi? Bu geri alınamaz.",
+    "empty_folder_move": "Çöp Kutusuna taşı",
+    "empty_folder_delete": "Kalıcı olarak sil",
     "title_all_accounts": "{name} ({count}, tüm hesaplarda {total})",
     "title_all_accounts_only": "{name} (tüm hesaplarda {total})"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Çağrı Cihazı",
       "phone_video": "Video",
       "phone_text": "Metin",
+      "phone_custom": "Özel…",
+      "phone_custom_label": "Özel tür",
+      "phone_custom_placeholder": "ör. Araba",
       "organization": "Kuruluş",
       "organization_placeholder": "Şirket adı",
       "department": "Departman",
@@ -5864,6 +5900,7 @@
     "search": "Ara",
     "not_starred": "Yıldızsız",
     "no_attachment": "Eki olmayan",
+    "no_tags": "Etiketsiz",
     "any_time": "Herhangi bir zaman",
     "past_week": "Geçen hafta",
     "past_month": "Geçen ay",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Postanızı iletme",
         "body": "Hesabınızdaki iletileri ekleriyle birlikte, düzenleyiciyi açmadan iletir. Her adrese ilk iletmeden önce size sorulur."
+      },
+      "ui_notices": {
+        "title": "Bildirim panelleri göster",
+        "body": "Ekranın altında, uygulamanın mesajlarının göründüğü yerde kendine ait küçük bir panel gösterir; örneğin gelen bir arama için. Sayfayı engellemez, yazmaya devam edebilir ve kapatabilirsiniz. Her biri eklentinin adını belirtir."
       },
       "ui_notifications": {
         "title": "Bildirim gösterme",

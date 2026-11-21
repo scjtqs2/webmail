@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Neprečítané",
       "everything_else": "Všetko ostatné",
-      "unread_empty": "Prečítali ste všetky správy v doručenej pošte."
+      "unread_empty": "Prečítali ste všetky správy v doručenej pošte.",
+      "unread_newer": "Novšie neprečítané",
+      "unread_older": "Staršie neprečítané"
     },
     "columns": {
       "from": "Od",
@@ -381,6 +383,8 @@
     "replied": "Zodpovedané",
     "forwarded": "Preposlané",
     "has_attachment": "Obsahuje prílohu",
+    "high_importance": "Vysoká dôležitosť",
+    "low_importance": "Nízka dôležitosť",
     "conversations_range": "{from}–{to, number} z {total, number}",
     "conversations_count": "{count} z {total} konverzácií",
     "conversations_count_plus": "{count}+ konverzácií",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Vysoká",
     "option_priority_normal": "Normálna",
     "option_priority_low": "Nízka",
+    "file_in": "Založiť do priečinka",
+    "file_in_chosen": "Založiť do {folder}",
+    "file_in_hint": "Po odoslaní sa vaša správa aj tá, na ktorú odpovedáte, presunú do tohto priečinka",
+    "file_in_none": "Nezakladať",
+    "file_in_failed": "Odoslané, ale nepodarilo sa založiť do {folder}.",
+    "file_in_reply_elsewhere": "Originál presunutý do {folder}. Odpoveď zostáva v Odoslaných, pretože odišla z iného účtu.",
     "validation": {
       "recipient_required": "Pridajte príjemcu na odoslanie",
       "body_required": "Napíšte správu alebo priložte súbor",
@@ -1297,6 +1307,10 @@
       "edit": "Upraviť popis obrázka",
       "plain_text": "[Obrázok: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Príliš veľa nahrávaní. Skúste to znova o {minutes, plural, one {# minútu} few {# minúty} many {# minúty} other {# minút}}.",
+    "retry_later": "Príliš veľa nahrávaní. Skúste to znova neskôr."
   },
   "attachment_rename": {
     "rename": "Premenovať",
@@ -2150,6 +2164,12 @@
         "label": "Rýchla odpoveď",
         "description": "Zobraziť pole na rýchlu odpoveď pod správami."
       },
+      "reply_quote": {
+        "label": "Citovaný text v odpovediach",
+        "description": "Zbalené skryje citované správy za •••. Rozbalené ich pri otvorení odpovede zobrazí celé.",
+        "collapsed": "Zbalené",
+        "expanded": "Rozbalené"
+      },
       "auto_select_reply_identity": {
         "label": "Odpovedať z prijatej adresy",
         "description": "Pri odpovedaní odoslať z adresy, na ktorú bola správa poslaná."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Označiť ako prečítané, keď odpoviem alebo prepošlem",
         "description": "Správa, na ktorú odpoviete alebo ktorú prepošlete, sa označí ako prečítaná, aj keď sa správy pri otvorení nikdy neoznačujú ako prečítané."
+      },
+      "message_double_click": {
+        "label": "Dvojklik na správu",
+        "description": "Čo urobí dvojklik na správu v zozname.",
+        "reading_pane": "Otvoriť na table čítania",
+        "new_window": "Otvoriť v novom okne"
       },
       "return_to_list_after_action": {
         "label": "Vrátiť sa na zoznam po odstránení, archivovaní, presunutí alebo označení ako neprečítané",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} vybraných e-mailov",
     "forward_as_attachments": "Preposlať ako prílohy",
     "edit_draft": "Upraviť koncept",
+    "edit_as_new": "Upraviť ako novú",
     "cancel_scheduled_send": "Zrušiť odoslanie",
     "reschedule_send": "Prenaplánovať",
     "cancel_and_edit": "Zrušiť a upraviť",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Vyprázdniť spam",
     "empty_trash_confirm": "Natrvalo odstrániť {count, plural, one {správu} few {všetky # správy} many {všetkých # správy} other {všetkých # správ}} v koši? Nedá sa to vrátiť späť.",
     "empty_spam_confirm": "Natrvalo odstrániť {count, plural, one {správu} few {všetky # správy} many {všetkých # správy} other {všetkých # správ}} v spame? Nedá sa to vrátiť späť.",
+    "empty_folder": "Vyprázdniť priečinok…",
+    "empty_folder_title": "Vyprázdniť {folder}?",
+    "empty_folder_confirm_trash": "Presunúť {count, plural, one {správu} few {všetky # správy} many {všetkých # správy} other {všetkých # správ}} z priečinka {folder} do koša?",
+    "empty_folder_confirm_delete": "Natrvalo odstrániť {count, plural, one {správu} few {všetky # správy} many {všetkých # správy} other {všetkých # správ}} v priečinku {folder}? Nedá sa to vrátiť späť.",
+    "empty_folder_move": "Presunúť do koša",
+    "empty_folder_delete": "Natrvalo odstrániť",
     "title_all_accounts": "{name} ({count}, {total} vo všetkých účtoch)",
     "title_all_accounts_only": "{name} ({total} vo všetkých účtoch)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Pager",
       "phone_video": "Video",
       "phone_text": "SMS",
+      "phone_custom": "Vlastný…",
+      "phone_custom_label": "Vlastný typ",
+      "phone_custom_placeholder": "napr. Auto",
       "organization": "Organizácia",
       "organization_placeholder": "Názov spoločnosti",
       "department": "Oddelenie",
@@ -5864,6 +5900,7 @@
     "search": "Hľadať",
     "not_starred": "Bez hviezdičky",
     "no_attachment": "Bez príloh",
+    "no_tags": "Bez štítkov",
     "any_time": "Kedykoľvek",
     "past_week": "Posledný týždeň",
     "past_month": "Posledný mesiac",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Preposielať vašu poštu",
         "body": "Preposiela správy z vášho účtu aj s prílohami bez otvorenia editora. Pred prvým preposlaním na každú adresu sa vás opýta."
+      },
+      "ui_notices": {
+        "title": "Zobrazovať vlastné panely upozornení",
+        "body": "Zobraziť vlastný malý panel dole na obrazovke, kde sa zobrazujú správy aplikácie, napríklad pri prichádzajúcom hovore. Neblokuje stránku, môžete ďalej písať a môžete ho zavrieť. Každé upozornenie uvádza názov doplnku."
       },
       "ui_notifications": {
         "title": "Zobrazovať upozornenia",

@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Nelasītie",
       "everything_else": "Viss pārējais",
-      "unread_empty": "Jūs esat izlasījis visus iesūtnes ziņojumus."
+      "unread_empty": "Jūs esat izlasījis visus iesūtnes ziņojumus.",
+      "unread_newer": "Jaunākas nelasītās",
+      "unread_older": "Vecākas nelasītās"
     },
     "columns": {
       "from": "No",
@@ -381,6 +383,8 @@
     "replied": "Atbildēts",
     "forwarded": "Pārsūtīts",
     "has_attachment": "Ar pielikumu",
+    "high_importance": "Augsta svarīguma pakāpe",
+    "low_importance": "Zema svarīguma pakāpe",
     "conversations_range": "{from}–{to, number} no {total, number}",
     "conversations_count": "{count} no {total} sarunām",
     "conversations_count_plus": "{count}+ sarunas",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Augsta",
     "option_priority_normal": "Parasta",
     "option_priority_low": "Zema",
+    "file_in": "Ievietot mapē",
+    "file_in_chosen": "Ievietot mapē {folder}",
+    "file_in_hint": "Pēc nosūtīšanas jūsu ziņojums un tas, uz kuru atbildat, nonāks šajā mapē",
+    "file_in_none": "Neievietot",
+    "file_in_failed": "Nosūtīts, bet neizdevās ievietot mapē {folder}.",
+    "file_in_reply_elsewhere": "Oriģināls pārvietots uz {folder}. Atbilde paliek mapē Nosūtītie, jo tā tika nosūtīta no cita konta.",
     "validation": {
       "recipient_required": "Norādiet vismaz vienu saņēmēju",
       "body_required": "Ierakstiet ziņojumu vai pievienojiet failu",
@@ -1297,6 +1307,10 @@
       "edit": "Rediģēt attēla aprakstu",
       "plain_text": "[Attēls: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Pārāk daudz augšupielāžu. Mēģiniet vēlreiz pēc {minutes, plural, zero {# minūtēm} one {# minūtes} other {# minūtēm}}.",
+    "retry_later": "Pārāk daudz augšupielāžu. Mēģiniet vēlreiz vēlāk."
   },
   "attachment_rename": {
     "rename": "Pārdēvēt",
@@ -2130,6 +2144,12 @@
         "label": "Ātrā atbilde",
         "description": "Rādīt ātrās atbildes lauku zem ziņojumiem."
       },
+      "reply_quote": {
+        "label": "Citētais teksts atbildēs",
+        "description": "Sakļauts paslēpj citētās ziņas aiz •••. Izvērsts parāda tās pilnībā, kad atverat atbildi.",
+        "collapsed": "Sakļauts",
+        "expanded": "Izvērsts"
+      },
       "auto_select_reply_identity": {
         "label": "Automātiski izvēlēties atbildes adresi",
         "description": "Atbildot sūtīt no adreses, uz kuru vēstule tika nosūtīta."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Atzīmēt kā izlasītu, kad atbildu vai pārsūtu",
         "description": "Ziņojums, uz kuru atbildat vai kuru pārsūtāt, tiek atzīmēts kā izlasīts arī tad, ja ziņojumi atverot nekad netiek atzīmēti kā izlasīti."
+      },
+      "message_double_click": {
+        "label": "Dubultklikšķis uz vēstules",
+        "description": "Ko dara dubultklikšķis uz vēstules sarakstā.",
+        "reading_pane": "Atvērt lasīšanas rūtī",
+        "new_window": "Atvērt jaunā logā"
       },
       "return_to_list_after_action": {
         "label": "Atgriezties sarakstā pēc dzēšanas, arhivēšanas, pārvietošanas vai atzīmēšanas kā nelasītu",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} vēstules atlasītas",
     "forward_as_attachments": "Pārsūtīt kā pielikumiem",
     "edit_draft": "Rediģēt melnrakstu",
+    "edit_as_new": "Rediģēt kā jaunu",
     "cancel_scheduled_send": "Atcelt sūtīšanu",
     "reschedule_send": "Pārplānot",
     "cancel_and_edit": "Atcelt un rediģēt",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Iztukšot mēstules",
     "empty_trash_confirm": "Neatgriezeniski dzēst {count, plural, =1 {vēstuli} zero {visas # vēstules} one {visas # vēstuli} other {visas # vēstules}} miskastē? To nevar atsaukt.",
     "empty_spam_confirm": "Neatgriezeniski dzēst {count, plural, =1 {vēstuli} zero {visas # vēstules} one {visas # vēstuli} other {visas # vēstules}} mēstulēs? To nevar atsaukt.",
+    "empty_folder": "Iztukšot mapi…",
+    "empty_folder_title": "Iztukšot mapi {folder}?",
+    "empty_folder_confirm_trash": "Pārvietot {count, plural, =1 {vēstuli} zero {visas # vēstules} one {visas # vēstuli} other {visas # vēstules}} no mapes {folder} uz miskasti?",
+    "empty_folder_confirm_delete": "Neatgriezeniski dzēst {count, plural, =1 {vēstuli} zero {visas # vēstules} one {visas # vēstuli} other {visas # vēstules}} mapē {folder}? To nevar atsaukt.",
+    "empty_folder_move": "Pārvietot uz miskasti",
+    "empty_folder_delete": "Dzēst neatgriezeniski",
     "title_all_accounts": "{name} ({count}, {total} visos kontos)",
     "title_all_accounts_only": "{name} ({total} visos kontos)"
   },
@@ -4609,6 +4642,9 @@
       "phone_pager": "Peidžeris",
       "phone_video": "Video",
       "phone_text": "Teksts",
+      "phone_custom": "Pielāgots…",
+      "phone_custom_label": "Pielāgots veids",
+      "phone_custom_placeholder": "piem., Auto",
       "organization": "Organizācija",
       "organization_placeholder": "Uzņēmuma nosaukums",
       "department": "Nodaļa",
@@ -5575,6 +5611,7 @@
     "search": "Meklēt",
     "not_starred": "Bez zvaigznītes",
     "no_attachment": "Bez pielikumiem",
+    "no_tags": "Bez tagiem",
     "any_time": "Jebkurā laikā",
     "past_week": "Pēdējā nedēļa",
     "past_month": "Pēdējais mēnesis",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Pārsūtīt jūsu pastu",
         "body": "Pārsūtīt vēstules no jūsu konta kopā ar pielikumiem, neatverot redaktoru. Pirms pirmās pārsūtīšanas uz katru adresi jums tiek jautāts."
+      },
+      "ui_notices": {
+        "title": "Rādīt paziņojumu paneļus",
+        "body": "Rādīt savu nelielu paneli ekrāna apakšā, kur parādās lietotnes ziņojumi, piemēram, ienākoša zvana gadījumā. Tas nebloķē lapu, varat turpināt rakstīt un to aizvērt. Katrā ir norādīts spraudņa nosaukums."
       },
       "ui_notifications": {
         "title": "Rādīt paziņojumus",

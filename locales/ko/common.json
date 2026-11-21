@@ -353,7 +353,9 @@
     "sections": {
       "unread": "읽지 않음",
       "everything_else": "기타 모든 메일",
-      "unread_empty": "받은편지함의 메일을 모두 읽었습니다."
+      "unread_empty": "받은편지함의 메일을 모두 읽었습니다.",
+      "unread_newer": "더 최근의 읽지 않은 메일",
+      "unread_older": "더 오래된 읽지 않은 메일"
     },
     "columns": {
       "from": "보낸 사람",
@@ -381,6 +383,8 @@
     "replied": "답장함",
     "forwarded": "전달함",
     "has_attachment": "첨부 파일 있음",
+    "high_importance": "중요도 높음",
+    "low_importance": "중요도 낮음",
     "conversations_range": "{total, number}개 중 {from}–{to, number}",
     "conversations_count": "전체 {total}개 중 {count}개의 대화",
     "conversations_count_plus": "{count}개 이상의 대화",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "높음",
     "option_priority_normal": "보통",
     "option_priority_low": "낮음",
+    "file_in": "폴더에 보관",
+    "file_in_chosen": "{folder}에 보관",
+    "file_in_hint": "보낸 후 이 메시지와 답장한 원본 메시지가 이 폴더로 이동합니다",
+    "file_in_none": "보관 안 함",
+    "file_in_failed": "보냈지만 {folder}에 보관하지 못했습니다.",
+    "file_in_reply_elsewhere": "원본을 {folder}(으)로 옮겼습니다. 답장은 다른 계정에서 보냈기 때문에 보낸편지함에 남습니다.",
     "validation": {
       "recipient_required": "보내려면 받는 사람을 추가해 주세요",
       "body_required": "메시지를 작성하거나 파일을 첨부해 주세요",
@@ -1297,6 +1307,10 @@
       "edit": "이미지 설명 편집",
       "plain_text": "[이미지: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "업로드가 너무 많습니다. {minutes, plural, other {#분}} 후에 다시 시도하세요.",
+    "retry_later": "업로드가 너무 많습니다. 나중에 다시 시도하세요."
   },
   "attachment_rename": {
     "rename": "이름 바꾸기",
@@ -2147,6 +2161,12 @@
         "label": "빠른 답장",
         "description": "메시지 아래에 빠른 답장 상자를 표시합니다."
       },
+      "reply_quote": {
+        "label": "답장의 인용 텍스트",
+        "description": "접기: 인용된 메시지를 ••• 뒤에 숨깁니다. 펼치기: 답장을 열 때 전체를 표시합니다.",
+        "collapsed": "접기",
+        "expanded": "펼치기"
+      },
       "auto_select_reply_identity": {
         "label": "답장 시 보내는 사람 자동 선택",
         "description": "답장할 때 메시지를 받은 주소로 보내요."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "답장하거나 전달하면 읽음으로 표시",
         "description": "답장하거나 전달한 메시지는 열 때 읽음으로 표시하지 않도록 설정한 경우에도 읽음으로 표시됩니다."
+      },
+      "message_double_click": {
+        "label": "메시지 두 번 클릭",
+        "description": "목록에서 메시지를 두 번 클릭했을 때의 동작이에요.",
+        "reading_pane": "읽기 창에서 열기",
+        "new_window": "새 창에서 열기"
       },
       "return_to_list_after_action": {
         "label": "삭제, 보관, 이동 또는 읽지 않음으로 표시 후 목록으로 돌아가기",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count}개의 메일 선택됨",
     "forward_as_attachments": "첨부 파일로 전달",
     "edit_draft": "임시보관 메일 수정",
+    "edit_as_new": "새 메일로 수정",
     "cancel_scheduled_send": "보내기 취소",
     "reschedule_send": "다시 예약",
     "cancel_and_edit": "취소하고 편집",
@@ -4112,6 +4139,12 @@
     "empty_spam": "스팸 비우기",
     "empty_trash_confirm": "휴지통의 {count, plural, other {메시지 #개}}를 모두 영구 삭제할까요? 되돌릴 수 없어요.",
     "empty_spam_confirm": "스팸의 {count, plural, other {메시지 #개}}를 모두 영구 삭제할까요? 되돌릴 수 없어요.",
+    "empty_folder": "폴더 비우기…",
+    "empty_folder_title": "{folder}을(를) 비울까요?",
+    "empty_folder_confirm_trash": "{folder}의 {count, plural, other {메시지 #개}}를 모두 휴지통으로 옮길까요?",
+    "empty_folder_confirm_delete": "{folder}의 {count, plural, other {메시지 #개}}를 모두 영구 삭제할까요? 되돌릴 수 없어요.",
+    "empty_folder_move": "휴지통으로 이동",
+    "empty_folder_delete": "영구 삭제",
     "title_all_accounts": "{name} ({count}, 모든 계정에 {total})",
     "title_all_accounts_only": "{name} (모든 계정에 {total})"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "호출기",
       "phone_video": "화상",
       "phone_text": "문자",
+      "phone_custom": "사용자 지정…",
+      "phone_custom_label": "사용자 지정 유형",
+      "phone_custom_placeholder": "예: 자동차",
       "organization": "소속(회사)",
       "organization_placeholder": "회사 이름",
       "department": "부서",
@@ -5575,6 +5611,7 @@
     "search": "검색",
     "not_starred": "별표 없음",
     "no_attachment": "첨부파일 없음",
+    "no_tags": "태그 없음",
     "any_time": "모든 기간",
     "past_week": "지난 1주",
     "past_month": "지난 1개월",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "메일 전달",
         "body": "작성 창을 열지 않고 계정의 메시지를 첨부 파일과 함께 전달해요. 주소마다 처음 전달하기 전에 물어봐요."
+      },
+      "ui_notices": {
+        "title": "알림 패널 표시",
+        "body": "앱의 메시지가 나타나는 화면 아래쪽에 플러그인 자체의 작은 패널을 표시합니다(예: 전화가 올 때). 페이지를 막지 않으며 계속 입력하고 닫을 수 있습니다. 각 알림에는 플러그인 이름이 표시됩니다."
       },
       "ui_notifications": {
         "title": "알림 표시",

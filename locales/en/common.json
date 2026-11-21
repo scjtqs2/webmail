@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Unread",
       "everything_else": "Everything else",
-      "unread_empty": "You've read all the messages in your inbox."
+      "unread_empty": "You've read all the messages in your inbox.",
+      "unread_newer": "Newer unread",
+      "unread_older": "Older unread"
     },
     "columns": {
       "from": "From",
@@ -381,6 +383,8 @@
     "replied": "Replied",
     "forwarded": "Forwarded",
     "has_attachment": "Has attachment",
+    "high_importance": "High importance",
+    "low_importance": "Low importance",
     "conversations_range": "{from}–{to, number} of {total, number}",
     "conversations_count": "{count} of {total} conversations",
     "conversations_count_plus": "{count}+ conversations",
@@ -1111,6 +1115,12 @@
     "option_priority_high": "High",
     "option_priority_normal": "Normal",
     "option_priority_low": "Low",
+    "file_in": "File in folder",
+    "file_in_chosen": "File in {folder}",
+    "file_in_hint": "Once sent, your message and the one you're answering go to this folder",
+    "file_in_none": "Don't file",
+    "file_in_failed": "Sent, but it couldn't be filed in {folder}.",
+    "file_in_reply_elsewhere": "Moved the original to {folder}. Your reply stays in Sent, as it went out from another account.",
     "validation": {
       "recipient_required": "Add a recipient to send",
       "body_required": "Write a message or attach a file",
@@ -1297,6 +1307,10 @@
       "edit": "Edit image description",
       "plain_text": "[Image: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Too many uploads. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "retry_later": "Too many uploads. Try again later."
   },
   "attachment_rename": {
     "rename": "Rename",
@@ -2150,6 +2164,12 @@
         "label": "Quick reply",
         "description": "Show the quick reply box below messages."
       },
+      "reply_quote": {
+        "label": "Quoted text in replies",
+        "description": "Collapsed hides the quoted messages behind •••. Expanded shows them in full when you open a reply.",
+        "collapsed": "Collapsed",
+        "expanded": "Expanded"
+      },
       "auto_select_reply_identity": {
         "label": "Reply from the address it was sent to",
         "description": "When replying, send from the address the message was originally sent to."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Mark as read after replying or forwarding",
         "description": "A message you reply to or forward is marked as read, also when messages are never marked as read on opening."
+      },
+      "message_double_click": {
+        "label": "Double-click a message",
+        "description": "What a double-click on a message in the list does.",
+        "reading_pane": "Open in reading pane",
+        "new_window": "Open in a new window"
       },
       "return_to_list_after_action": {
         "label": "Return to list after delete, archive, move or mark unread",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} emails selected",
     "forward_as_attachments": "Forward as attachments",
     "edit_draft": "Edit draft",
+    "edit_as_new": "Edit as new",
     "cancel_scheduled_send": "Cancel send",
     "reschedule_send": "Reschedule",
     "cancel_and_edit": "Cancel and edit",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Empty Spam",
     "empty_trash_confirm": "Delete {count, plural, one {the message} other {all # messages}} in Trash forever? You can't undo this.",
     "empty_spam_confirm": "Delete {count, plural, one {the message} other {all # messages}} in Spam forever? You can't undo this.",
+    "empty_folder": "Empty folder…",
+    "empty_folder_title": "Empty {folder}?",
+    "empty_folder_confirm_trash": "Move {count, plural, one {the message} other {all # messages}} in {folder} to the Trash?",
+    "empty_folder_confirm_delete": "Delete {count, plural, one {the message} other {all # messages}} in {folder} forever? You can't undo this.",
+    "empty_folder_move": "Move to Trash",
+    "empty_folder_delete": "Delete forever",
     "title_all_accounts": "{name} ({count}, {total} in all accounts)",
     "title_all_accounts_only": "{name} ({total} in all accounts)"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Pager",
       "phone_video": "Video",
       "phone_text": "Text",
+      "phone_custom": "Custom…",
+      "phone_custom_label": "Custom type",
+      "phone_custom_placeholder": "e.g., Car",
       "organization": "Organization",
       "organization_placeholder": "Company name",
       "department": "Department",
@@ -5864,6 +5900,7 @@
     "search": "Search",
     "not_starred": "Not starred",
     "no_attachment": "No attachments",
+    "no_tags": "No tags",
     "any_time": "Any time",
     "past_week": "Past week",
     "past_month": "Past month",
@@ -7111,6 +7148,10 @@
       "email_forward": {
         "title": "Forward your mail",
         "body": "Forward messages from your account with their attachments, without opening the composer. You are asked before the first forward to each address."
+      },
+      "ui_notices": {
+        "title": "Show notice panels",
+        "body": "Show a small panel of its own at the bottom of the screen, where the app's messages appear, for example for an incoming call. It doesn't block the page, you can keep typing, and you can close it. Each one names the plugin."
       },
       "ui_notifications": {
         "title": "Show notifications",

@@ -1,6 +1,6 @@
 # Base images by digest, so a build gets the image that was reviewed; the
 # Dependabot docker entry moves the digest when the tag gets a new image.
-FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS builder
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 # @sentry/cli's install script looks for a binary for this platform and fails
@@ -36,6 +36,12 @@ ENV BULWARK_SOURCE_MAPS=$BULWARK_SOURCE_MAPS
 # new version is out on every check.
 ARG BULWARK_BUILD_SEED=
 ENV BULWARK_BUILD_SEED=$BULWARK_BUILD_SEED
+# Heap for `next build`, in MB. Below 16 GB of memory Node's default is
+# about 2.1 GB, and the build needs more than that (#1510). Change it with
+# --build-arg BUILD_HEAP_MB=<MB>. A --max-old-space-size that a swapped-in
+# base image sets in NODE_OPTIONS still wins. Only the build step gets it:
+# the image runs with Node's default.
+ARG BUILD_HEAP_MB=4096
 # The mock JMAP server (DEV_MOCK_JMAP) accepts any password and is for
 # `npm run dev` only; images ship without it.
 # `next build` type-checks every .ts file, and some unit tests import the
@@ -48,7 +54,7 @@ RUN rm -rf "app/api/dev-jmap" && \
     node scripts/build-pst-worker.mjs && \
     node scripts/build-store-worker.mjs && \
     node scripts/build-plugin-sandbox.mjs && \
-    npx next build --webpack && \
+    NODE_OPTIONS="--max-old-space-size=$BUILD_HEAP_MB $NODE_OPTIONS" npx next build --webpack && \
     node scripts/standalone-guard.mjs
 
 # webpack has no debug IDs of its own, so sentry-cli adds them to the
@@ -73,7 +79,7 @@ RUN node scripts/sourcemaps.mjs collect --out /sourcemaps .next/static .next/sta
 FROM scratch AS sourcemaps
 COPY --from=bundle /sourcemaps /
 
-FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS runner
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS runner
 
 LABEL org.opencontainers.image.title="Bulwark Webmail"
 LABEL org.opencontainers.image.description="Modern webmail client built with Next.js and the JMAP protocol"

@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Уншаагүй",
       "everything_else": "Бусад бүх",
-      "unread_empty": "Та ирсэн хайрцгийн бүх захидлыг уншсан байна."
+      "unread_empty": "Та ирсэн хайрцгийн бүх захидлыг уншсан байна.",
+      "unread_newer": "Шинэ уншаагүй",
+      "unread_older": "Хуучин уншаагүй"
     },
     "columns": {
       "from": "Илгээгч",
@@ -381,6 +383,8 @@
     "replied": "Хариулсан",
     "forwarded": "Дамжуулсан",
     "has_attachment": "Хавсралттай",
+    "high_importance": "Өндөр ач холбогдолтой",
+    "low_importance": "Бага ач холбогдолтой",
     "conversations_range": "{from}–{to, number} / {total, number}",
     "conversations_count": "{total} харилцан ярианы {count}",
     "conversations_count_plus": "{count}+ харилцан яриа",
@@ -1110,6 +1114,12 @@
     "option_priority_high": "Өндөр",
     "option_priority_normal": "Энгийн",
     "option_priority_low": "Бага",
+    "file_in": "Хавтсанд хадгалах",
+    "file_in_chosen": "{folder}-д хадгалах",
+    "file_in_hint": "Илгээсний дараа таны захидал болон хариулж буй захидал энэ хавтас руу орно",
+    "file_in_none": "Хадгалахгүй",
+    "file_in_failed": "Илгээсэн ч {folder}-д хадгалж чадсангүй.",
+    "file_in_reply_elsewhere": "Эх захидлыг {folder} руу зөөлөө. Хариу өөр бүртгэлээс илгээгдсэн тул Илгээсэн хэсэгт үлдэнэ.",
     "validation": {
       "recipient_required": "Илгээхийн тулд хүлээн авагч нэмэх",
       "body_required": "Мессеж бичих эсвэл файл хавсаргах",
@@ -1297,6 +1307,10 @@
       "edit": "Зургийн тайлбарыг засах",
       "plain_text": "[Зураг: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Хэт олон байршуулалт. {minutes, plural, one {# минутын} other {# минутын}} дараа дахин оролдоно уу.",
+    "retry_later": "Хэт олон байршуулалт. Дараа дахин оролдоно уу."
   },
   "attachment_rename": {
     "rename": "Нэр солих",
@@ -2150,6 +2164,12 @@
         "label": "Хурдан хариу",
         "description": "Захидлын доор хурдан хариуны талбарыг харуулах."
       },
+      "reply_quote": {
+        "label": "Хариулт дахь иш татсан текст",
+        "description": "Хураасан үед иш татсан захидлууд ••• тэмдгийн ард нуугдана. Дэлгэсэн үед хариулт нээхэд бүтнээрээ харагдана.",
+        "collapsed": "Хураасан",
+        "expanded": "Дэлгэсэн"
+      },
       "auto_select_reply_identity": {
         "label": "Хүлээн авсан хаягаас хариу бичих",
         "description": "Хариу бичихдээ захидал ирсэн хаягаас илгээнэ."
@@ -2307,6 +2327,12 @@
       "mark_read_on_reply": {
         "label": "Хариулах эсвэл дамжуулахад уншсан гэж тэмдэглэх",
         "description": "Таны хариулсан эсвэл дамжуулсан зурвас уншсан гэж тэмдэглэгдэнэ. Зурвасыг нээхэд хэзээ ч уншсан гэж тэмдэглэдэггүй үед ч мөн адил."
+      },
+      "message_double_click": {
+        "label": "Захидал дээр давхар товших",
+        "description": "Жагсаалт дахь захидал дээр давхар товшиход юу болох.",
+        "reading_pane": "Унших хэсэгт нээх",
+        "new_window": "Шинэ цонхонд нээх"
       },
       "return_to_list_after_action": {
         "label": "Устгах, архивлах, шилжүүлэх эсвэл уншаагүй гэж тэмдэглэсний дараа жагсаалт руу буцах",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} имэйл сонгосон",
     "forward_as_attachments": "Хавсралт болгон дамжуулах",
     "edit_draft": "Ноорог засах",
+    "edit_as_new": "Шинээр засварлах",
     "cancel_scheduled_send": "Илгээхийг цуцлах",
     "reschedule_send": "Хуваарь солих",
     "cancel_and_edit": "Цуцлах, засварлах",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Спамыг хоослох",
     "empty_trash_confirm": "Хогийн саван дахь {count, plural, one {захидлыг} other {бүх # захидлыг}} бүрмөсөн устгах уу? Буцаах боломжгүй.",
     "empty_spam_confirm": "Спам дахь {count, plural, one {захидлыг} other {бүх # захидлыг}} бүрмөсөн устгах уу? Буцаах боломжгүй.",
+    "empty_folder": "Хавтас хоослох…",
+    "empty_folder_title": "{folder}-г хоослох уу?",
+    "empty_folder_confirm_trash": "{folder} дахь {count, plural, one {захидлыг} other {бүх # захидлыг}} хогийн сав руу зөөх үү?",
+    "empty_folder_confirm_delete": "{folder} дахь {count, plural, one {захидлыг} other {бүх # захидлыг}} бүрмөсөн устгах уу? Буцаах боломжгүй.",
+    "empty_folder_move": "Хогийн сав руу зөөх",
+    "empty_folder_delete": "Бүрмөсөн устгах",
     "title_all_accounts": "{name} ({count}, бүх бүртгэлд {total})",
     "title_all_accounts_only": "{name} (бүх бүртгэлд {total})"
   },
@@ -4619,6 +4652,9 @@
       "phone_pager": "Пэйжэр",
       "phone_video": "Видео",
       "phone_text": "Текст",
+      "phone_custom": "Өөрийн…",
+      "phone_custom_label": "Өөрийн төрөл",
+      "phone_custom_placeholder": "жишээ нь: Машин",
       "organization": "Байгууллага",
       "organization_placeholder": "Компанийн нэр",
       "department": "Хэлтэс",
@@ -5864,6 +5900,7 @@
     "search": "Хайх",
     "not_starred": "Одгүй",
     "no_attachment": "Хавсралтгүй",
+    "no_tags": "Таггүй",
     "any_time": "Хэзээ ч",
     "past_week": "Өнгөрсөн долоо хоног",
     "past_month": "Өнгөрсөн сар",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Таны имэйлийг дамжуулах",
         "body": "Таны бүртгэлийн имэйлүүдийг хавсралттай нь, бичих цонх нээлгүйгээр дамжуулна. Хаяг бүрт анх дамжуулахын өмнө танаас асууна."
+      },
+      "ui_notices": {
+        "title": "Мэдэгдлийн самбар харуулах",
+        "body": "Аппын мессеж гардаг дэлгэцийн доод хэсэгт өөрийн жижиг самбар харуулна, жишээлбэл ирж буй дуудлагын үед. Хуудсыг хаахгүй, та үргэлжлүүлэн бичиж, түүнийг хааж болно. Тус бүр нь нэмэлтийн нэрийг заана."
       },
       "ui_notifications": {
         "title": "Мэдэгдэл харуулах",

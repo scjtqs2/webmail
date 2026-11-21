@@ -353,7 +353,9 @@
     "sections": {
       "unread": "Nieprzeczytane",
       "everything_else": "Wszystkie pozostałe",
-      "unread_empty": "Przeczytano wszystkie wiadomości w odebranych."
+      "unread_empty": "Przeczytano wszystkie wiadomości w odebranych.",
+      "unread_newer": "Nowsze nieprzeczytane",
+      "unread_older": "Starsze nieprzeczytane"
     },
     "columns": {
       "from": "Od",
@@ -381,6 +383,8 @@
     "replied": "Odpowiedziano",
     "forwarded": "Przekazano",
     "has_attachment": "Z załącznikiem",
+    "high_importance": "Wysoka ważność",
+    "low_importance": "Niska ważność",
     "conversations_range": "{from}–{to, number} z {total, number}",
     "conversations_count": "{count} z {total} konwersacji",
     "conversations_count_plus": "{count}+ konwersacji",
@@ -1107,6 +1111,12 @@
     "option_priority_high": "Wysoki",
     "option_priority_normal": "Normalny",
     "option_priority_low": "Niski",
+    "file_in": "Zachowaj w folderze",
+    "file_in_chosen": "Zachowaj w {folder}",
+    "file_in_hint": "Po wysłaniu Twoja wiadomość i ta, na którą odpowiadasz, trafią do tego folderu",
+    "file_in_none": "Nie przenoś",
+    "file_in_failed": "Wysłano, ale nie udało się zapisać w {folder}.",
+    "file_in_reply_elsewhere": "Oryginał przeniesiono do {folder}. Odpowiedź zostaje w Wysłanych, bo wyszła z innego konta.",
     "validation": {
       "recipient_required": "Dodaj odbiorcę, aby wysłać",
       "body_required": "Napisz wiadomość lub załącz plik",
@@ -1297,6 +1307,10 @@
       "edit": "Edytuj opis obrazu",
       "plain_text": "[Obraz: {alt}]"
     }
+  },
+  "upload_rate_limit": {
+    "retry_in": "Zbyt wiele przesłanych plików. Spróbuj ponownie za {minutes, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}.",
+    "retry_later": "Zbyt wiele przesłanych plików. Spróbuj ponownie później."
   },
   "attachment_rename": {
     "rename": "Zmień nazwę",
@@ -2147,6 +2161,12 @@
         "label": "Szybka odpowiedź",
         "description": "Pokazuj pole szybkiej odpowiedzi pod wiadomościami."
       },
+      "reply_quote": {
+        "label": "Cytowany tekst w odpowiedziach",
+        "description": "Zwinięty ukrywa cytowane wiadomości za •••. Rozwinięty pokazuje je w całości po otwarciu odpowiedzi.",
+        "collapsed": "Zwinięty",
+        "expanded": "Rozwinięty"
+      },
       "auto_select_reply_identity": {
         "label": "Automatycznie wybieraj adres odpowiedzi",
         "description": "Przy odpowiadaniu wysyłaj z adresu, na który wysłano wiadomość."
@@ -2304,6 +2324,12 @@
       "mark_read_on_reply": {
         "label": "Oznacz jako przeczytane, gdy odpowiadam lub przekazuję",
         "description": "Wiadomość, na którą odpowiadasz lub którą przekazujesz, zostaje oznaczona jako przeczytana, także gdy wiadomości nigdy nie są oznaczane jako przeczytane po otwarciu."
+      },
+      "message_double_click": {
+        "label": "Dwukrotne kliknięcie wiadomości",
+        "description": "Co robi dwukrotne kliknięcie wiadomości na liście.",
+        "reading_pane": "Otwórz w okienku odczytu",
+        "new_window": "Otwórz w nowym oknie"
       },
       "return_to_list_after_action": {
         "label": "Powrót do listy po usunięciu, zarchiwizowaniu, przeniesieniu lub oznaczeniu jako nieprzeczytane",
@@ -4012,6 +4038,7 @@
     "items_selected": "{count} zaznaczonych wiadomości",
     "forward_as_attachments": "Prześlij dalej jako załączniki",
     "edit_draft": "Edytuj szkic",
+    "edit_as_new": "Edytuj jako nową",
     "cancel_scheduled_send": "Anuluj wysyłkę",
     "reschedule_send": "Przełóż",
     "cancel_and_edit": "Anuluj i edytuj",
@@ -4112,6 +4139,12 @@
     "empty_spam": "Opróżnij spam",
     "empty_trash_confirm": "Trwale usunąć {count, plural, one {wiadomość} few {wszystkie # wiadomości} many {wszystkie # wiadomości} other {wszystkie # wiadomości}} z kosza? Nie można tego cofnąć.",
     "empty_spam_confirm": "Trwale usunąć {count, plural, one {wiadomość} few {wszystkie # wiadomości} many {wszystkie # wiadomości} other {wszystkie # wiadomości}} ze spamu? Nie można tego cofnąć.",
+    "empty_folder": "Opróżnij folder…",
+    "empty_folder_title": "Opróżnić folder {folder}?",
+    "empty_folder_confirm_trash": "Przenieść {count, plural, one {wiadomość} few {wszystkie # wiadomości} many {wszystkie # wiadomości} other {wszystkie # wiadomości}} z folderu {folder} do kosza?",
+    "empty_folder_confirm_delete": "Trwale usunąć {count, plural, one {wiadomość} few {wszystkie # wiadomości} many {wszystkie # wiadomości} other {wszystkie # wiadomości}} z folderu {folder}? Nie można tego cofnąć.",
+    "empty_folder_move": "Przenieś do kosza",
+    "empty_folder_delete": "Usuń trwale",
     "title_all_accounts": "{name} ({count}, {total} we wszystkich kontach)",
     "title_all_accounts_only": "{name} ({total} we wszystkich kontach)"
   },
@@ -4617,6 +4650,9 @@
       "phone_pager": "Pager",
       "phone_video": "Wideo",
       "phone_text": "SMS",
+      "phone_custom": "Własny…",
+      "phone_custom_label": "Własny typ",
+      "phone_custom_placeholder": "np. Samochód",
       "organization": "Organizacja",
       "organization_placeholder": "Nazwa firmy",
       "department": "Dział",
@@ -5575,6 +5611,7 @@
     "search": "Szukaj",
     "not_starred": "Bez gwiazdki",
     "no_attachment": "Bez załączników",
+    "no_tags": "Bez etykiet",
     "any_time": "Dowolny czas",
     "past_week": "Ostatni tydzień",
     "past_month": "Ostatni miesiąc",
@@ -7083,6 +7120,10 @@
       "email_forward": {
         "title": "Przekazywanie Twojej poczty",
         "body": "Przekazuje wiadomości z Twojego konta razem z załącznikami, bez otwierania edytora. Przed pierwszym przekazaniem na każdy adres zostaniesz zapytany."
+      },
+      "ui_notices": {
+        "title": "Wyświetlać własne panele powiadomień",
+        "body": "Wyświetlać własny mały panel u dołu ekranu, tam gdzie pojawiają się komunikaty aplikacji, na przykład przy połączeniu przychodzącym. Nie blokuje strony, możesz dalej pisać i możesz go zamknąć. Każde podaje nazwę wtyczki."
       },
       "ui_notifications": {
         "title": "Wyświetlanie powiadomień",
