@@ -2,9 +2,9 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createConfig } from '@/lib/__tests__/fixtures/config';
 
-// What an automatic sign-out does to the mail on this device. A real refusal of
-// the login wipes it, like a sign-out. An outage, or a refusal that says nothing
-// about the login, keeps it for the next sign-in.
+// What an automatic sign-out does to the mail on this device: it waits for the
+// next sign-in, like an evicted account's (lib/offline/device-wipe.ts), and the
+// account stays listed for that sign-in.
 
 const purge = vi.hoisted(() => ({ files: 0 }));
 vi.mock('@/lib/store/client/purge', () => ({ purgeStoreFiles: async () => { purge.files += 1; }, deleteStorePool: async () => {} }));
@@ -107,9 +107,8 @@ describe('an automatic sign-out of the active account', () => {
     tokenAnswers(() => answer(401, { error: 'invalid_grant' }));
     offline.startOfflineMode();
     await refresh();
-    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)).toBeUndefined());
+    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)?.awaitingSignIn).toBe(true));
     expectKept();
-    expect(lost.consumeLost()).toEqual([]);
   });
 
   it('keeps the data at the organisation\'s session limit: that says nothing about the password', async () => {
@@ -117,7 +116,7 @@ describe('an automatic sign-out of the active account', () => {
     tokenAnswers(() => answer(401, { error: SESSION_TOO_OLD, maxHours: 8 }));
     offline.startOfflineMode();
     await refresh();
-    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)).toBeUndefined());
+    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)?.awaitingSignIn).toBe(true));
     expectKept();
   });
 });
@@ -135,7 +134,7 @@ describe('a background account', () => {
   it('keeps its data on an unknown refusal', async () => {
     tokenAnswers(() => answer(401, { error: 'Refresh failed' }));
     await token();
-    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(BOB)).toBeUndefined());
+    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(BOB)?.awaitingSignIn).toBe(true));
     expect(state.isEvicted(BOB)).toBe(true);
     expect(store.removed).toEqual([]);
   });
@@ -143,9 +142,18 @@ describe('a background account', () => {
   it('keeps its data on a real invalid_grant too', async () => {
     tokenAnswers(() => answer(401, { error: 'invalid_grant' }));
     await token();
-    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(BOB)).toBeUndefined());
+    await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(BOB)?.awaitingSignIn).toBe(true));
     expect(state.isEvicted(BOB)).toBe(true);
     expect(store.removed).toEqual([]);
+  });
+
+  it('keeps its mail and outbox through repeated server failures', async () => {
+    tokenAnswers(() => answer(502, '<html>Bad Gateway</html>'));
+    for (let attempt = 0; attempt < 5; attempt += 1) await token();
+    expect(useAccountStore.getState().getAccountById(BOB)?.awaitingSignIn).toBe(true);
+    expect(state.isEvicted(BOB)).toBe(true);
+    expect(store.removed).toEqual([]);
+    expect(state.useOfflineStore.getState().enabled).toEqual([ALICE, BOB]);
   });
 });
 
@@ -209,7 +217,8 @@ describe('a sign-out that has to drop another account', () => {
     offline.startOfflineMode();
     tokenAnswers(() => answer(200));
     await useAuthStore.getState().logout({ endProviderSession: false });
-    await vi.waitFor(() => expect(useAccountStore.getState().accounts).toEqual([]));
+    await vi.waitFor(() => expect(useAccountStore.getState().accounts.map((account) => account.id)).toEqual([BOB]));
+    expect(useAccountStore.getState().getAccountById(BOB)?.awaitingSignIn).toBe(true);
     await vi.waitFor(() => expect(store.removed).toEqual([ALICE]));
     expect(purge.files).toBe(0);
     expect(state.isEvicted(BOB)).toBe(true);

@@ -27,6 +27,18 @@ export interface JmapServerEntry {
    * dashboard.
    */
   adminAccess?: boolean;
+  /**
+   * Where Bulwark's own server reaches this server, when `url` (what browsers
+   * use) doesn't work from inside its network (#1294). Never sent to the
+   * browser outside the admin dashboard.
+   */
+  internalUrl?: string;
+  /**
+   * Only as an extra account, next to a sign-in to a server that isn't
+   * extra-only (#1687): left off the sign-in page and refused by the sign-in
+   * routes without one (lib/auth/extra-account.ts). For a legacy-proxy.
+   */
+  extraAccountOnly?: boolean;
   oauth?: JmapServerOAuthConfig & {
     /**
      * Set on the admin dashboard's view of an entry instead of the secret
@@ -42,6 +54,8 @@ export interface PublicJmapServerEntry {
   label: string;
   url: string;
   domains: string[];
+  /** Offered when adding an account, not on the first sign-in. */
+  extraAccountOnly?: boolean;
   oauth?: {
     clientId?: string;
     issuerUrl?: string;
@@ -112,14 +126,17 @@ export function parseJmapServers(raw: unknown): JmapServerEntry[] {
         if (endSessionUrl && isHttpUrl(endSessionUrl)) oauth.endSessionUrl = endSessionUrl;
       }
     }
+    const internalUrl = typeof e.internalUrl === 'string' ? trimUrl(e.internalUrl) : '';
     out.push({
       id,
       label: label || id,
       url,
       ...(domains.length > 0 ? { domains } : {}),
+      ...(internalUrl && isHttpUrl(internalUrl) ? { internalUrl } : {}),
       ...(oauth ? { oauth } : {}),
       // Only an explicit true: anything else is the default, off.
       ...(e.adminAccess === true ? { adminAccess: true } : {}),
+      ...(e.extraAccountOnly === true ? { extraAccountOnly: true } : {}),
     });
   }
   return out;
@@ -163,6 +180,7 @@ export function redactJmapServers(servers: JmapServerEntry[]): PublicJmapServerE
     label: s.label,
     url: s.url,
     domains: s.domains ?? [],
+    ...(s.extraAccountOnly ? { extraAccountOnly: true } : {}),
     ...(s.oauth && (s.oauth.clientId || s.oauth.issuerUrl)
       ? {
           oauth: {

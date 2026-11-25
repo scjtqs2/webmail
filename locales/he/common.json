@@ -22,7 +22,8 @@
       "oauth_discovery_failed": "SSO מופעל אך לא ניתן היה להשיג את ספק הזהות. בדוק את תצורת ה-OAuth שלך.",
       "oauth_issuer_mismatch": "ההתחברות דרך ספק זה אינה מוגדרת כראוי. מנהל המערכת צריך להגדיר את כתובת המנפיק (issuer) שלו.",
       "token_exchange_failed": "הסיסמה והקוד התקבלו, אך שרת הדואר סירב לפתוח הפעלה עבור האפליקציה הזו. בקשו ממנהל המערכת לבדוק את הגדרות לקוח ה-OAuth.",
-      "login_refused": "שרת הדואר דחה את הכניסה הזו לפני שבדק את הקוד שלך. בקש ממנהל המערכת לבדוק את הגדרות לקוח ה-OAuth."
+      "login_refused": "שרת הדואר דחה את הכניסה הזו לפני שבדק את הקוד שלך. בקש ממנהל המערכת לבדוק את הגדרות לקוח ה-OAuth.",
+      "primary_sign_in_required": "קודם צריך להתחבר לחשבון הראשי שלך. אפשר להוסיף את השרת הזה רק כחשבון נוסף."
     },
     "show_password": "הצג סיסמה",
     "hide_password": "הסתר את הסיסמה",
@@ -139,6 +140,7 @@
     "filter_values_hint": "כדי להתאים לכמה ערכים, מפרידים ביניהם בפסיקים."
   },
   "sidebar": {
+    "sign_in_again": "כניסה מחדש",
     "unified_mailbox": "תיבת דואר מאוחדת",
     "close": "סגור",
     "compose": "כתיבה",
@@ -241,7 +243,9 @@
     "mv_add_another_account": "הוספת חשבון נוסף",
     "mv_manage_account": "ניהול החשבון",
     "mv_storage_used": "נוצלו {percent}% מתוך {total}",
-    "accessibility": "נגישות"
+    "accessibility": "נגישות",
+    "folder_hidden": "התיקייה הוסתרה. אפשר להציג אותה שוב בהגדרות › תיקיות ותגיות.",
+    "folder_hide_failed": "לא ניתן היה להסתיר את התיקייה."
   },
   "account_unread": {
     "others": "לא נקראו בחשבונות האחרים: {count}",
@@ -1023,6 +1027,7 @@
     "reply_all_to": "השב לכולם",
     "forward_message": "קדימה",
     "from": "מאת",
+    "from_account": "חשבון: {name}",
     "to": "אל",
     "cc": "עותק",
     "bcc": "עותק מוסתר",
@@ -1108,6 +1113,7 @@
     "recipients_refused": "לא נשלח: השרת דחה את {recipients}.",
     "recipients_partly_refused": "השרת דחה את {recipients}. שאר הנמענים יקבלו את ההודעה.",
     "send_offline": "נראה שאין חיבור לרשת. ההודעה עדיין כאן, שלחו אותה שוב כשתחזרו לרשת.",
+    "archive_after_reply_queued": "ההודעה תישלח כשתחזרו להיות מחוברים. ההודעה המקורית נשארת בתיבת הדואר הנכנס.",
     "formatting": "עיצוב",
     "send_recipients_rejected": "לא נשלח: השרת דחה את כל הנמענים.",
     "send_plugin_failed": "לא נשלח - תוסף שמטפל בשליחה נכשל או לקח יותר מדי זמן. בדקו את תיקיית דואר יוצא לפני שליחה חוזרת.",
@@ -1756,7 +1762,9 @@
         },
         "include_group": {
           "label": "כלול תיבות דואר קבוצתיות",
-          "description": "גם מזג תיבות דואר משותפות/קבוצתיות לתצוגה המאוחדת."
+          "description": "גם מזג תיבות דואר משותפות/קבוצתיות לתצוגה המאוחדת.",
+          "accounts_label": "תיבות דואר משותפות בתיבת הדואר המאוחדת",
+          "accounts_description": "בטלו את הסימון של תיבה שאינכם קוראים כל יום. היא נשארת בסרגל הצד."
         }
       },
       "all_mail": {
@@ -2172,7 +2180,7 @@
       },
       "always_light_mode": {
         "label": "הצג תמיד הודעות דוא\"ל במצב קל",
-        "description": "עבד את תוכן האימייל במצב בהיר גם כשהאפליקציה במצב כהה, תוך הימנעות מבעיות המרה במצב כהה"
+        "description": "הצגת הודעות, והטקסט שאתה כותב, על רקע בהיר גם כשהאפליקציה במצב כהה"
       },
       "external_content": {
         "label": "תוכן חיצוני",
@@ -2284,6 +2292,10 @@
       "placeholder_warning": {
         "label": "אזהרה על מצייני מיקום",
         "description": "בקש אישור לפני שליחת הודעה שעדיין יש בה מצייני מיקום כמו [TIME] או [השם שלך], שדות תבנית ריקים או טקסט לא גמור כמו TODO או TBD."
+      },
+      "archive_after_reply": {
+        "label": "העברה לארכיון אחרי מענה",
+        "description": "כשעונים להודעה בתיבת הדואר הנכנס או מעבירים אותה, היא מועברת לארכיון אחרי שההודעה שלכם נשלחת."
       },
       "recipient_mentions": {
         "label": "אזכור נמענים עם @",
@@ -2478,6 +2490,9 @@
         "count": "{count, plural, one {כתובת אחת} two {שתי כתובות} other {# כתובות}}",
         "empty": "אין עדיין כתובות מוסוות.",
         "website": "אתר (אופציונלי)",
+        "domain": "דומיין",
+        "domain_default": "דומיין ברירת מחדל",
+        "domain_not_allowed": "השרת לא מתיר כתובות מוסוות בדומיין הזה עבור החשבון שלך. בחר דומיין אחר.",
         "description": "תיאור (אופציונלי)",
         "no_website": "לא צוין",
         "enabled": "מופעלת",
@@ -2814,7 +2829,16 @@
       "error_delete_has_children": "לא ניתן למחוק תיקייה: היא עדיין מכילה תיקיות משנה. מחק או העבר אותם תחילה.",
       "error_delete_has_email": "לא ניתן למחוק תיקייה: היא עדיין מכילה הודעות דוא\"ל. העבר או מחק אותם תחילה.",
       "error_role": "עדכון תפקיד התיקייה נכשל",
-      "role_memos": "הערות"
+      "role_memos": "הערות",
+      "hide_unsubscribed": {
+        "label": "הסתרת תיקיות ללא מינוי",
+        "description": "תיקיות שאתם מבטלים את המינוי אליהן כאן או באפליקציה אחרת, כמו Thunderbird, יוצאות מסרגל הצד. הדואר שלהן נשאר בשרת."
+      },
+      "show_folder": "הצגה בסרגל הצד",
+      "hide_folder": "הסתרה מסרגל הצד",
+      "show_folder_named": "הצגת {name} בסרגל הצד",
+      "hide_folder_named": "הסתרת {name} מסרגל הצד",
+      "error_subscription": "לא ניתן היה להציג או להסתיר את התיקייה."
     },
     "advanced": {
       "debug_mode": {
@@ -3107,6 +3131,8 @@
       "regex_placeholder": "ביטוי רגולרי, לדוגמה ^Cron|mailman",
       "origin_external": "חיצוני",
       "managed_by_tooltip": "מנוהל על ידי {source}. ערוך אותו ביישום זה, או השתמש בעורך Sieve הגולמי.",
+      "server_rules": "כללי שרת",
+      "server_rules_description": "ספק הדואר שלך הוסיף אותם. הם פועלים לפני המסננים שלך ואי אפשר לשנות אותם כאן.",
       "quick_rule_names": {
         "move_sender": "העבר מ-{sender} אל {folder}",
         "move_domain": "העבר מ-@{domain} אל {folder}",
@@ -4319,6 +4345,10 @@
     "warning_attachment": "מוזכר \"{keyword}\", אבל לא צורף קובץ",
     "warning_placeholders": "טקסט ממלא מקום שהנמענים יראו:",
     "warning_proofreading": "שגיאות כתיב או דקדוק פתוחות: {count}",
+    "warning_account": "התשובה נשלחת מ־{sending}, אבל ההודעה הגיעה אל {received}",
+    "account_warning_title": "להשיב מחשבון אחר?",
+    "account_warning_message": "ההודעה הזו הגיעה אל {received}. התשובה תישלח מ־{sending}.",
+    "account_warning_back": "שינוי השולח",
     "empty_text_title": "לשלוח ללא טקסט?",
     "empty_text_message": "להודעה הזו אין טקסט ואין קובץ מצורף. לשלוח אותה בכל זאת?",
     "scheduled_for": "מתוזמן ל-{when}",
@@ -4405,7 +4435,11 @@
         "resource": "משאב",
         "location": "מיקום",
         "other": "אחר"
-      }
+      },
+      "filter_label": "הצגה",
+      "filter_all": "הכול",
+      "filter_people": "אנשים",
+      "filter_groups": "קבוצות"
     },
     "title": "אנשי קשר",
     "disabled_title": "מנהל המערכת השבית את אנשי הקשר",
@@ -5055,6 +5089,16 @@
       "subscription_title": "לבטל את המנוי ללוח השנה?",
       "confirm": "מחיקה"
     },
+    "attachments": {
+      "title": "קבצים מצורפים",
+      "add": "הוספת קובץ",
+      "remove": "הסרת {name}",
+      "download": "הורדת {name}",
+      "unnamed": "קובץ מצורף",
+      "download_failed": "לא ניתן היה להוריד את הקובץ המצורף.",
+      "upload_failed": "לא ניתן היה להעלות קובץ. האירוע לא נשמר.",
+      "too_large": "\"{name}\" גדול ממה שהשרת מאפשר ({max} לקובץ)"
+    },
     "alerts": {
       "title": "תזכורת",
       "none": "אין תזכורת",
@@ -5092,6 +5136,10 @@
       "working_days": "ימי עבודה",
       "title": "הגדרות לוח שנה",
       "default_view": "לוח השנה נפתח בתצוגת",
+      "default_event_length": "משך ברירת מחדל לאירועים",
+      "default_event_length_desc": "כמה זמן נמשך אירוע חדש כשלוחצים על שעה ביומן או יוצרים אירוע.",
+      "event_length_minutes": "{minutes} דקות",
+      "event_length_hours": "{hours, plural, one {שעה} two {שעתיים} other {# שעות}}",
       "week_starts_on": "השבוע מתחיל ב",
       "time_format": "פורמט זמן",
       "default_calendar": "לוח שנה ברירת מחדל",
@@ -5356,6 +5404,8 @@
       "cancel": "לְבַטֵל",
       "save": "שמור",
       "quick_add_placeholder": "הוסף משימה...",
+      "add_subtask": "הוספת תת-משימה…",
+      "subtask_of": "תת-משימה של {title}",
       "due_today": "היום",
       "due_tomorrow": "מחר",
       "overdue": "באיחור"
@@ -5673,6 +5723,11 @@
     "zipping": "מכין את {name}",
     "download_canceled": "ההורדה בוטלה",
     "zip_error": "לא ניתן היה להוריד את {name}",
+    "download_to_folder": "הורדה לתיקייה…",
+    "downloading_to_folder": "מוריד אל {folder}",
+    "downloaded_to_folder": "{count, plural, one {קובץ אחד נשמר ב-{folder}.} other {# קבצים נשמרו ב-{folder}.}}",
+    "downloaded_to_folder_partial": "נשמרו {saved} מתוך {total} קבצים ב-{folder}.",
+    "download_to_folder_failed": "לא ניתן היה לשמור את הקבצים ב-{folder}.",
     "not_available": "אחסון קבצים אינו זמין בשרת זה",
     "cancel": "לְבַטֵל",
     "create": "צור",
@@ -6068,7 +6123,8 @@
     "toast_error_delete_has_email": "התיקייה אינה ריקה. תרוקנה קודם.",
     "delete_with_contents_title": "התיקייה אינה ריקה",
     "delete_with_contents_message": "התיקייה \"{name}\" עדיין מכילה {count, plural, one {הודעה אחת} other {# הודעות}}. למחוק את התיקייה ואת כל ההודעות שבה? לא ניתן לבטל פעולה זו.",
-    "delete_with_contents_confirm": "מחיקת התיקייה וההודעות"
+    "delete_with_contents_confirm": "מחיקת התיקייה וההודעות",
+    "hide_folder": "הסתרה מסרגל הצד"
   },
   "mail_p2_folders": {
     "all_folders": "כל התיקיות",
@@ -6130,6 +6186,25 @@
     "answered_by": "נענה על ידי {who}",
     "organizer_owner": "{name} (נשלח על ידך)",
     "organizer_me": "את/ה"
+  },
+  "calendar_forward": {
+    "menu": "העברה…",
+    "heading": "הזמנה שהועברה",
+    "when": "מתי: {value}",
+    "where": "איפה: {value}",
+    "organizer": "מארגן: {value}",
+    "failed": "לא ניתן היה להעביר את ההזמנה.",
+    "add_replier": "הוספת {name} לפגישה",
+    "not_invited": "{name} לא מוזמן לפגישה הזו. מישהו העביר אליו את ההזמנה.",
+    "added": "נוסף לפגישה"
+  },
+  "calendar_invitations": {
+    "title": "הזמנות",
+    "from": "מאת {name}"
+  },
+  "event_from_mail": {
+    "menu": "יצירת אירוע…",
+    "link_line": "דוא״ל: {link}"
   },
   "free_busy_share": {
     "button": "שתף את הזמינות שלי עם {group}",
@@ -6382,7 +6457,14 @@
       "calendar": "לוח שנה",
       "addressBook": "פנקס כתובות",
       "file": "קובץ"
-    }
+    },
+    "shared_items": "מה אתם משתפים",
+    "stop_sharing": "הפסקת השיתוף של {item} עם {name}",
+    "stop_sharing_title": "להפסיק לשתף את {item} עם {name}?",
+    "stop_sharing_message": "ל-{name} לא תהיה עוד גישה ל-{item}. כל השאר שאתם משתפים נשאר.",
+    "stop_sharing_confirm": "הפסקת השיתוף",
+    "stopped_sharing": "ל-{name} אין עוד גישה ל-{item}",
+    "stop_sharing_failed": "לא ניתן היה להפסיק את השיתוף של {item}"
   },
   "unified_mailbox": {
     "search_unavailable": "חיפוש אינו זמין בתצוגה המאוחדת"
@@ -7939,14 +8021,20 @@
       "added": "הכתובת נוספה.",
       "saved": "הכתובת נשמרה.",
       "deleted": "הכתובת נמחקה.",
-      "delete_title": "למחוק את הכתובת הזו?"
+      "delete_title": "למחוק את הכתובת הזו?",
+      "offer_new_mail": "להציע להודעות חדשות. כבוי: רק לתשובה להודעות שנשלחו לכתובת הזו.",
+      "offer_new_mail_named": "להציע את {address} להודעות חדשות"
     },
     "signatures": {
       "title": "חתימות",
-      "description": "נוספת בסוף ההודעות שאתם כותבים. לכל כתובת חתימה משלה.",
+      "description": "נוספת בסוף ההודעות שאתם כותבים. לכל כתובת חתימה משלה, או שהיא משתמשת בחתימה של כתובת אחרת.",
       "saved": "החתימה נשמרה.",
       "error": "לא ניתן היה לשמור את החתימה. נסו שוב.",
-      "no_addresses": "עדיין אין כתובת לשליחה."
+      "no_addresses": "עדיין אין כתובת לשליחה.",
+      "use_label": "חתימה",
+      "own": "חתימה משלה",
+      "same_as": "כמו {address}",
+      "shared_note": "משתמשת בחתימה של {address}. ערכו אותה שם."
     },
     "search": {
       "addresses": "זהות זהויות כינוי שולח כתובת השולח כתובת מאת identity alias sender",

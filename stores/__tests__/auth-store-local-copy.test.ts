@@ -18,6 +18,10 @@ vi.mock('@/lib/offline/offline-mode', () => ({
   offlineSessionFor: async (_account: string, options?: { withFolders?: boolean }) => (options?.withFolders && !offline.ready ? null : offline.session),
   serverUnreachable: async () => offline.gone,
   markStartedOffline: () => { offline.order.push('startedOffline'); },
+  wipeAccount: async (account: string) => {
+    offline.order.push('wipe');
+    useOfflineStore.setState((state) => ({ enabled: state.enabled.filter((id) => id !== account) }));
+  },
 }));
 
 let connectGate: Promise<void> = Promise.resolve();
@@ -205,8 +209,9 @@ it('doesn\'t let a late local answer overwrite the server\'s From list', async (
 it('leaves the login path to a refused account, and keeps its data', async () => {
   sessionAnswer = () => new Response('{}', { status: 401 });
   await useAuthStore.getState().checkAuth();
-  await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ACCOUNT.id)).toBeUndefined());
+  await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ACCOUNT.id)).toMatchObject({ awaitingSignIn: true, isConnected: false }));
   await vi.waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
   expect(useAuthStore.getState().client).toBeNull();
   expect(useOfflineStore.getState().enabled).toEqual([ACCOUNT.id]);
+  expect(offline.order).not.toContain('wipe');
 });

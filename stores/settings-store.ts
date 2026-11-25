@@ -14,6 +14,8 @@ import { calendarHooks, settingsHooks } from '@/lib/plugin-hooks';
 import { BIRTHDAY_CALENDAR_ID } from '@/lib/birthday-calendar';
 import { generateAccountId } from '@/lib/account-utils';
 import { subscriptionOwnerFor } from '@/lib/calendar-subscription-sync';
+import { sanitizeVisibilityChoices, type CalendarVisibilityChoices } from '@/lib/calendar-visibility';
+import { DEFAULT_EVENT_LENGTH, isEventLength, type EventLength } from '@/lib/calendar-event-length';
 import type { FolderCountMode } from '@/lib/folder-counts';
 import { DEFAULT_FILES_SETTINGS, normalizeFilesSettings, type FilesSettings } from '@/lib/files-settings';
 import { orderForMailbox, sanitizeSortLevels, type MessageListOrderScope, type SortLevel } from '@/lib/message-list-order';
@@ -43,6 +45,8 @@ import {
   readStamps,
   type LocalSettingStamps,
 } from '@/lib/settings-sync-stamps';
+import { PLUGIN_SYNC_FIELD } from '@/lib/plugin-sync';
+import { exportPluginSync, importPluginSync, onPluginSyncChange, setPluginSyncAccount } from '@/lib/plugin-sandbox/synced-prefs';
 import { nextStamp } from '@/lib/settings-metadata-sync';
 import { getDesktopBridge } from '@/lib/desktop/bridge';
 import { forgetSignedOutChoices, signedOutChoices } from '@/lib/signed-out-choices';
@@ -617,7 +621,7 @@ const DEVICE_LOCAL_SETTING_KEYS = new Set<string>(['proInterface']);
  * Maps keyed by account id. Every account's server copy carries one, and a
  * server load takes only the loading account's entry.
  */
-const PER_ACCOUNT_MAP_KEYS = new Set<string>(['preferredIdentityIds', 'allMailFolderIds', 'hiddenSharedMailAccounts', 'sharedMailAccountOrder']);
+const PER_ACCOUNT_MAP_KEYS = new Set<string>(['preferredIdentityIds', 'signatureSources', 'replyOnlyIdentities', 'allMailFolderIds', 'hiddenSharedMailAccounts', 'sharedMailAccountOrder', 'unifiedExcludedSharedAccounts', 'calendarVisibility']);
 
 /** A map of plugin id → boolean, whatever came in (sync, import, storage). */
 function booleanRecord(value: unknown): Record<string, boolean> {
@@ -897,6 +901,7 @@ interface SettingsState extends AccessibilitySettings {
   signatureSeparatorEnabled: boolean; // Prefix the signature with the RFC 3676 "-- " delimiter
   signatureDetails: SignatureDetails; // Title, department, phone, mobile for the organisation signature (lib/org-signature.ts)
   requestReadReceiptDefault: boolean; // Pre-check "request read receipt" in the composer
+  archiveAfterReply: boolean; // Archive an Inbox message once a reply to it or a forward of it is sent
   readReceiptResponse: ReadReceiptResponse; // How to respond to incoming read-receipt requests
 
   // Privacy & Security
@@ -920,6 +925,8 @@ interface SettingsState extends AccessibilitySettings {
   /** Scroll continuously through months/weeks/days (#759) instead of one period at a time. */
   calendarFreeScroll: boolean;
   calendarHoverPreview: CalendarHoverPreview;
+  /** How long a new event lasts, in minutes (lib/calendar-event-length, #1318). */
+  defaultEventLength: EventLength;
   /** Draw only calendarDayStartHour..calendarDayEndHour in the day and week views (#1164). */
   calendarLimitHours: boolean;
   calendarDayStartHour: number;
@@ -954,6 +961,10 @@ interface SettingsState extends AccessibilitySettings {
   // sharedCalendarColorKey(). Lets each recipient recolor calendars shared
   // with them without changing the owner's color (see #345).
   sharedCalendarColors: Record<string, string>;
+  // The calendars the user showed or hid, by login (AccountEntry.id) and
+  // the calendar's id in it (lib/calendar-visibility), so they stay hidden
+  // after a sign-out and in other browsers (#1845).
+  calendarVisibility: CalendarVisibilityChoices;
 
   // Contacts Display
   groupContactsByLetter: boolean;
@@ -1030,6 +1041,12 @@ interface SettingsState extends AccessibilitySettings {
   // site data and follows the user across browsers/devices (issue #507). Kept
   // per account because JMAP identity ids are account-scoped and would collide.
   preferredIdentityIds: Record<string, string>;
+  // Addresses that use another address's signature (#1190): AccountEntry.id ->
+  // identity id -> source identity id (lib/shared-signatures.ts).
+  signatureSources: Record<string, Record<string, string>>;
+  // Addresses left out of From for new mail, kept for replies (#1673):
+  // AccountEntry.id -> JMAP Identity ids (lib/reply-only-identities.ts).
+  replyOnlyIdentities: Record<string, string[]>;
 
   // Email Display
   disableThreading: boolean; // Show emails as individual messages instead of grouped by conversation
@@ -1045,6 +1062,10 @@ interface SettingsState extends AccessibilitySettings {
   tintListRowsByAccount: boolean; // In the unified view, tint rows by account colour instead of showing the account dot
   showAccountDot: boolean; // In the unified view, show the account colour dot next to the sender
   showFolderTotalCount: boolean; // Show total message count next to folders/tags (alongside unread)
+  // Own folders unsubscribed on the server (JMAP isSubscribed) leave the
+  // sidebar. Off by default: folders made through JMAP before #951 are
+  // unsubscribed and would disappear. (#1398)
+  hideUnsubscribedFolders: boolean;
   // Mail folders of shared (group/delegated) JMAP accounts in the sidebar.
   // Turning it off hides every shared account's folders; their calendars,
   // contacts and files stay. (#1228)
@@ -1058,6 +1079,9 @@ interface SettingsState extends AccessibilitySettings {
   // The shared accounts' order in the sidebar, keyed by AccountEntry.id ->
   // JMAP accountIds in display order. Accounts not listed follow, by name.
   sharedMailAccountOrder: Record<string, string[]>;
+  // Shared accounts left out of the unified mailbox one by one, keyed like
+  // hiddenSharedMailAccounts (#962).
+  unifiedExcludedSharedAccounts: Record<string, string[]>;
 
   // Folders
   folderIcons: Record<string, string>; // mailboxId -> icon name
@@ -1289,6 +1313,7 @@ const DEFAULT_SETTINGS = {
   signatureSeparatorEnabled: true,
   signatureDetails: EMPTY_SIGNATURE_DETAILS,
   requestReadReceiptDefault: false,
+  archiveAfterReply: false,
   readReceiptResponse: 'ask' as ReadReceiptResponse,
 
   // Privacy & Security
@@ -1306,6 +1331,7 @@ const DEFAULT_SETTINGS = {
   showWeekNumbers: false,
   calendarFreeScroll: true,
   calendarHoverPreview: 'delay-500ms' as CalendarHoverPreview,
+  defaultEventLength: DEFAULT_EVENT_LENGTH as EventLength,
   calendarLimitHours: true,
   calendarDayStartHour: 8,
   calendarDayEndHour: 20,
@@ -1329,6 +1355,7 @@ const DEFAULT_SETTINGS = {
   birthdayCalendarColor: '#eab308',
 
   sharedCalendarColors: {} as Record<string, string>,
+  calendarVisibility: {} as CalendarVisibilityChoices,
 
   // Contacts Display
   groupContactsByLetter: true,
@@ -1371,6 +1398,8 @@ const DEFAULT_SETTINGS = {
 
   allMailFolderIds: {} as Record<string, string[]>,
   preferredIdentityIds: {} as Record<string, string>,
+  signatureSources: {} as Record<string, Record<string, string>>,
+  replyOnlyIdentities: {} as Record<string, string[]>,
 
   enableCrossUnreadView: false,
   enableCrossStarredView: false,
@@ -1390,10 +1419,12 @@ const DEFAULT_SETTINGS = {
   tintListRowsByAccount: false,
   showAccountDot: true,
   showFolderTotalCount: true,
+  hideUnsubscribedFolders: false,
   showSharedMailAccounts: true,
   compactSharedMailboxes: false,
   hiddenSharedMailAccounts: {} as Record<string, string[]>,
   sharedMailAccountOrder: {} as Record<string, string[]>,
+  unifiedExcludedSharedAccounts: {} as Record<string, string[]>,
 
   // Folders
   folderIcons: {} as Record<string, string>,
@@ -1589,6 +1620,7 @@ function isAllowedPolicyValue(key: string, value: unknown, restriction?: Setting
   if (key === 'messageDoubleClick' && !MESSAGE_DOUBLE_CLICK.includes(value as MessageDoubleClick)) return false;
   if (key === 'density' && !isDensity(value)) return false;
   if (key === 'calendarMonthTimedEvents' && !MONTH_TIMED_EVENT_STYLES.includes(value as MonthTimedEventStyle)) return false;
+  if (key === 'defaultEventLength' && !isEventLength(value)) return false;
   if (!isAllowedAccessibilityValue(key, value)) return false;
   if (restriction && typeof restriction === 'object') {
     if (Array.isArray(restriction.allowedValues) && !restriction.allowedValues.includes(value)) return false;
@@ -1927,6 +1959,7 @@ export const useSettingsStore = create<SettingsState>()(
           signatureSeparatorEnabled: state.signatureSeparatorEnabled,
           signatureDetails: state.signatureDetails,
           requestReadReceiptDefault: state.requestReadReceiptDefault,
+          archiveAfterReply: state.archiveAfterReply,
           readReceiptResponse: state.readReceiptResponse,
           sessionTimeout: state.sessionTimeout,
           emailNotificationsEnabled: state.emailNotificationsEnabled,
@@ -1945,6 +1978,7 @@ export const useSettingsStore = create<SettingsState>()(
           showBirthdayCalendar: state.showBirthdayCalendar,
           birthdayCalendarColor: state.birthdayCalendarColor,
           sharedCalendarColors: state.sharedCalendarColors,
+          calendarVisibility: state.calendarVisibility,
           groupContactsByLetter: state.groupContactsByLetter,
           sortContactsByLastName: state.sortContactsByLastName,
           showContactsDirectory: state.showContactsDirectory,
@@ -1956,6 +1990,7 @@ export const useSettingsStore = create<SettingsState>()(
           showWeekNumbers: state.showWeekNumbers,
           calendarFreeScroll: state.calendarFreeScroll,
           calendarHoverPreview: state.calendarHoverPreview,
+          defaultEventLength: state.defaultEventLength,
           calendarLimitHours: state.calendarLimitHours,
           calendarDayStartHour: state.calendarDayStartHour,
           calendarDayEndHour: state.calendarDayEndHour,
@@ -1978,6 +2013,8 @@ export const useSettingsStore = create<SettingsState>()(
           unifiedCrossAccount: state.unifiedCrossAccount,
           allMailFolderIds: state.allMailFolderIds,
           preferredIdentityIds: state.preferredIdentityIds,
+          signatureSources: state.signatureSources,
+          replyOnlyIdentities: state.replyOnlyIdentities,
           enableCrossUnreadView: state.enableCrossUnreadView,
           enableCrossStarredView: state.enableCrossStarredView,
           enableCrossAllView: state.enableCrossAllView,
@@ -1990,10 +2027,12 @@ export const useSettingsStore = create<SettingsState>()(
           tintListRowsByAccount: state.tintListRowsByAccount,
           showAccountDot: state.showAccountDot,
           showFolderTotalCount: state.showFolderTotalCount,
+          hideUnsubscribedFolders: state.hideUnsubscribedFolders,
           showSharedMailAccounts: state.showSharedMailAccounts,
           compactSharedMailboxes: state.compactSharedMailboxes,
           hiddenSharedMailAccounts: state.hiddenSharedMailAccounts,
           sharedMailAccountOrder: state.sharedMailAccountOrder,
+          unifiedExcludedSharedAccounts: state.unifiedExcludedSharedAccounts,
           folderIcons: state.folderIcons,
           folderCountModes: state.folderCountModes,
           emailKeywords: state.emailKeywords,
@@ -2030,6 +2069,11 @@ export const useSettingsStore = create<SettingsState>()(
           // not registered, so an importing device leaves its templates alone.
           // Templates the account keeps itself are left out of a sync push;
           // the flag has the stored blob drop its old copy (mergeStoredTemplates).
+          // Only in a push: a settings file is for this browser's own settings.
+          // Plugins' on/off, settings and synced storage, per account (#1327).
+          ...(opts?.forSync && syncUsername && syncServerUrl
+            ? { [PLUGIN_SYNC_FIELD]: exportPluginSync(generateAccountId(syncUsername, syncServerUrl)) }
+            : {}),
           ...(templateSync && opts?.forSync && templateSync.storedInAccount
             ? { templatesInMetadata: true }
             : templateSync
@@ -2200,6 +2244,9 @@ export const useSettingsStore = create<SettingsState>()(
               if (!isAllowedAccessibilityValue(key, settings[key])) {
                 return;
               }
+              if (key === 'defaultEventLength' && !isEventLength(settings[key])) {
+                return;
+              }
               if (key === 'density' && !isDensity(settings[key])) {
                 return;
               }
@@ -2226,8 +2273,12 @@ export const useSettingsStore = create<SettingsState>()(
               if (key === 'writingLanguage' && !isWritingLanguage(settings[key])) {
                 return;
               }
-              if ((key === 'hiddenSharedMailAccounts' || key === 'sharedMailAccountOrder') && !isPlainRecord(settings[key])) {
+              if ((key === 'hiddenSharedMailAccounts' || key === 'sharedMailAccountOrder' || key === 'unifiedExcludedSharedAccounts' || key === 'replyOnlyIdentities' || key === 'signatureSources') && !isPlainRecord(settings[key])) {
                 return;
+              }
+              if (key === 'calendarVisibility') {
+                if (!isPlainRecord(settings[key])) return;
+                settings[key] = sanitizeVisibilityChoices(settings[key]);
               }
               if (key === 'signatureDetails') {
                 put(key, { signatureDetails: sanitizeSignatureDetails(settings[key]) });
@@ -2349,6 +2400,7 @@ export const useSettingsStore = create<SettingsState>()(
             settings.deletedTemplateIds,
             { merge: Boolean(opts?.serverAccountId), accountId: opts?.serverAccountId }
           );
+          if (opts?.serverAccountId) importPluginSync(opts.serverAccountId, settings[PLUGIN_SYNC_FIELD]);
           calendarSubscriptionSyncBridge?.applySyncedState(
             settings.icalSubscriptions,
             settings.deletedSubscriptionIds,
@@ -2672,11 +2724,22 @@ export const useSettingsStore = create<SettingsState>()(
             state.proofreadingPlugins = booleanRecord(state.proofreadingPlugins);
             state.proofreadingNoticeSeen = booleanRecord(state.proofreadingNoticeSeen);
             if (!isWritingLanguage(state.writingLanguage)) state.writingLanguage = 'auto';
+            if (!isEventLength(state.defaultEventLength)) state.defaultEventLength = DEFAULT_EVENT_LENGTH;
             if (!isPlainRecord(state.hiddenSharedMailAccounts)) {
               state.hiddenSharedMailAccounts = {};
             }
             if (!isPlainRecord(state.sharedMailAccountOrder)) {
               state.sharedMailAccountOrder = {};
+            }
+            state.calendarVisibility = sanitizeVisibilityChoices(state.calendarVisibility);
+            if (!isPlainRecord(state.unifiedExcludedSharedAccounts)) {
+              state.unifiedExcludedSharedAccounts = {};
+            }
+            if (!isPlainRecord(state.signatureSources)) {
+              state.signatureSources = {};
+            }
+            if (!isPlainRecord(state.replyOnlyIdentities)) {
+              state.replyOnlyIdentities = {};
             }
             if (!Array.isArray(state.explicitSettings)) {
               state.explicitSettings = [];
@@ -3124,6 +3187,16 @@ if (typeof window !== 'undefined') {
     if (useSettingsStore.getState().settingsSyncDisabled) return;
     triggerSync();
   };
+
+  // And when a plugin's on/off, settings or synced storage change (#1327).
+  setPluginSyncAccount(() => {
+    const target = settingsSyncTarget();
+    return target ? generateAccountId(target.username, target.serverUrl) : null;
+  });
+  onPluginSyncChange(() => {
+    if (useSettingsStore.getState().settingsSyncDisabled) return;
+    triggerSync();
+  });
 
   // Ensure template-store and calendar-store are loaded (and bridges registered) even before
   // any UI component imports them, so the first sync push already carries them.

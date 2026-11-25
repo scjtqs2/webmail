@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO ist aktiviert, aber der Identitätsanbieter ist nicht erreichbar. Überprüfen Sie Ihre OAuth-Konfiguration.",
       "oauth_issuer_mismatch": "Die Anmeldung über diesen Anbieter ist nicht richtig eingerichtet. Die Administration muss seine Issuer-Adresse eintragen.",
       "token_exchange_failed": "Passwort und Code wurden akzeptiert, aber der Mailserver hat für diese App keine Sitzung gestartet. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen.",
-      "login_refused": "Der Mailserver hat diese Anmeldung abgelehnt, bevor er Ihren Code geprüft hat. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen."
+      "login_refused": "Der Mailserver hat diese Anmeldung abgelehnt, bevor er Ihren Code geprüft hat. Bitten Sie Ihre Administration, die OAuth-Client-Einstellungen zu prüfen.",
+      "primary_sign_in_required": "Melden Sie sich zuerst bei Ihrem Hauptkonto an. Dieser Server lässt sich nur als zusätzliches Konto hinzufügen."
     },
     "show_password": "Passwort anzeigen",
     "hide_password": "Passwort verbergen",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Mehrere Werte trennen Sie durch Kommas."
   },
   "sidebar": {
+    "sign_in_again": "Erneut anmelden",
     "close": "Schließen",
     "compose": "Verfassen",
     "compose_hint": "Verfassen (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Weiteres Konto hinzufügen",
     "mv_manage_account": "Konto verwalten",
     "mv_storage_used": "{percent} % von {total} belegt",
-    "accessibility": "Barrierefreiheit"
+    "accessibility": "Barrierefreiheit",
+    "folder_hidden": "Ordner ausgeblendet. Unter Einstellungen › Ordner & Tags können Sie ihn wieder einblenden.",
+    "folder_hide_failed": "Der Ordner konnte nicht ausgeblendet werden."
   },
   "account_unread": {
     "others": "Ungelesen in anderen Konten: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Allen antworten",
     "forward_message": "Weiterleiten",
     "from": "Von",
+    "from_account": "Konto: {name}",
     "to": "An",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1189,6 +1194,7 @@
     "recipients_refused": "Nicht gesendet: Der Server hat {recipients} abgelehnt.",
     "recipients_partly_refused": "Der Server hat {recipients} abgelehnt. Die anderen Empfänger erhalten die Nachricht.",
     "send_offline": "Sie scheinen offline zu sein. Die Nachricht ist noch da, senden Sie sie erneut, sobald Sie wieder online sind.",
+    "archive_after_reply_queued": "Ihre Nachricht wird gesendet, sobald Sie wieder online sind. Das Original bleibt im Posteingang.",
     "formatting": "Formatierung",
     "send_recipients_rejected": "Nicht gesendet – der Server hat alle Empfänger abgelehnt.",
     "send_plugin_failed": "Nicht gesendet – ein Plugin, das den Versand übernimmt, ist fehlgeschlagen oder hat zu lange gebraucht. Prüfen Sie den Ordner „Gesendet“, bevor Sie erneut senden.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Gruppenpostfächer einbeziehen",
-          "description": "Gemeinsam genutzte/Gruppenpostfächer ebenfalls in die vereinheitlichte Ansicht aufnehmen."
+          "description": "Gemeinsam genutzte/Gruppenpostfächer ebenfalls in die vereinheitlichte Ansicht aufnehmen.",
+          "accounts_label": "Geteilte Postfächer im gemeinsamen Postfach",
+          "accounts_description": "Entfernen Sie den Haken bei einem Postfach, das Sie nicht täglich lesen. Es bleibt in der Seitenleiste."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "E-Mails immer im Hellmodus anzeigen",
-        "description": "E-Mail-Inhalte im Hellmodus darstellen, auch wenn die App im Dunkelmodus ist, um Probleme bei der Dunkelmodus-Konvertierung zu vermeiden"
+        "description": "E-Mails und den Text, den Sie schreiben, auf hellem Hintergrund zeigen, auch wenn die App im Dunkelmodus ist"
       },
       "external_content": {
         "label": "Externe Inhalte",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Warnung bei Platzhaltern",
         "description": "Vor dem Senden einer Nachricht nachfragen, die noch Platzhalter wie [TIME] oder [Ihr Name], leere Vorlagenfelder oder unfertigen Text wie TODO oder TBD enthält."
+      },
+      "archive_after_reply": {
+        "label": "Nach dem Antworten archivieren",
+        "description": "Wenn Sie auf eine Nachricht im Posteingang antworten oder sie weiterleiten, wird sie archiviert, sobald Ihre Nachricht gesendet ist."
       },
       "recipient_mentions": {
         "label": "Empfänger mit @ erwähnen",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, one {# Adresse} other {# Adressen}}",
         "empty": "Noch keine maskierten Adressen.",
         "website": "Website (optional)",
+        "domain": "Domain",
+        "domain_default": "Standarddomain",
+        "domain_not_allowed": "Der Server erlaubt für Ihr Konto keine maskierten Adressen auf dieser Domain. Wählen Sie eine andere Domain.",
         "description": "Beschreibung (optional)",
         "no_website": "Nicht angegeben",
         "enabled": "Aktiviert",
@@ -2870,7 +2885,16 @@
       "error_delete": "Ordner konnte nicht gelöscht werden",
       "error_delete_has_children": "Ordner kann nicht gelöscht werden: Er enthält noch Unterordner. Löschen oder verschieben Sie diese zuerst.",
       "error_delete_has_email": "Ordner kann nicht gelöscht werden: Er enthält noch E-Mails. Verschieben oder löschen Sie diese zuerst.",
-      "error_role": "Ordnerrolle konnte nicht aktualisiert werden"
+      "error_role": "Ordnerrolle konnte nicht aktualisiert werden",
+      "hide_unsubscribed": {
+        "label": "Nicht abonnierte Ordner ausblenden",
+        "description": "Ordner, die Sie hier oder in einer anderen App wie Thunderbird nicht mehr abonnieren, verschwinden aus der Seitenleiste. Die E-Mails darin bleiben auf dem Server."
+      },
+      "show_folder": "In Seitenleiste anzeigen",
+      "hide_folder": "In Seitenleiste ausblenden",
+      "show_folder_named": "{name} in der Seitenleiste anzeigen",
+      "hide_folder_named": "{name} in der Seitenleiste ausblenden",
+      "error_subscription": "Der Ordner konnte nicht ein- oder ausgeblendet werden."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Extern",
       "managed_by_tooltip": "Verwaltet von {source}. Bearbeiten Sie sie in dieser App oder verwenden Sie den rohen Sieve-Editor.",
+      "server_rules": "Serverregeln",
+      "server_rules_description": "Ihr Mailanbieter hat sie angelegt. Sie laufen vor Ihren Filtern und lassen sich hier nicht ändern.",
       "quick_rule_names": {
         "move_sender": "Von {sender} nach {folder} verschieben",
         "move_domain": "Von @{domain} nach {folder} verschieben",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Ordner ist nicht leer. Leere ihn zuerst.",
     "delete_with_contents_title": "Ordner ist nicht leer",
     "delete_with_contents_message": "Der Ordner „{name}“ enthält noch {count, plural, one {1 Nachricht} other {# Nachrichten}}. Ordner samt allen Nachrichten löschen? Das kann nicht rückgängig gemacht werden.",
-    "delete_with_contents_confirm": "Ordner und Nachrichten löschen"
+    "delete_with_contents_confirm": "Ordner und Nachrichten löschen",
+    "hide_folder": "In Seitenleiste ausblenden"
   },
   "mail_p2_folders": {
     "all_folders": "Alle Ordner",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Erwähnt „{keyword}“, aber keine Datei ist angehängt",
     "warning_placeholders": "Platzhaltertext, den die Empfänger sehen:",
     "warning_proofreading": "Offene Rechtschreib- oder Grammatikfehler: {count}",
+    "warning_account": "Antwort von {sending}, die Nachricht kam aber an {received}",
+    "account_warning_title": "Von einem anderen Konto antworten?",
+    "account_warning_message": "Diese Nachricht kam an {received}. Die Antwort wird von {sending} gesendet.",
+    "account_warning_back": "Absender ändern",
     "empty_text_title": "Ohne Text senden?",
     "empty_text_message": "Diese Nachricht hat keinen Text und keinen Anhang. Trotzdem senden?",
     "scheduled_for": "Geplant für {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Ressource",
         "location": "Ort",
         "other": "Sonstiges"
-      }
+      },
+      "filter_label": "Anzeigen",
+      "filter_all": "Alle",
+      "filter_people": "Personen",
+      "filter_groups": "Gruppen"
     },
     "title": "Kontakte",
     "disabled_title": "Kontakte wurden von Ihrem Administrator deaktiviert",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Kalender abbestellen?",
       "confirm": "Löschen"
     },
+    "attachments": {
+      "title": "Anhänge",
+      "add": "Datei hinzufügen",
+      "remove": "{name} entfernen",
+      "download": "{name} herunterladen",
+      "unnamed": "Anhang",
+      "download_failed": "Der Anhang konnte nicht heruntergeladen werden.",
+      "upload_failed": "Eine Datei konnte nicht hochgeladen werden. Der Termin wurde nicht gespeichert.",
+      "too_large": "\"{name}\" ist größer, als der Server erlaubt ({max} pro Datei)"
+    },
     "alerts": {
       "title": "Erinnerung",
       "none": "Keine Erinnerung",
@@ -5229,6 +5274,10 @@
       "working_days": "Arbeitstage",
       "title": "Kalendereinstellungen",
       "default_view": "Kalender öffnet in",
+      "default_event_length": "Standarddauer von Terminen",
+      "default_event_length_desc": "Wie lange ein neuer Termin dauert, wenn Sie im Kalender auf eine Uhrzeit klicken oder einen Termin anlegen.",
+      "event_length_minutes": "{minutes} Minuten",
+      "event_length_hours": "{hours, plural, one {# Stunde} other {# Stunden}}",
       "week_starts_on": "Woche beginnt am",
       "time_format": "Zeitformat",
       "default_calendar": "Standardkalender",
@@ -5502,6 +5551,8 @@
       "cancel": "Abbrechen",
       "save": "Speichern",
       "quick_add_placeholder": "Aufgabe hinzufügen…",
+      "add_subtask": "Unteraufgabe hinzufügen…",
+      "subtask_of": "Unteraufgabe von {title}",
       "due_today": "Heute fällig",
       "due_tomorrow": "Morgen fällig",
       "overdue": "Überfällig"
@@ -5811,6 +5862,11 @@
     "zipping": "{name} wird vorbereitet",
     "download_canceled": "Download abgebrochen",
     "zip_error": "{name} konnte nicht heruntergeladen werden",
+    "download_to_folder": "In einen Ordner herunterladen…",
+    "downloading_to_folder": "Wird in {folder} heruntergeladen",
+    "downloaded_to_folder": "{count, plural, one {# Datei in {folder} gespeichert.} other {# Dateien in {folder} gespeichert.}}",
+    "downloaded_to_folder_partial": "{saved} von {total} Dateien in {folder} gespeichert.",
+    "download_to_folder_failed": "Die Dateien konnten nicht in {folder} gespeichert werden.",
     "not_available": "Dateispeicher ist auf diesem Server nicht verfügbar",
     "cancel": "Abbrechen",
     "create": "Erstellen",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name} (gesendet von Ihnen)",
     "organizer_me": "Sie"
   },
+  "calendar_forward": {
+    "menu": "Weiterleiten…",
+    "heading": "Weitergeleitete Einladung",
+    "when": "Wann: {value}",
+    "where": "Wo: {value}",
+    "organizer": "Organisator: {value}",
+    "failed": "Die Einladung konnte nicht weitergeleitet werden.",
+    "add_replier": "{name} zum Termin hinzufügen",
+    "not_invited": "{name} ist zu diesem Termin nicht eingeladen. Jemand hat die Einladung weitergeleitet.",
+    "added": "Zum Termin hinzugefügt"
+  },
+  "calendar_invitations": {
+    "title": "Einladungen",
+    "from": "Von {name}"
+  },
+  "event_from_mail": {
+    "menu": "Termin erstellen…",
+    "link_line": "E-Mail: {link}"
+  },
   "free_busy_share": {
     "button": "Meine Frei/Gebucht-Zeiten für {group} freigeben",
     "already": "Ihre Frei/Gebucht-Zeiten sind für {group} freigegeben",
@@ -6570,7 +6645,14 @@
       "calendar": "Kalender",
       "addressBook": "Adressbuch",
       "file": "Datei"
-    }
+    },
+    "shared_items": "Was Sie teilen",
+    "stop_sharing": "{item} nicht mehr mit {name} teilen",
+    "stop_sharing_title": "{item} nicht mehr mit {name} teilen?",
+    "stop_sharing_message": "{name} verliert den Zugriff auf {item}. Alles andere, was Sie mit {name} teilen, bleibt.",
+    "stop_sharing_confirm": "Nicht mehr teilen",
+    "stopped_sharing": "{name} hat keinen Zugriff mehr auf {item}",
+    "stop_sharing_failed": "Die Freigabe von {item} konnte nicht beendet werden"
   },
   "quote_header": {
     "reply_line": "Am {date} schrieb {from}:",
@@ -7938,14 +8020,20 @@
       "added": "Adresse hinzugefügt.",
       "saved": "Adresse gespeichert.",
       "deleted": "Adresse gelöscht.",
-      "delete_title": "Diese Adresse löschen?"
+      "delete_title": "Diese Adresse löschen?",
+      "offer_new_mail": "Für neue E-Mails anbieten. Aus: nur für Antworten auf E-Mails an diese Adresse.",
+      "offer_new_mail_named": "{address} für neue E-Mails anbieten"
     },
     "signatures": {
       "title": "Signaturen",
-      "description": "Steht am Ende der Nachrichten, die Sie schreiben. Jede Adresse hat ihre eigene.",
+      "description": "Steht am Ende der Nachrichten, die Sie schreiben. Jede Adresse hat ihre eigene oder nutzt die Signatur einer anderen Adresse.",
       "saved": "Signatur gespeichert.",
       "error": "Die Signatur konnte nicht gespeichert werden. Versuchen Sie es noch einmal.",
-      "no_addresses": "Es gibt noch keine Adresse zum Senden."
+      "no_addresses": "Es gibt noch keine Adresse zum Senden.",
+      "use_label": "Signatur",
+      "own": "Eigene Signatur",
+      "same_as": "Wie {address}",
+      "shared_note": "Nutzt die Signatur von {address}. Bearbeiten Sie sie dort."
     },
     "search": {
       "addresses": "Identität Identitäten Alias Aliasse Absender Absenderadresse Von-Adresse Absendername identity alias sender",

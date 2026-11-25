@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO etkin ancak kimlik sağlayıcısına ulaşılamıyor. OAuth yapılandırmanızı kontrol edin.",
       "oauth_issuer_mismatch": "Bu sağlayıcıyla oturum açma doğru yapılandırılmamış. Yöneticinin sağlayıcının yayıncı (issuer) adresini ayarlaması gerekiyor.",
       "token_exchange_failed": "Parolanız ve kodunuz kabul edildi ancak posta sunucusu bu uygulama için oturum başlatmayı reddetti. Yöneticinizden OAuth istemci ayarlarını kontrol etmesini isteyin.",
-      "login_refused": "Posta sunucusu kodunuzu denetlemeden bu oturum açmayı reddetti. Yöneticinizden OAuth istemci ayarlarını denetlemesini isteyin."
+      "login_refused": "Posta sunucusu kodunuzu denetlemeden bu oturum açmayı reddetti. Yöneticinizden OAuth istemci ayarlarını denetlemesini isteyin.",
+      "primary_sign_in_required": "Önce ana hesabınızda oturum açın. Bu sunucu yalnızca ek hesap olarak eklenebilir."
     },
     "show_password": "Şifreyi göster",
     "hide_password": "Şifreyi gizle",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Birden fazla değeri virgülle ayırın."
   },
   "sidebar": {
+    "sign_in_again": "Yeniden giriş yap",
     "close": "Kapat",
     "compose": "Yeni E-posta",
     "compose_hint": "Yeni E-posta (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Başka bir hesap ekle",
     "mv_manage_account": "Hesabınızı yönetin",
     "mv_storage_used": "{total} alanın %{percent} kadarı kullanıldı",
-    "accessibility": "Erişilebilirlik"
+    "accessibility": "Erişilebilirlik",
+    "folder_hidden": "Klasör gizlendi. Ayarlar › Klasörler ve etiketler bölümünden yeniden gösterebilirsiniz.",
+    "folder_hide_failed": "Klasör gizlenemedi."
   },
   "account_unread": {
     "others": "Diğer hesaplarda okunmamış: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Tümünü Yanıtla",
     "forward_message": "İlet",
     "from": "Kimden",
+    "from_account": "Hesap: {name}",
     "to": "Kime",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "Gönderilmedi: sunucu şu alıcıları reddetti: {recipients}.",
     "recipients_partly_refused": "Sunucu şu alıcıları reddetti: {recipients}. Diğer alıcılar iletiyi alır.",
     "send_offline": "Çevrimdışı görünüyorsunuz. İleti hâlâ burada; yeniden çevrimiçi olduğunuzda tekrar gönderin.",
+    "archive_after_reply_queued": "İletiniz yeniden çevrimiçi olduğunuzda gönderilecek. Orijinal ileti Gelen kutusunda kalır.",
     "formatting": "Biçimlendirme",
     "send_recipients_rejected": "Gönderilmedi: sunucu tüm alıcıları reddetti.",
     "send_plugin_failed": "Gönderilmedi - gönderimi üstlenen bir eklenti başarısız oldu ya da çok uzun sürdü. Yeniden göndermeden önce Gönderilenler klasörünü kontrol edin.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Grup gelen kutularını dahil et",
-          "description": "Paylaşılan/grup gelen kutularını da birleşik görünüme dahil et."
+          "description": "Paylaşılan/grup gelen kutularını da birleşik görünüme dahil et.",
+          "accounts_label": "Birleşik posta kutusundaki paylaşılan kutular",
+          "accounts_description": "Her gün okumadığınız bir kutunun işaretini kaldırın. Kenar çubuğunda kalır."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "E-postaları Her Zaman Açık Modda Göster",
-        "description": "Uygulama koyu moddayken bile e-posta içeriğini açık modda göster; koyu mod dönüşüm sorunlarını önler"
+        "description": "Uygulama koyu moddayken bile e-postaları ve yazdığınız metni açık arka planda göster"
       },
       "external_content": {
         "label": "Harici İçerik",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Yer tutucu uyarısı",
         "description": "Hâlâ [TIME] veya [Adınız] gibi yer tutucular, boş şablon alanları ya da TODO veya TBD gibi bitmemiş metin içeren bir ileti gönderilmeden önce onay iste."
+      },
+      "archive_after_reply": {
+        "label": "Yanıtladıktan sonra arşivle",
+        "description": "Gelen kutusundaki bir iletiyi yanıtladığınızda veya ilettiğinizde, iletiniz gönderildikten sonra arşivlenir."
       },
       "recipient_mentions": {
         "label": "Alıcılardan @ ile bahset",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, one {# adres} other {# adres}}",
         "empty": "Henüz maskeli adres yok.",
         "website": "Web sitesi (isteğe bağlı)",
+        "domain": "Alan adı",
+        "domain_default": "Varsayılan alan adı",
+        "domain_not_allowed": "Sunucu, hesabınız için bu alan adında maskeli adreslere izin vermiyor. Başka bir alan adı seçin.",
         "description": "Açıklama (isteğe bağlı)",
         "no_website": "Belirtilmedi",
         "enabled": "Etkin",
@@ -2870,7 +2885,16 @@
       "error_delete": "Klasör silinemedi",
       "error_delete_has_children": "Klasör silinemiyor: hâlâ alt klasörler içeriyor. Önce onları silin veya taşıyın.",
       "error_delete_has_email": "Klasör silinemiyor: hâlâ e-postalar içeriyor. Önce onları taşıyın veya silin.",
-      "error_role": "Klasör rolü güncellenemedi"
+      "error_role": "Klasör rolü güncellenemedi",
+      "hide_unsubscribed": {
+        "label": "Abone olunmayan klasörleri gizle",
+        "description": "Burada veya Thunderbird gibi başka bir uygulamada aboneliğini bıraktığınız klasörler kenar çubuğundan kalkar. Postaları sunucuda kalır."
+      },
+      "show_folder": "Kenar çubuğunda göster",
+      "hide_folder": "Kenar çubuğundan gizle",
+      "show_folder_named": "{name} klasörünü kenar çubuğunda göster",
+      "hide_folder_named": "{name} klasörünü kenar çubuğundan gizle",
+      "error_subscription": "Klasör gösterilemedi veya gizlenemedi."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Harici",
       "managed_by_tooltip": "{source} tarafından yönetilir. Bu uygulamada düzenleyin veya ham Sieve düzenleyicisini kullanın.",
+      "server_rules": "Sunucu kuralları",
+      "server_rules_description": "Bunları e-posta sağlayıcınız ekledi. Filtrelerinizden önce çalışırlar ve burada değiştirilemezler.",
       "quick_rule_names": {
         "move_sender": "{sender} iletilerini {folder} klasörüne taşı",
         "move_domain": "@{domain} iletilerini {folder} klasörüne taşı",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Klasör boş değil. Önce boşaltın.",
     "delete_with_contents_title": "Klasör boş değil",
     "delete_with_contents_message": "\"{name}\" klasöründe hâlâ {count} ileti var. Klasör ve tüm iletileri silinsin mi? Bu işlem geri alınamaz.",
-    "delete_with_contents_confirm": "Klasörü ve iletileri sil"
+    "delete_with_contents_confirm": "Klasörü ve iletileri sil",
+    "hide_folder": "Kenar çubuğundan gizle"
   },
   "mail_p2_folders": {
     "all_folders": "Tüm klasörler",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "\"{keyword}\" geçiyor ama hiç dosya eklenmemiş",
     "warning_placeholders": "Alıcıların göreceği yer tutucu metin:",
     "warning_proofreading": "Açık yazım veya dilbilgisi sorunları: {count}",
+    "warning_account": "Yanıt {sending} hesabından gidiyor, ancak ileti {received} hesabına geldi",
+    "account_warning_title": "Başka bir hesaptan yanıtlansın mı?",
+    "account_warning_message": "Bu ileti {received} hesabına geldi. Yanıt {sending} hesabından gönderilecek.",
+    "account_warning_back": "Göndereni değiştir",
     "empty_text_title": "Metin olmadan gönderilsin mi?",
     "empty_text_message": "Bu iletide metin ve ek yok. Yine de gönderilsin mi?",
     "scheduled_for": "{when} için zamanlandı",
@@ -4542,7 +4573,11 @@
         "resource": "Kaynak",
         "location": "Konum",
         "other": "Diğer"
-      }
+      },
+      "filter_label": "Göster",
+      "filter_all": "Tümü",
+      "filter_people": "Kişiler",
+      "filter_groups": "Gruplar"
     },
     "title": "Kişiler",
     "disabled_title": "Kişiler yöneticiniz tarafından kapatıldı",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Takvim aboneliği iptal edilsin mi?",
       "confirm": "Sil"
     },
+    "attachments": {
+      "title": "Ekler",
+      "add": "Dosya ekle",
+      "remove": "{name} öğesini kaldır",
+      "download": "{name} dosyasını indir",
+      "unnamed": "Ek",
+      "download_failed": "Ek indirilemedi.",
+      "upload_failed": "Bir dosya yüklenemedi. Etkinlik kaydedilmedi.",
+      "too_large": "\"{name}\" sunucunun izin verdiğinden büyük (dosya başına {max})"
+    },
     "alerts": {
       "title": "Hatırlatıcı",
       "none": "Hatırlatıcı yok",
@@ -5229,6 +5274,10 @@
       "working_days": "Çalışma günleri",
       "title": "Takvim ayarları",
       "default_view": "Takvim şu görünümde açılır",
+      "default_event_length": "Varsayılan etkinlik süresi",
+      "default_event_length_desc": "Takvimde bir saate tıkladığınızda veya etkinlik oluşturduğunuzda yeni etkinliğin süresi.",
+      "event_length_minutes": "{minutes} dakika",
+      "event_length_hours": "{hours, number} saat",
       "week_starts_on": "Hafta başlangıcı",
       "time_format": "Saat biçimi",
       "default_calendar": "Varsayılan takvim",
@@ -5528,6 +5577,8 @@
       "cancel": "İptal",
       "save": "Kaydet",
       "quick_add_placeholder": "Görev ekle...",
+      "add_subtask": "Alt görev ekle…",
+      "subtask_of": "{title} görevinin alt görevi",
       "due_today": "Bugün",
       "due_tomorrow": "Yarın",
       "overdue": "Gecikmiş"
@@ -5678,6 +5729,25 @@
     "answered_by": "Yanıtlayan: {who}",
     "organizer_owner": "{name} (sizin tarafınızdan gönderilir)",
     "organizer_me": "Siz"
+  },
+  "calendar_forward": {
+    "menu": "İlet…",
+    "heading": "İletilen davet",
+    "when": "Ne zaman: {value}",
+    "where": "Nerede: {value}",
+    "organizer": "Düzenleyen: {value}",
+    "failed": "Davet iletilemedi.",
+    "add_replier": "{name} kişisini toplantıya ekle",
+    "not_invited": "{name} bu toplantıya davetli değil. Birisi daveti ona iletti.",
+    "added": "Toplantıya eklendi"
+  },
+  "calendar_invitations": {
+    "title": "Davetler",
+    "from": "Gönderen: {name}"
+  },
+  "event_from_mail": {
+    "menu": "Etkinlik oluştur…",
+    "link_line": "E-posta: {link}"
   },
   "free_busy_share": {
     "button": "Müsaitlik durumumu {group} ile paylaş",
@@ -5930,7 +6000,14 @@
       "calendar": "Takvim",
       "addressBook": "Adres defteri",
       "file": "Dosya"
-    }
+    },
+    "shared_items": "Paylaştıklarınız",
+    "stop_sharing": "{item} öğesini {name} ile paylaşmayı durdur",
+    "stop_sharing_title": "{item} öğesini {name} ile paylaşmayı durdurmak istiyor musunuz?",
+    "stop_sharing_message": "{name}, {item} öğesine erişimini kaybeder. Paylaştığınız diğer her şey kalır.",
+    "stop_sharing_confirm": "Paylaşmayı durdur",
+    "stopped_sharing": "{name} artık {item} öğesine erişemiyor",
+    "stop_sharing_failed": "{item} paylaşımı durdurulamadı"
   },
   "advanced_search": {
     "title": "Gelişmiş Arama",
@@ -6100,6 +6177,11 @@
     "zipping": "{name} hazırlanıyor",
     "download_canceled": "İndirme iptal edildi",
     "zip_error": "{name} indirilemedi",
+    "download_to_folder": "Bir klasöre indir…",
+    "downloading_to_folder": "{folder} klasörüne indiriliyor",
+    "downloaded_to_folder": "{count, plural, one {# dosya {folder} klasörüne kaydedildi.} other {# dosya {folder} klasörüne kaydedildi.}}",
+    "downloaded_to_folder_partial": "{total} dosyadan {saved} tanesi {folder} klasörüne kaydedildi.",
+    "download_to_folder_failed": "Dosyalar {folder} klasörüne kaydedilemedi.",
     "not_available": "Bu sunucuda dosya depolama kullanılamıyor",
     "cancel": "İptal",
     "create": "Oluştur",
@@ -7938,14 +8020,20 @@
       "added": "Adres eklendi.",
       "saved": "Adres kaydedildi.",
       "deleted": "Adres silindi.",
-      "delete_title": "Bu adres silinsin mi?"
+      "delete_title": "Bu adres silinsin mi?",
+      "offer_new_mail": "Yeni postalar için sun. Kapalı: yalnızca bu adrese gönderilen postaları yanıtlamak için.",
+      "offer_new_mail_named": "{address} adresini yeni postalar için sun"
     },
     "signatures": {
       "title": "İmzalar",
-      "description": "Yazdığınız iletilerin sonuna eklenir. Her adresin kendi imzası vardır.",
+      "description": "Yazdığınız iletilerin sonuna eklenir. Her adresin kendi imzası vardır ya da başka bir adresin imzasını kullanır.",
       "saved": "İmza kaydedildi.",
       "error": "İmza kaydedilemedi. Yeniden deneyin.",
-      "no_addresses": "Henüz gönderebileceğiniz bir adres yok."
+      "no_addresses": "Henüz gönderebileceğiniz bir adres yok.",
+      "use_label": "İmza",
+      "own": "Kendi imzası",
+      "same_as": "{address} ile aynı",
+      "shared_note": "{address} adresinin imzasını kullanır. Orada düzenleyin."
     },
     "search": {
       "addresses": "kimlik kimlikler takma ad gönderen gönderen adresi kimden adresi identity alias sender",

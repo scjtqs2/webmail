@@ -25,6 +25,7 @@
       "oauth_issuer_mismatch": "Pieteikšanās ar šo pakalpojumu sniedzēju nav pareizi iestatīta. Administratoram jānorāda tā izdevēja (issuer) adrese.",
       "token_exchange_failed": "Parole un kods tika pieņemti, taču pasta serveris atteicās sākt sesiju šai lietotnei. Lūdziet administratoram pārbaudīt OAuth klienta iestatījumus.",
       "login_refused": "Pasta serveris noraidīja šo pierakstīšanos, pirms pārbaudīja jūsu kodu. Lūdziet administratoram pārbaudīt OAuth klienta iestatījumus.",
+      "primary_sign_in_required": "Vispirms pierakstieties savā galvenajā kontā. Šo serveri var pievienot tikai kā papildu kontu.",
       "totp_required": "Nepieciešams divu faktoru autentifikācijas kods. Lūdzu, ievadiet kodu zemāk."
     },
     "show_password": "Rādīt paroli",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Vairākas vērtības atdaliet ar komatiem."
   },
   "sidebar": {
+    "sign_in_again": "Pierakstīties vēlreiz",
     "close": "Aizvērt",
     "compose": "Rakstīt",
     "compose_hint": "Rakstīt (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Pievienot citu kontu",
     "mv_manage_account": "Pārvaldīt kontu",
     "mv_storage_used": "Izmantoti {percent}% no {total}",
-    "accessibility": "Pieejamība"
+    "accessibility": "Pieejamība",
+    "folder_hidden": "Mape paslēpta. To var atkal parādīt sadaļā Iestatījumi › Mapes un tagi.",
+    "folder_hide_failed": "Mapi neizdevās paslēpt."
   },
   "account_unread": {
     "others": "Nelasītas citos kontos: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Atbildēt visiem",
     "forward_message": "Pārsūtīt ziņojumu",
     "from": "No",
+    "from_account": "Konts: {name}",
     "to": "Kam",
     "cc": "Kopija",
     "bcc": "Slepenā kopija",
@@ -1182,6 +1187,7 @@
     "recipients_refused": "Nav nosūtīts: serveris noraidīja {recipients}.",
     "recipients_partly_refused": "Serveris noraidīja {recipients}. Pārējie adresāti saņem ziņojumu.",
     "send_offline": "Šķiet, esat bezsaistē. Ziņojums joprojām ir šeit, nosūtiet to vēlreiz, kad būsiet tiešsaistē.",
+    "archive_after_reply_queued": "Ziņojums tiks nosūtīts, kad atkal būsiet tiešsaistē. Oriģināls paliek iesūtnē.",
     "formatting": "Formatējums",
     "send_recipients_rejected": "Nav nosūtīts — serveris noraidīja visus adresātus.",
     "send_plugin_failed": "Nav nosūtīts – spraudnis, kas veic sūtīšanu, kļūdījās vai strādāja pārāk ilgi. Pirms sūtīt vēlreiz, pārbaudiet mapi Nosūtītie.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Iekļaut grupas pastkastes",
-          "description": "Iekļaut apvienotajā skatā arī koplietotās/grupas pastkastes."
+          "description": "Iekļaut apvienotajā skatā arī koplietotās/grupas pastkastes.",
+          "accounts_label": "Koplietotās pastkastes apvienotajā pastkastē",
+          "accounts_description": "Noņemiet atzīmi pastkastei, ko nelasāt katru dienu. Tā paliek sānjoslā."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "Vienmēr rādīt vēstules gaišajā režīmā",
-        "description": "Rādīt vēstules saturu gaišajā režīmā, pat ja lietotne ir tumšajā režīmā"
+        "description": "Rādīt vēstules un rakstīto tekstu uz gaiša fona, pat ja lietotne ir tumšajā režīmā"
       },
       "external_content": {
         "label": "Ārējais saturs",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Brīdinājums par vietturiem",
         "description": "Pieprasīt apstiprinājumu pirms tādas ziņas sūtīšanas, kurā vēl ir vietturi, piemēram, [TIME] vai [Jūsu vārds], tukši veidnes lauki vai nepabeigts teksts, piemēram, TODO vai TBD."
+      },
+      "archive_after_reply": {
+        "label": "Arhivēt pēc atbildes",
+        "description": "Kad atbildat uz iesūtnes ziņojumu vai to pārsūtāt, tas tiek arhivēts pēc jūsu ziņojuma nosūtīšanas."
       },
       "recipient_mentions": {
         "label": "Pieminēt saņēmējus ar @",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, zero {# adrešu} one {# adrese} other {# adreses}}",
         "empty": "Vēl nav maskēto adrešu.",
         "website": "Vietne (neobligāti)",
+        "domain": "Domēns",
+        "domain_default": "Noklusējuma domēns",
+        "domain_not_allowed": "Serveris jūsu kontam neatļauj maskētas adreses šajā domēnā. Izvēlieties citu domēnu.",
         "description": "Apraksts (neobligāti)",
         "no_website": "Nav norādīta",
         "enabled": "Iespējota",
@@ -2870,7 +2885,16 @@
       "error_delete": "Neizdevās izdzēst mapi",
       "error_role": "Neizdevās atjaunināt mapes lomu",
       "error_delete_has_children": "Nevar dzēst mapi: tajā joprojām ir apakšmapes. Vispirms tās dzēsiet vai pārvietojiet.",
-      "error_delete_has_email": "Nevar dzēst mapi: tajā joprojām ir e-pasti. Vispirms tos pārvietojiet vai dzēsiet."
+      "error_delete_has_email": "Nevar dzēst mapi: tajā joprojām ir e-pasti. Vispirms tos pārvietojiet vai dzēsiet.",
+      "hide_unsubscribed": {
+        "label": "Paslēpt neabonētās mapes",
+        "description": "Mapes, kuru abonementu atceļat šeit vai citā lietotnē, piemēram, Thunderbird, pazūd no sānjoslas. To pasts paliek serverī."
+      },
+      "show_folder": "Rādīt sānjoslā",
+      "hide_folder": "Paslēpt no sānjoslas",
+      "show_folder_named": "Rādīt {name} sānjoslā",
+      "hide_folder_named": "Paslēpt {name} no sānjoslas",
+      "error_subscription": "Mapi neizdevās parādīt vai paslēpt."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Ārējs",
       "managed_by_tooltip": "Pārvalda {source}. Rediģējiet to šajā lietotnē vai izmantojiet neapstrādāto Sieve redaktoru.",
+      "server_rules": "Servera noteikumi",
+      "server_rules_description": "Tos pievienoja jūsu pasta pakalpojuma sniedzējs. Tie darbojas pirms jūsu filtriem, un šeit tos mainīt nevar.",
       "quick_rule_names": {
         "move_sender": "Pārvietot no {sender} uz {folder}",
         "move_domain": "Pārvietot no @{domain} uz {folder}",
@@ -4208,7 +4234,8 @@
     "delete_with_contents_confirm": "Dzēst mapi un ziņas",
     "placeholder_folder_name": "Mapes nosaukums",
     "create": "Izveidot",
-    "rename_confirm": "Pārsaukt"
+    "rename_confirm": "Pārsaukt",
+    "hide_folder": "Paslēpt no sānjoslas"
   },
   "mail_p2_folders": {
     "all_folders": "Visas mapes",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Piemin “{keyword}”, bet neviens fails nav pievienots",
     "warning_placeholders": "Vietturu teksts, ko redzēs saņēmēji:",
     "warning_proofreading": "Neatrisinātas pareizrakstības vai gramatikas kļūdas: {count}",
+    "warning_account": "Atbilde no {sending}, bet ziņojums tika saņemts kontā {received}",
+    "account_warning_title": "Atbildēt no cita konta?",
+    "account_warning_message": "Šis ziņojums tika saņemts kontā {received}. Atbilde tiks nosūtīta no {sending}.",
+    "account_warning_back": "Mainīt sūtītāju",
     "empty_text_title": "Sūtīt bez teksta?",
     "empty_text_message": "Šai vēstulei nav ne teksta, ne pielikuma. Vai tomēr to sūtīt?",
     "scheduled_for": "Ieplānots: {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Resurss",
         "location": "Vieta",
         "other": "Cits"
-      }
+      },
+      "filter_label": "Rādīt",
+      "filter_all": "Visi",
+      "filter_people": "Personas",
+      "filter_groups": "Grupas"
     },
     "title": "Kontakti",
     "disabled_title": "Administrators ir izslēdzis kontaktpersonas",
@@ -5191,6 +5226,16 @@
       "subscription_title": "Atteikties no kalendāra abonementa?",
       "confirm": "Dzēst"
     },
+    "attachments": {
+      "title": "Pielikumi",
+      "add": "Pievienot failu",
+      "remove": "Noņemt {name}",
+      "download": "Lejupielādēt {name}",
+      "unnamed": "Pielikums",
+      "download_failed": "Pielikumu neizdevās lejupielādēt.",
+      "upload_failed": "Failu neizdevās augšupielādēt. Notikums netika saglabāts.",
+      "too_large": "“{name}” ir lielāks, nekā serveris atļauj ({max} vienam failam)"
+    },
     "alerts": {
       "title": "Atgādinājums",
       "none": "Bez atgādinājuma",
@@ -5228,6 +5273,10 @@
       "working_days": "Darba dienas",
       "title": "Kalendāra iestatījumi",
       "default_view": "Kalendārs atveras skatā",
+      "default_event_length": "Notikumu noklusējuma ilgums",
+      "default_event_length_desc": "Cik ilgs ir jauns notikums, kad noklikšķināt uz laika kalendārā vai izveidojat notikumu.",
+      "event_length_minutes": "{minutes} minūtes",
+      "event_length_hours": "{hours, plural, zero {# stundas} one {# stunda} other {# stundas}}",
       "week_starts_on": "Nedēļa sākas ar",
       "time_format": "Laika formāts",
       "default_calendar": "Noklusējuma kalendārs",
@@ -5501,6 +5550,8 @@
       "cancel": "Atcelt",
       "save": "Saglabāt",
       "quick_add_placeholder": "Pievienot uzdevumu...",
+      "add_subtask": "Pievienot apakšuzdevumu…",
+      "subtask_of": "Apakšuzdevums uzdevumam {title}",
       "due_today": "Šodien",
       "due_tomorrow": "Rīt",
       "overdue": "Kavēts"
@@ -5811,6 +5862,11 @@
     "zipping": "Sagatavo {name}",
     "download_canceled": "Lejupielāde atcelta",
     "zip_error": "Neizdevās lejupielādēt {name}",
+    "download_to_folder": "Lejupielādēt mapē…",
+    "downloading_to_folder": "Notiek lejupielāde mapē {folder}",
+    "downloaded_to_folder": "{count, plural, zero {Mapē {folder} saglabāti # faili.} one {Mapē {folder} saglabāts # fails.} other {Mapē {folder} saglabāti # faili.}}",
+    "downloaded_to_folder_partial": "Mapē {folder} saglabāti {saved} no {total} failiem.",
+    "download_to_folder_failed": "Failus neizdevās saglabāt mapē {folder}.",
     "not_available": "Failu krātuve šajā serverī nav pieejama",
     "cancel": "Atcelt",
     "create": "Izveidot",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name} (sūtāt jūs)",
     "organizer_me": "Jūs"
   },
+  "calendar_forward": {
+    "menu": "Pārsūtīt…",
+    "heading": "Pārsūtīts uzaicinājums",
+    "when": "Kad: {value}",
+    "where": "Kur: {value}",
+    "organizer": "Organizators: {value}",
+    "failed": "Uzaicinājumu neizdevās pārsūtīt.",
+    "add_replier": "Pievienot {name} sanāksmei",
+    "not_invited": "{name} nav uzaicināts uz šo sanāksmi. Kāds viņam pārsūtīja uzaicinājumu.",
+    "added": "Pievienots sanāksmei"
+  },
+  "calendar_invitations": {
+    "title": "Uzaicinājumi",
+    "from": "No {name}"
+  },
+  "event_from_mail": {
+    "menu": "Izveidot notikumu…",
+    "link_line": "E-pasts: {link}"
+  },
   "free_busy_share": {
     "button": "Kopīgot manu brīvs/aizņemts ar {group}",
     "already": "Jūsu brīvs/aizņemts ir kopīgots ar {group}",
@@ -6570,7 +6645,14 @@
       "calendar": "Kalendārs",
       "addressBook": "Adrešu grāmata",
       "file": "Fails"
-    }
+    },
+    "shared_items": "Ko jūs kopīgojat",
+    "stop_sharing": "Pārtraukt {item} kopīgošanu ar {name}",
+    "stop_sharing_title": "Pārtraukt {item} kopīgošanu ar {name}?",
+    "stop_sharing_message": "{name} zaudē piekļuvi {item}. Viss pārējais, ko kopīgojat, paliek.",
+    "stop_sharing_confirm": "Pārtraukt kopīgošanu",
+    "stopped_sharing": "{name} vairs nav piekļuves {item}",
+    "stop_sharing_failed": "Neizdevās pārtraukt {item} kopīgošanu"
   },
   "quote_header": {
     "reply_line": "{date} {from} rakstīja:",
@@ -7938,14 +8020,20 @@
       "added": "Adrese pievienota.",
       "saved": "Adrese saglabāta.",
       "deleted": "Adrese izdzēsta.",
-      "delete_title": "Vai dzēst šo adresi?"
+      "delete_title": "Vai dzēst šo adresi?",
+      "offer_new_mail": "Piedāvāt jaunām vēstulēm. Izslēgts: tikai atbildēm uz vēstulēm, kas sūtītas uz šo adresi.",
+      "offer_new_mail_named": "Piedāvāt {address} jaunām vēstulēm"
     },
     "signatures": {
       "title": "Paraksti",
-      "description": "Tiek pievienots jūsu rakstīto ziņojumu beigās. Katrai adresei ir savs.",
+      "description": "Tiek pievienots jūsu rakstīto ziņojumu beigās. Katrai adresei ir savs, vai tā izmanto citas adreses parakstu.",
       "saved": "Paraksts saglabāts.",
       "error": "Parakstu neizdevās saglabāt. Mēģiniet vēlreiz.",
-      "no_addresses": "Vēl nav adreses, no kuras sūtīt."
+      "no_addresses": "Vēl nav adreses, no kuras sūtīt.",
+      "use_label": "Paraksts",
+      "own": "Savs paraksts",
+      "same_as": "Tāds pats kā {address}",
+      "shared_note": "Izmanto adreses {address} parakstu. Rediģējiet to tur."
     },
     "search": {
       "addresses": "identitāte identitātes aizstājvārds sūtītājs sūtītāja adrese no adrese identity alias sender",

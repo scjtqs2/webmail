@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO is ingeschakeld maar de identiteitsprovider is niet bereikbaar. Controleer uw OAuth-configuratie.",
       "oauth_issuer_mismatch": "Aanmelden via deze provider is niet goed ingesteld. De beheerder moet het issuer-adres van de provider instellen.",
       "token_exchange_failed": "Uw wachtwoord en code zijn geaccepteerd, maar de mailserver weigerde een sessie voor deze app te starten. Vraag uw beheerder de OAuth-clientinstellingen te controleren.",
-      "login_refused": "De mailserver weigerde deze aanmelding voordat uw code werd gecontroleerd. Vraag uw beheerder de OAuth-clientinstellingen te controleren."
+      "login_refused": "De mailserver weigerde deze aanmelding voordat uw code werd gecontroleerd. Vraag uw beheerder de OAuth-clientinstellingen te controleren.",
+      "primary_sign_in_required": "Meld je eerst aan bij je hoofdaccount. Deze server kan alleen als extra account worden toegevoegd."
     },
     "show_password": "Wachtwoord tonen",
     "hide_password": "Wachtwoord verbergen",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Scheid meerdere waarden met komma's."
   },
   "sidebar": {
+    "sign_in_again": "Opnieuw aanmelden",
     "close": "Sluiten",
     "compose": "Nieuw bericht",
     "compose_hint": "Opstellen (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Nog een account toevoegen",
     "mv_manage_account": "Account beheren",
     "mv_storage_used": "{percent}% van {total} gebruikt",
-    "accessibility": "Toegankelijkheid"
+    "accessibility": "Toegankelijkheid",
+    "folder_hidden": "Map verborgen. Toon hem weer via Instellingen › Mappen en tags.",
+    "folder_hide_failed": "De map kon niet worden verborgen."
   },
   "account_unread": {
     "others": "Ongelezen in andere accounts: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Allen beantwoorden",
     "forward_message": "Doorsturen",
     "from": "Van",
+    "from_account": "Account: {name}",
     "to": "Aan",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1189,6 +1194,7 @@
     "recipients_refused": "Niet verzonden: de server heeft {recipients} geweigerd.",
     "recipients_partly_refused": "De server heeft {recipients} geweigerd. De andere ontvangers krijgen het bericht.",
     "send_offline": "Je lijkt offline te zijn. Het bericht staat er nog; verstuur het opnieuw zodra je weer online bent.",
+    "archive_after_reply_queued": "Je bericht wordt verzonden zodra je weer online bent. Het origineel blijft in je Postvak IN.",
     "formatting": "Opmaak",
     "send_recipients_rejected": "Niet verzonden: de server heeft alle ontvangers geweigerd.",
     "send_plugin_failed": "Niet verzonden - een plug-in die het verzenden afhandelt, is mislukt of duurde te lang. Controleer je map Verzonden voordat je opnieuw verzendt.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Groepspostvakken meenemen",
-          "description": "Gedeelde/groepspostvakken ook in de gecombineerde weergave opnemen."
+          "description": "Gedeelde/groepspostvakken ook in de gecombineerde weergave opnemen.",
+          "accounts_label": "Gedeelde postvakken in het gecombineerde postvak",
+          "accounts_description": "Vink een postvak uit dat u niet elke dag leest. Het blijft in de zijbalk."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "E-mails altijd in lichte modus weergeven",
-        "description": "E-mailinhoud in lichte modus weergeven, zelfs wanneer de app in donkere modus staat, om problemen met donkere modus-conversie te voorkomen"
+        "description": "E-mails, en de tekst die je schrijft, op een lichte achtergrond tonen, ook als de app in donkere modus staat"
       },
       "external_content": {
         "label": "Externe inhoud",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Waarschuwing bij tijdelijke aanduidingen",
         "description": "Vraag om bevestiging voordat een bericht wordt verzonden dat nog tijdelijke aanduidingen bevat zoals [TIME] of [Uw naam], lege sjabloonvelden of onafgemaakte tekst zoals TODO of TBD."
+      },
+      "archive_after_reply": {
+        "label": "Archiveren na beantwoorden",
+        "description": "Als je een bericht in je Postvak IN beantwoordt of doorstuurt, wordt het gearchiveerd zodra je bericht is verzonden."
       },
       "recipient_mentions": {
         "label": "Ontvangers noemen met @",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, one {# adres} other {# adressen}}",
         "empty": "Nog geen gemaskeerde adressen.",
         "website": "Website (optioneel)",
+        "domain": "Domein",
+        "domain_default": "Standaarddomein",
+        "domain_not_allowed": "De server staat voor je account geen gemaskeerde adressen op dit domein toe. Kies een ander domein.",
         "description": "Beschrijving (optioneel)",
         "no_website": "Niet opgegeven",
         "enabled": "Ingeschakeld",
@@ -2870,7 +2885,16 @@
       "error_delete": "Map verwijderen mislukt",
       "error_delete_has_children": "Map kan niet worden verwijderd: deze bevat nog submappen. Verwijder of verplaats deze eerst.",
       "error_delete_has_email": "Map kan niet worden verwijderd: deze bevat nog e-mails. Verplaats of verwijder deze eerst.",
-      "error_role": "Maprol bijwerken mislukt"
+      "error_role": "Maprol bijwerken mislukt",
+      "hide_unsubscribed": {
+        "label": "Mappen zonder abonnement verbergen",
+        "description": "Mappen waarvoor u hier of in een andere app, zoals Thunderbird, het abonnement opzegt, verdwijnen uit de zijbalk. De mail blijft op de server."
+      },
+      "show_folder": "Tonen in zijbalk",
+      "hide_folder": "Verbergen in zijbalk",
+      "show_folder_named": "{name} tonen in de zijbalk",
+      "hide_folder_named": "{name} verbergen in de zijbalk",
+      "error_subscription": "De map kon niet worden getoond of verborgen."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Extern",
       "managed_by_tooltip": "Beheerd door {source}. Bewerk het in die app of gebruik de ruwe Sieve-editor.",
+      "server_rules": "Serverregels",
+      "server_rules_description": "Je mailprovider heeft deze toegevoegd. Ze worden vóór je filters uitgevoerd en zijn hier niet te wijzigen.",
       "quick_rule_names": {
         "move_sender": "Van {sender} naar {folder} verplaatsen",
         "move_domain": "Van @{domain} naar {folder} verplaatsen",
@@ -4208,7 +4234,8 @@
     "delete_with_contents_confirm": "Map en berichten verwijderen",
     "placeholder_folder_name": "Mapnaam",
     "create": "Aanmaken",
-    "rename_confirm": "Hernoemen"
+    "rename_confirm": "Hernoemen",
+    "hide_folder": "Verbergen in zijbalk"
   },
   "mail_p2_folders": {
     "all_folders": "Alle mappen",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Noemt ‘{keyword}’, maar er is geen bestand bijgevoegd",
     "warning_placeholders": "Tijdelijke tekst die ontvangers zien:",
     "warning_proofreading": "Openstaande spel- of grammaticafouten: {count}",
+    "warning_account": "Antwoord vanuit {sending}, maar het bericht kwam binnen op {received}",
+    "account_warning_title": "Beantwoorden vanuit een ander account?",
+    "account_warning_message": "Dit bericht kwam binnen op {received}. Het antwoord wordt verzonden vanuit {sending}.",
+    "account_warning_back": "Afzender wijzigen",
     "empty_text_title": "Verzenden zonder tekst?",
     "empty_text_message": "Dit bericht heeft geen tekst en geen bijlage. Toch verzenden?",
     "scheduled_for": "Gepland voor {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Middel",
         "location": "Locatie",
         "other": "Overig"
-      }
+      },
+      "filter_label": "Tonen",
+      "filter_all": "Alles",
+      "filter_people": "Personen",
+      "filter_groups": "Groepen"
     },
     "title": "Contacten",
     "disabled_title": "Contacten zijn uitgeschakeld door je beheerder",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Afmelden voor agenda?",
       "confirm": "Verwijderen"
     },
+    "attachments": {
+      "title": "Bijlagen",
+      "add": "Bestand toevoegen",
+      "remove": "{name} verwijderen",
+      "download": "{name} downloaden",
+      "unnamed": "Bijlage",
+      "download_failed": "De bijlage kon niet worden gedownload.",
+      "upload_failed": "Een bestand kon niet worden geüpload. De afspraak is niet opgeslagen.",
+      "too_large": "\"{name}\" is groter dan de server toestaat ({max} per bestand)"
+    },
     "alerts": {
       "title": "Herinnering",
       "none": "Geen herinnering",
@@ -5229,6 +5274,10 @@
       "working_days": "Werkdagen",
       "title": "Agenda-instellingen",
       "default_view": "Agenda opent in",
+      "default_event_length": "Standaardduur van afspraken",
+      "default_event_length_desc": "Hoe lang een nieuwe afspraak duurt als je op een tijd in de agenda klikt of er een maakt.",
+      "event_length_minutes": "{minutes} minuten",
+      "event_length_hours": "{hours, number} uur",
       "week_starts_on": "Week begint op",
       "time_format": "Tijdnotatie",
       "default_calendar": "Standaardagenda",
@@ -5502,6 +5551,8 @@
       "cancel": "Annuleren",
       "save": "Opslaan",
       "quick_add_placeholder": "Taak toevoegen...",
+      "add_subtask": "Subtaak toevoegen…",
+      "subtask_of": "Subtaak van {title}",
       "due_today": "Vervalt vandaag",
       "due_tomorrow": "Vervalt morgen",
       "overdue": "Achterstallig"
@@ -5811,6 +5862,11 @@
     "zipping": "{name} voorbereiden",
     "download_canceled": "Download geannuleerd",
     "zip_error": "Kan {name} niet downloaden",
+    "download_to_folder": "Downloaden naar een map…",
+    "downloading_to_folder": "Downloaden naar {folder}",
+    "downloaded_to_folder": "{count, plural, one {# bestand opgeslagen in {folder}.} other {# bestanden opgeslagen in {folder}.}}",
+    "downloaded_to_folder_partial": "{saved} van {total} bestanden opgeslagen in {folder}.",
+    "download_to_folder_failed": "De bestanden konden niet worden opgeslagen in {folder}.",
     "not_available": "Bestandsopslag is niet beschikbaar op deze server",
     "cancel": "Annuleren",
     "create": "Aanmaken",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name} (verzonden door jou)",
     "organizer_me": "Jij"
   },
+  "calendar_forward": {
+    "menu": "Doorsturen…",
+    "heading": "Doorgestuurde uitnodiging",
+    "when": "Wanneer: {value}",
+    "where": "Waar: {value}",
+    "organizer": "Organisator: {value}",
+    "failed": "De uitnodiging kon niet worden doorgestuurd.",
+    "add_replier": "{name} aan de vergadering toevoegen",
+    "not_invited": "{name} is niet uitgenodigd voor deze vergadering. Iemand heeft de uitnodiging doorgestuurd.",
+    "added": "Aan de vergadering toegevoegd"
+  },
+  "calendar_invitations": {
+    "title": "Uitnodigingen",
+    "from": "Van {name}"
+  },
+  "event_from_mail": {
+    "menu": "Afspraak maken…",
+    "link_line": "E-mail: {link}"
+  },
   "free_busy_share": {
     "button": "Mijn vrij/bezet delen met {group}",
     "already": "Je vrij/bezet is gedeeld met {group}",
@@ -6570,7 +6645,14 @@
       "calendar": "Agenda",
       "addressBook": "Adresboek",
       "file": "Bestand"
-    }
+    },
+    "shared_items": "Wat u deelt",
+    "stop_sharing": "{item} niet meer delen met {name}",
+    "stop_sharing_title": "{item} niet meer delen met {name}?",
+    "stop_sharing_message": "{name} verliest de toegang tot {item}. Al het andere dat u deelt, blijft.",
+    "stop_sharing_confirm": "Niet meer delen",
+    "stopped_sharing": "{name} heeft geen toegang meer tot {item}",
+    "stop_sharing_failed": "Kon het delen van {item} niet stoppen"
   },
   "quote_header": {
     "reply_line": "Op {date} schreef {from}:",
@@ -7938,14 +8020,20 @@
       "added": "Adres toegevoegd.",
       "saved": "Adres opgeslagen.",
       "deleted": "Adres verwijderd.",
-      "delete_title": "Dit adres verwijderen?"
+      "delete_title": "Dit adres verwijderen?",
+      "offer_new_mail": "Aanbieden voor nieuwe mail. Uit: alleen om te antwoorden op mail aan dit adres.",
+      "offer_new_mail_named": "{address} aanbieden voor nieuwe mail"
     },
     "signatures": {
       "title": "Handtekeningen",
-      "description": "Komt onder de berichten die u schrijft. Elk adres heeft een eigen handtekening.",
+      "description": "Komt onder de berichten die u schrijft. Elk adres heeft een eigen handtekening of gebruikt die van een ander adres.",
       "saved": "Handtekening opgeslagen.",
       "error": "De handtekening kon niet worden opgeslagen. Probeer het opnieuw.",
-      "no_addresses": "Er is nog geen adres om vanaf te verzenden."
+      "no_addresses": "Er is nog geen adres om vanaf te verzenden.",
+      "use_label": "Handtekening",
+      "own": "Eigen handtekening",
+      "same_as": "Dezelfde als {address}",
+      "shared_note": "Gebruikt de handtekening van {address}. Bewerk die daar."
     },
     "search": {
       "addresses": "identiteit identiteiten alias afzender afzenderadres van-adres identity sender",

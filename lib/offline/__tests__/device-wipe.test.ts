@@ -177,6 +177,18 @@ describe('with the app lock', () => {
     expect(localStorage.getItem('bulwark-app-lock')).toBeNull();
   });
 
+  it('with only an account waiting for a sign-in left, the vault and the lock go too', async () => {
+    const vault = await vaultOf();
+    (await vault.createVault('correct-pin')).fill(0);
+    localStorage.setItem('bulwark-app-lock', JSON.stringify({ on: true, locked: true }));
+    useAccountStore.setState({ accounts: [entry(ALICE, 0), { ...entry(BOB, 1), awaitingSignIn: true }], activeAccountId: ALICE, defaultAccountId: ALICE } as never);
+    respond = () => noWipe();
+    await keys.putDeviceRecord({ account: ALICE, id: ROW, secret: SECRET, createdAt: 1 });
+    await wipe.wipeAccountFromDevice(ALICE, 'admin');
+    await vi.waitFor(async () => expect(await databases()).not.toContain(vaultDb));
+    expect(localStorage.getItem('bulwark-app-lock')).toBeNull();
+  });
+
   it('also when the last account isn\'t the active one, as at a lock screen where nothing has started', async () => {
     const vault = await vaultOf();
     (await vault.createVault('correct-pin')).fill(0);
@@ -773,12 +785,12 @@ describe('a refused login (lib/offline/credentials-rejected.ts)', () => {
       expect(wipeState.readPendingWipes()).toEqual({});
     });
 
-    it('invalid_grant fires it, signs out and hides: nothing is deleted', async () => {
+    it('invalid_grant fires it, keeps the entry for a sign-in and hides: nothing is deleted', async () => {
       wipe.registerDeviceWipe();
       token(() => json(401, { error: 'invalid_grant' }));
       await useAuthStore.getState().refreshAccessToken({ accountId: ALICE });
       expect(heard).toEqual([ALICE]);
-      await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)).toBeUndefined());
+      await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)?.awaitingSignIn).toBe(true));
       expect(state.isEvicted(ALICE)).toBe(true);
       expect(purge.files).toBe(0);
       expect(store.removed).toEqual([]);
@@ -790,8 +802,8 @@ describe('a refused login (lib/offline/credentials-rejected.ts)', () => {
       token(() => json(401, { error: 'session_expired', maxHours: 8 }));
       await useAuthStore.getState().refreshAccessToken({ accountId: ALICE });
       expect(heard).toEqual([ALICE]);
-      await vi.waitFor(() => expect(state.isEvicted(ALICE)).toBe(true));
-      await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)).toBeUndefined());
+      await vi.waitFor(() => expect(useAccountStore.getState().getAccountById(ALICE)?.awaitingSignIn).toBe(true));
+      expect(state.isEvicted(ALICE)).toBe(true);
       expect(purge.files).toBe(0);
       expect(store.removed).toEqual([]);
       expect(wipeState.readRefusedLogins()[ALICE]).toMatchObject({ kind: 'session' });
@@ -1251,6 +1263,13 @@ describe('what else goes with a wipe', () => {
     expect(localStorage.getItem('theme-storage')).toBe('device preference');
   });
 
+  it('an account that only waits for a sign-in leaves nobody: the last signed-in one ends Web Push', async () => {
+    useAccountStore.setState({ accounts: [entry(ALICE, 0), { ...entry(BOB, 1), awaitingSignIn: true }] } as never);
+    await wipe.wipeAccountFromDevice(ALICE, 'admin');
+    expect(deletedCaches).toContain('bulwark-push-state-v1');
+    expect(unsubscribed).toBe(1);
+  });
+
   it('with another account left, Web Push stays: it\'s shared', async () => {
     useAccountStore.setState({ accounts: [entry(ALICE, 0), entry(BOB, 1)] } as never);
     await wipe.wipeAccountFromDevice(ALICE, 'admin');
@@ -1472,7 +1491,7 @@ describe('the session timers', () => {
     const at = Date.now();
     await timerSignOut();
 
-    expect(useAccountStore.getState().accounts).toEqual([]);
+    expect(useAccountStore.getState().getAccountById(ALICE)?.awaitingSignIn).toBe(true);
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(state.isEvicted(ALICE)).toBe(true);
     expect(state.visibleAccounts()).toEqual([]);

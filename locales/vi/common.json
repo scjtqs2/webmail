@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO đã được bật nhưng không thể liên lạc được với nhà cung cấp danh tính. Kiểm tra cấu hình OAuth của bạn.",
       "oauth_issuer_mismatch": "Đăng nhập qua nhà cung cấp này chưa được thiết lập đúng. Quản trị viên cần đặt địa chỉ issuer của nhà cung cấp.",
       "token_exchange_failed": "Mật khẩu và mã của bạn đã được chấp nhận nhưng máy chủ thư từ chối bắt đầu phiên cho ứng dụng này. Yêu cầu quản trị viên của bạn kiểm tra cài đặt ứng dụng khách OAuth của nó.",
-      "login_refused": "Máy chủ thư đã từ chối lần đăng nhập này trước khi kiểm tra mã của bạn. Hãy nhờ quản trị viên kiểm tra cài đặt ứng dụng khách OAuth."
+      "login_refused": "Máy chủ thư đã từ chối lần đăng nhập này trước khi kiểm tra mã của bạn. Hãy nhờ quản trị viên kiểm tra cài đặt ứng dụng khách OAuth.",
+      "primary_sign_in_required": "Hãy đăng nhập vào tài khoản chính trước. Máy chủ này chỉ có thể được thêm làm tài khoản phụ."
     },
     "show_password": "Hiển thị mật khẩu",
     "hide_password": "Ẩn mật khẩu",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Để khớp nhiều giá trị, hãy phân tách bằng dấu phẩy."
   },
   "sidebar": {
+    "sign_in_again": "Đăng nhập lại",
     "close": "Đóng",
     "compose": "Soạn thư",
     "compose_hint": "Soạn thư (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Thêm tài khoản khác",
     "mv_manage_account": "Quản lý tài khoản của bạn",
     "mv_storage_used": "Đã dùng {percent}% dung lượng {total}",
-    "accessibility": "Hỗ trợ tiếp cận"
+    "accessibility": "Hỗ trợ tiếp cận",
+    "folder_hidden": "Đã ẩn thư mục. Hiện lại trong Cài đặt › Thư mục và nhãn.",
+    "folder_hide_failed": "Không thể ẩn thư mục."
   },
   "account_unread": {
     "others": "Chưa đọc trong các tài khoản khác: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Trả lời tất cả",
     "forward_message": "Chuyển tiếp",
     "from": "Người gửi",
+    "from_account": "Tài khoản: {name}",
     "to": "Người nhận",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1181,6 +1186,7 @@
     "show_less": "Thu gọn",
     "send_failed": "Gửi email thất bại",
     "send_offline": "Có vẻ như bạn đang ngoại tuyến. Thư vẫn ở đây; hãy gửi lại khi bạn kết nối mạng.",
+    "archive_after_reply_queued": "Thư của bạn sẽ được gửi khi bạn trực tuyến trở lại. Thư gốc vẫn ở trong Hộp thư đến.",
     "send_timeout": "Máy chủ ngừng phản hồi. Hãy kiểm tra thư mục Đã gửi trước khi gửi lại — thư có thể đã được gửi đi.",
     "submission_quota": "Máy chủ có quá nhiều bản ghi thư đã gửi cho tài khoản này. Bulwark đã xóa được một số bản ghi; nếu tình trạng này tiếp diễn, hãy yêu cầu quản trị viên tăng giới hạn gửi email.",
     "submission_limit": "Máy chủ từ chối gửi thư vì đã chạm giới hạn: {reason}",
@@ -1827,7 +1833,9 @@
         },
         "include_group": {
           "label": "Bao gồm hộp thư nhóm",
-          "description": "Gộp cả hộp thư nhóm/được chia sẻ vào chế độ xem hợp nhất."
+          "description": "Gộp cả hộp thư nhóm/được chia sẻ vào chế độ xem hợp nhất.",
+          "accounts_label": "Hộp thư dùng chung trong hộp thư hợp nhất",
+          "accounts_description": "Bỏ chọn hộp thư bạn không đọc hằng ngày. Hộp thư vẫn ở thanh bên."
         }
       },
       "all_mail": {
@@ -2279,7 +2287,7 @@
       },
       "always_light_mode": {
         "label": "Luôn hiển thị thư ở chế độ sáng",
-        "description": "Hiển thị nội dung thư ở chế độ sáng ngay cả khi ứng dụng đang ở chế độ tối, tránh lỗi chuyển đổi chế độ tối"
+        "description": "Hiển thị thư và văn bản bạn đang viết trên nền sáng ngay cả khi ứng dụng ở chế độ tối"
       },
       "external_content": {
         "label": "Nội dung bên ngoài",
@@ -2355,6 +2363,10 @@
       "placeholder_warning": {
         "label": "Cảnh báo chỗ trống",
         "description": "Yêu cầu xác nhận trước khi gửi thư còn chỗ trống như [TIME] hoặc [Your Name], trường mẫu chưa điền hoặc nội dung chưa hoàn tất như TODO hay TBD."
+      },
+      "archive_after_reply": {
+        "label": "Lưu trữ sau khi trả lời",
+        "description": "Khi bạn trả lời hoặc chuyển tiếp một thư trong Hộp thư đến, thư đó sẽ được lưu trữ sau khi thư của bạn được gửi."
       },
       "recipient_mentions": {
         "label": "Nhắc người nhận bằng @",
@@ -2553,6 +2565,9 @@
         "count": "{count, plural, other {# địa chỉ}}",
         "empty": "Chưa có địa chỉ ẩn danh nào.",
         "website": "Trang web (tùy chọn)",
+        "domain": "Tên miền",
+        "domain_default": "Tên miền mặc định",
+        "domain_not_allowed": "Máy chủ không cho phép địa chỉ ẩn danh trên tên miền này cho tài khoản của bạn. Hãy chọn tên miền khác.",
         "description": "Mô tả (tùy chọn)",
         "no_website": "Chưa chỉ định",
         "enabled": "Đã bật",
@@ -2889,7 +2904,16 @@
       "error_delete": "Không thể xóa thư mục",
       "error_delete_has_children": "Không thể xóa thư mục: nó vẫn chứa các thư mục con. Xóa hoặc di chuyển chúng trước.",
       "error_delete_has_email": "Không thể xóa thư mục: nó vẫn chứa email. Di chuyển hoặc xóa chúng trước.",
-      "error_role": "Không thể thay đổi vai trò thư mục"
+      "error_role": "Không thể thay đổi vai trò thư mục",
+      "hide_unsubscribed": {
+        "label": "Ẩn thư mục chưa đăng ký",
+        "description": "Thư mục bạn hủy đăng ký ở đây hoặc trong ứng dụng khác, như Thunderbird, sẽ rời khỏi thanh bên. Thư của chúng vẫn ở trên máy chủ."
+      },
+      "show_folder": "Hiện trong thanh bên",
+      "hide_folder": "Ẩn khỏi thanh bên",
+      "show_folder_named": "Hiện {name} trong thanh bên",
+      "hide_folder_named": "Ẩn {name} khỏi thanh bên",
+      "error_subscription": "Không thể hiện hoặc ẩn thư mục."
     },
     "advanced": {
       "debug_mode": {
@@ -3225,6 +3249,8 @@
       },
       "origin_external": "Bên ngoài",
       "managed_by_tooltip": "Do {source} quản lý. Hãy chỉnh sửa trong ứng dụng đó hoặc dùng trình chỉnh sửa mã Sieve.",
+      "server_rules": "Quy tắc máy chủ",
+      "server_rules_description": "Nhà cung cấp thư của bạn đã thêm các quy tắc này. Chúng chạy trước bộ lọc của bạn và không thể thay đổi ở đây.",
       "quick_rule_names": {
         "move_sender": "Chuyển từ {sender} tới {folder}",
         "move_domain": "Chuyển từ @{domain} sang {folder}",
@@ -4220,7 +4246,8 @@
     "toast_error_delete_has_email": "Thư mục không trống. Làm trống nó trước.",
     "delete_with_contents_title": "Thư mục không trống",
     "delete_with_contents_message": "Thư mục \"{name}\" vẫn chứa {count, plural, one {1 thư} other {# thư}}. Xóa thư mục và tất cả thư của nó? Điều này không thể hoàn tác được.",
-    "delete_with_contents_confirm": "Xóa thư mục và thư"
+    "delete_with_contents_confirm": "Xóa thư mục và thư",
+    "hide_folder": "Ẩn khỏi thanh bên"
   },
   "mail_p2_folders": {
     "all_folders": "Tất cả thư mục",
@@ -4468,6 +4495,10 @@
     "warning_attachment": "Có nhắc đến \"{keyword}\" nhưng chưa đính kèm tệp nào",
     "warning_placeholders": "Văn bản giữ chỗ mà người nhận sẽ thấy:",
     "warning_proofreading": "Lỗi chính tả hoặc ngữ pháp chưa sửa: {count}",
+    "warning_account": "Trả lời từ {sending}, nhưng thư được gửi đến {received}",
+    "account_warning_title": "Trả lời từ tài khoản khác?",
+    "account_warning_message": "Thư này được gửi đến {received}. Thư trả lời sẽ được gửi từ {sending}.",
+    "account_warning_back": "Đổi người gửi",
     "empty_text_title": "Gửi mà không có nội dung?",
     "empty_text_message": "Thư này không có nội dung và không có tệp đính kèm. Vẫn gửi?",
     "scheduled_for": "Đã lên lịch gửi lúc {when}",
@@ -4554,7 +4585,11 @@
         "resource": "Tài nguyên",
         "location": "Địa điểm",
         "other": "Khác"
-      }
+      },
+      "filter_label": "Hiển thị",
+      "filter_all": "Tất cả",
+      "filter_people": "Người",
+      "filter_groups": "Nhóm"
     },
     "title": "Danh bạ",
     "disabled_title": "Danh bạ đã bị quản trị viên của bạn tắt",
@@ -5204,6 +5239,16 @@
       "subscription_title": "Hủy đăng ký khỏi lịch?",
       "confirm": "Xóa"
     },
+    "attachments": {
+      "title": "Tệp đính kèm",
+      "add": "Thêm tệp",
+      "remove": "Bỏ {name}",
+      "download": "Tải xuống {name}",
+      "unnamed": "Tệp đính kèm",
+      "download_failed": "Không thể tải xuống tệp đính kèm.",
+      "upload_failed": "Không thể tải lên một tệp. Sự kiện chưa được lưu.",
+      "too_large": "\"{name}\" vượt quá kích thước máy chủ cho phép ({max} mỗi tệp)"
+    },
     "alerts": {
       "title": "Lời nhắc",
       "none": "Không có lời nhắc",
@@ -5241,6 +5286,10 @@
       "working_days": "Ngày làm việc",
       "title": "Cài đặt lịch",
       "default_view": "Lịch mở ở chế độ",
+      "default_event_length": "Thời lượng mặc định của sự kiện",
+      "default_event_length_desc": "Thời lượng của sự kiện mới khi bạn nhấp vào một giờ trong lịch hoặc tạo sự kiện.",
+      "event_length_minutes": "{minutes} phút",
+      "event_length_hours": "{hours, number} giờ",
       "week_starts_on": "Tuần bắt đầu vào",
       "time_format": "Định dạng thời gian",
       "default_calendar": "Lịch mặc định",
@@ -5543,6 +5592,8 @@
       "cancel": "Hủy",
       "save": "Lưu",
       "quick_add_placeholder": "Thêm công việc…",
+      "add_subtask": "Thêm việc con…",
+      "subtask_of": "Việc con của {title}",
       "due_today": "Hôm nay",
       "due_tomorrow": "Ngày mai",
       "overdue": "Quá hạn"
@@ -5690,6 +5741,25 @@
     "answered_by": "Đã được {who} trả lời",
     "organizer_owner": "{name} (do bạn gửi)",
     "organizer_me": "Bạn"
+  },
+  "calendar_forward": {
+    "menu": "Chuyển tiếp…",
+    "heading": "Lời mời được chuyển tiếp",
+    "when": "Thời gian: {value}",
+    "where": "Địa điểm: {value}",
+    "organizer": "Người tổ chức: {value}",
+    "failed": "Không thể chuyển tiếp lời mời.",
+    "add_replier": "Thêm {name} vào cuộc họp",
+    "not_invited": "{name} không được mời tham gia cuộc họp này. Có người đã chuyển tiếp lời mời.",
+    "added": "Đã thêm vào cuộc họp"
+  },
+  "calendar_invitations": {
+    "title": "Lời mời",
+    "from": "Từ {name}"
+  },
+  "event_from_mail": {
+    "menu": "Tạo sự kiện…",
+    "link_line": "Email: {link}"
   },
   "free_busy_share": {
     "button": "Chia sẻ lịch rảnh/bận của tôi với {group}",
@@ -5942,7 +6012,14 @@
       "calendar": "Lịch",
       "addressBook": "Sổ địa chỉ",
       "file": "Tệp"
-    }
+    },
+    "shared_items": "Những gì bạn chia sẻ",
+    "stop_sharing": "Ngừng chia sẻ {item} với {name}",
+    "stop_sharing_title": "Ngừng chia sẻ {item} với {name}?",
+    "stop_sharing_message": "{name} mất quyền truy cập {item}. Mọi thứ khác bạn chia sẻ vẫn giữ nguyên.",
+    "stop_sharing_confirm": "Ngừng chia sẻ",
+    "stopped_sharing": "{name} không còn quyền truy cập {item}",
+    "stop_sharing_failed": "Không thể ngừng chia sẻ {item}"
   },
   "advanced_search": {
     "title": "Tìm kiếm nâng cao",
@@ -6113,6 +6190,11 @@
     "zipping": "Đang chuẩn bị {name}",
     "download_canceled": "Đã hủy tải xuống",
     "zip_error": "Không thể tải xuống {name}",
+    "download_to_folder": "Tải xuống vào một thư mục…",
+    "downloading_to_folder": "Đang tải xuống vào {folder}",
+    "downloaded_to_folder": "{count, plural, other {Đã lưu # tệp vào {folder}.}}",
+    "downloaded_to_folder_partial": "Đã lưu {saved}/{total} tệp vào {folder}.",
+    "download_to_folder_failed": "Không thể lưu tệp vào {folder}.",
     "not_available": "Bộ lưu trữ tệp không có sẵn trên máy chủ này",
     "cancel": "Hủy",
     "create": "Tạo",
@@ -7950,14 +8032,20 @@
       "added": "Đã thêm địa chỉ.",
       "saved": "Đã lưu địa chỉ.",
       "deleted": "Đã xóa địa chỉ.",
-      "delete_title": "Xóa địa chỉ này?"
+      "delete_title": "Xóa địa chỉ này?",
+      "offer_new_mail": "Đề xuất cho thư mới. Tắt: chỉ dùng để trả lời thư gửi đến địa chỉ này.",
+      "offer_new_mail_named": "Đề xuất {address} cho thư mới"
     },
     "signatures": {
       "title": "Chữ ký",
-      "description": "Được thêm vào cuối thư bạn viết. Mỗi địa chỉ có chữ ký riêng.",
+      "description": "Được thêm vào cuối thư bạn viết. Mỗi địa chỉ có chữ ký riêng hoặc dùng chữ ký của địa chỉ khác.",
       "saved": "Đã lưu chữ ký.",
       "error": "Không lưu được chữ ký. Hãy thử lại.",
-      "no_addresses": "Chưa có địa chỉ nào để gửi."
+      "no_addresses": "Chưa có địa chỉ nào để gửi.",
+      "use_label": "Chữ ký",
+      "own": "Chữ ký riêng",
+      "same_as": "Giống {address}",
+      "shared_note": "Dùng chữ ký của {address}. Hãy sửa ở đó."
     },
     "search": {
       "addresses": "danh tính bí danh người gửi địa chỉ người gửi địa chỉ gửi từ identity alias sender",

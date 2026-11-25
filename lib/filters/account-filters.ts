@@ -1,7 +1,9 @@
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import type { FilterRule, SieveCapabilities, SieveScript } from '@/lib/jmap/sieve-types';
 import { parseScript, type ParseResult } from '@/lib/sieve/parser';
-import { generateScript, VACATION_SCRIPT_NAME } from '@/lib/sieve/generator';
+import {
+  FILTERS_SCRIPT_NAME, findServerVacationScript, generateScript, isServerVacationScript, VACATION_SCRIPT_NAME,
+} from '@/lib/sieve/generator';
 import { filterHooks } from '@/lib/plugin-hooks';
 import type { FilterRuleView } from '@/lib/plugin-types';
 
@@ -26,6 +28,8 @@ export interface AccountFilters {
   /** The script that is active now, which may be the vacation script, or none. */
   activeScriptId: string | null;
   includeVacation: boolean;
+  /** The vacation script the filters include when written (see vacationScriptToInclude). */
+  vacationScriptName: string;
   capabilities: SieveCapabilities | null;
 }
 
@@ -90,6 +94,22 @@ export function supportsInclude(capabilities: SieveCapabilities | null): boolean
   return capabilities?.sieveExtensions?.includes('include') ?? false;
 }
 
+/**
+ * The vacation script the filters script includes when it is written: the
+ * active one it takes over from; else the one it includes now, so a save of
+ * the rules leaves the auto-reply as it is; else the server's own (see
+ * findServerVacationScript).
+ */
+export function vacationScriptToInclude(
+  scripts: readonly SieveScript[],
+  parsed?: Pick<ParseResult, 'includeVacation' | 'vacationScriptName'>,
+): string {
+  const active = scripts.find(s => s.isActive && isServerVacationScript(s.name));
+  if (active) return active.name;
+  if (parsed?.includeVacation) return parsed.vacationScriptName ?? VACATION_SCRIPT_NAME;
+  return findServerVacationScript(scripts)?.name ?? VACATION_SCRIPT_NAME;
+}
+
 // Let plugins graft their managed sections (e.g. an inbox-category
 // classifier) into the script before it becomes the active one. A handler
 // returning a non-string is ignored to keep the upload valid.
@@ -101,14 +121,16 @@ export async function applyScriptTransforms(content: string, accountId: string |
 export async function readAccountFilters(client: IJMAPClient, accountId: string): Promise<AccountFilters> {
   const capabilities = client.getSieveCapabilities(accountId);
   const allScripts = await client.getSieveScripts(accountId);
-  // The server-managed 'vacation' script (RFC 9661 §4) can only be changed
-  // through VacationResponse/set.
-  const scripts = allScripts.filter(s => s.name !== VACATION_SCRIPT_NAME);
+  // The server's vacation script ("vacation", on Stalwart 1.2 "managed",
+  // RFC 9661 §4) can only be changed through VacationResponse/set.
+  const scripts = allScripts.filter(s => !isServerVacationScript(s.name));
   // Writing activates the filters script, which switches off an active
   // server vacation script. Include it instead so both keep working.
   const vacationActive =
-    allScripts.some(s => s.name === VACATION_SCRIPT_NAME && s.isActive) && supportsInclude(capabilities);
-  const script = scripts.find(s => s.isActive) || scripts[0] || null;
+    allScripts.some(s => s.isActive && isServerVacationScript(s.name)) && supportsInclude(capabilities);
+  // Bulwark's own script when none is active: a host's script that its
+  // server rules include must not be taken for the filters.
+  const script = scripts.find(s => s.isActive) || scripts.find(s => s.name === FILTERS_SCRIPT_NAME) || scripts[0] || null;
   const activeScriptId = allScripts.find(s => s.isActive)?.id ?? null;
 
   if (!script) {
@@ -119,6 +141,7 @@ export async function readAccountFilters(client: IJMAPClient, accountId: string)
       parsed: { rules: [], isOpaque: false, externalRequires: [] },
       activeScriptId,
       includeVacation: vacationActive,
+      vacationScriptName: vacationScriptToInclude(allScripts),
       capabilities,
     };
   }
@@ -132,6 +155,7 @@ export async function readAccountFilters(client: IJMAPClient, accountId: string)
     parsed,
     activeScriptId,
     includeVacation: !parsed.isOpaque && (!!parsed.includeVacation || vacationActive),
+    vacationScriptName: vacationScriptToInclude(allScripts, parsed),
     capabilities,
   };
 }
@@ -139,14 +163,16 @@ export async function readAccountFilters(client: IJMAPClient, accountId: string)
 /** The script for `rules`, keeping the account's vacation, its forwarding and external requires. */
 export function renderFiltersScript(
   rules: FilterRule[],
-  filters: Pick<AccountFilters, 'parsed' | 'includeVacation' | 'capabilities'>,
+  filters: Pick<AccountFilters, 'parsed' | 'includeVacation' | 'capabilities'> & Partial<Pick<AccountFilters, 'vacationScriptName'>>,
 ): string {
   return generateScript(rules, filters.parsed.vacation, {
     externalRequires: filters.parsed.externalRequires,
     includeVacation: filters.includeVacation,
+    vacationScriptName: filters.vacationScriptName,
     vacationForward: filters.parsed.vacationForward,
     vacationAudience: filters.parsed.vacationAudience,
     extensions: filters.capabilities?.sieveExtensions,
+    serverRules: filters.parsed.serverRules,
   });
 }
 
@@ -166,7 +192,7 @@ export async function writeFiltersScript(
   if (id) {
     await client.updateSieveScript(id, transformed, true, accountId || undefined);
   } else {
-    id = (await client.createSieveScript('filters', transformed, true, accountId || undefined)).id;
+    id = (await client.createSieveScript(FILTERS_SCRIPT_NAME, transformed, true, accountId || undefined)).id;
   }
   void filterHooks.onFiltersSave.emit({ accountId });
   void filterHooks.onSieveScriptChange.emit({ accountId, script: transformed });

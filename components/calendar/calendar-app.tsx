@@ -52,6 +52,11 @@ import { useContextMenu } from "@/hooks/use-context-menu";
 import { useRefreshGesture } from "@/hooks/use-refresh-gesture";
 import { useCalendarPushRefresh } from "@/hooks/use-calendar-push-refresh";
 import { downloadEventICS } from "@/lib/calendar-ics-export";
+import { isForwardableMeeting } from "@/lib/calendar-forward";
+import { useForwardInvitation } from "@/components/calendar/use-forward-invitation";
+import { PendingInvitations } from "@/components/calendar/pending-invitations";
+import { answerTargetId } from "@/lib/calendar-pending-invitations";
+import { consumePendingEventDraft } from "@/lib/event-from-mail";
 import { ICalImportModal } from "@/components/calendar/ical-import-modal";
 import { ICalSubscriptionModal } from "@/components/calendar/ical-subscription-modal";
 import { ProtocolAccountPicker } from "@/components/protocol/protocol-account-picker";
@@ -69,7 +74,7 @@ import { EdgeDrawer } from "@/components/layout/edge-drawer";
 import { descriptionWithNote } from "@/lib/calendar-description";
 import { filterTasksByCalendars, taskSeriesId } from "@/lib/calendar-tasks";
 import { baseEventStoreId, isServerRecurrenceInstance, storeIdBeside } from "@/lib/recurrence-instances";
-import { deleteOccurrence, saveOccurrenceEdit, type EventEditorState } from "@/lib/recurrence-scope-edit";
+import { deleteOccurrence, movedEvent, saveOccurrenceEdit, whenAfterMove, type EventEditorState } from "@/lib/recurrence-scope-edit";
 import { useContactNameResolver } from "@/hooks/use-contact-name-resolver";
 import { getClientByLocalAccountId } from "@/stores/client-registry";
 import { useCalendarErrorMessage } from "@/hooks/use-calendar-error-message";
@@ -104,7 +109,8 @@ import { debug } from "@/lib/debug";
 import { consumePendingWebcal, hasPendingWebcal, subscribeToPendingWebcal } from "@/lib/protocol-handlers/session";
 import { useHandoffFiles } from "@/hooks/use-handoff-files";
 import type { ParsedWebcal } from "@/lib/protocol-handlers/webcal";
-import { appPath, buildCalendarPath, parseCalendarPath, type CalendarDeepLink } from "@/lib/deep-links";
+import { endAfterEventLength } from "@/lib/calendar-event-length";
+import { appPath, buildCalendarPath, calendarEventLinkState, parseCalendarPath, type CalendarDeepLink } from "@/lib/deep-links";
 import { consumePendingDeepLinkEntry, subscribePendingDeepLink } from "@/lib/deep-link-handoff";
 import { useDeepLinkUrl } from "@/hooks/use-deep-link-url";
 import { useCloseOnBack } from "@/hooks/use-close-on-back";
@@ -252,7 +258,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
   const [narrowSidebarOpen, setNarrowSidebarOpen] = useState(false);
   const closeNarrowSidebar = useCallback(() => setNarrowSidebarOpen(false), []);
   useEffect(() => { if (!isNarrow) setNarrowSidebarOpen(false); }, [isNarrow]);
-  const { showAppsModal, inlineApp, loadedApps, handleManageApps, handleInlineApp, closeInlineApp, closeAppsModal } = useSidebarApps();
+  const { showAppsModal, inlineApp, handleManageApps, handleInlineApp, closeInlineApp, closeAppsModal } = useSidebarApps();
   const { client, isAuthenticated, logout, checkAuth, switchAccount, activeAccountId, isLoading: authLoading } = useAuthStore();
   const [initialCheckDone, setInitialCheckDone] = useState(() => useAuthStore.getState().isAuthenticated && !!useAuthStore.getState().client);
   // A .ics opened from the OS (lib/launch-handoff.ts). The standard page that
@@ -271,6 +277,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
   const calendarEnabled = usePolicyStore((s) => s.isFeatureEnabled('calendarEnabled'));
   const { firstDayOfWeek, timeFormat, showWeekNumbers, enableCalendarTasks, showTasksOnCalendar, calendarHoverPreview, showBirthdayCalendar, birthdayCalendarColor, updateSetting } = useSettingsStore();
   const sharedCalendarColors = useSettingsStore((s) => s.sharedCalendarColors);
+  const defaultEventLength = useSettingsStore((s) => s.defaultEventLength);
   const setSharedCalendarColor = useSettingsStore((s) => s.setSharedCalendarColor);
   const removeSharedCalendarColor = useSettingsStore((s) => s.removeSharedCalendarColor);
   const taskStore = useTaskStore();
@@ -395,6 +402,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
   }, [showEventModal]);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editTask, setEditTask] = useState<import("@/lib/jmap/types").CalendarTask | null>(null);
+  const [newTaskParent, setNewTaskParent] = useState<CalendarTask | null>(null);
   const [mobileReturnToMonth, setMobileReturnToMonth] = useState(false);
   // Whether the open event or task editor holds unsaved changes (R5).
   const eventEditorDirtyRef = useRef(false);
@@ -552,16 +560,6 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       fetchCalendars(client);
     }
   }, [client, fetchCalendars, isEmbedded, proInterfaceActive]);
-
-  // Auto-refresh iCal subscriptions
-  useEffect(() => {
-    if (!client) return;
-    // Refresh on mount (respects per-subscription interval)
-    refreshAllSubscriptions(client);
-    // Check again every 5 minutes
-    const interval = setInterval(() => refreshAllSubscriptions(client), 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [client, refreshAllSubscriptions]);
 
   // Auto-add birthday calendar to selected IDs only when the setting flips
   // off→on. Firing on every mount would undo a user's manual hide via the
@@ -901,6 +899,15 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
   const openCreateTaskModal = useCallback(() => whenEditorsDiscarded(() => {
     closeEventPanelForTask();
     setEditTask(null);
+    setNewTaskParent(null);
+    setShowTaskModal(true);
+  }), [closeEventPanelForTask, whenEditorsDiscarded]);
+
+  // The list's "Add subtask…" (#1048): a new task under `parent`.
+  const openCreateSubtaskModal = useCallback((parent: CalendarTask) => whenEditorsDiscarded(() => {
+    closeEventPanelForTask();
+    setEditTask(null);
+    setNewTaskParent(parent);
     setShowTaskModal(true);
   }), [closeEventPanelForTask, whenEditorsDiscarded]);
 
@@ -1201,12 +1208,10 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
   // back to the button that opened it. Escape is the editor's own (it asks
   // about unsaved changes).
   const mobileTaskEditorRef = useFocusTrap({ isActive: showTaskModal && isMobile, restoreFocus: true });
-  const eventLinkId = showEventModal && editEvent ? editEvent.id : null;
   const calendarLinkPath = appPath(tasksSurface ? "/tasks" : buildCalendarPath({
     view: normalizedViewMode,
     date: selectedDate,
-    eventId: eventLinkId,
-    accountId: eventLinkId ? editEvent?.accountId : null,
+    ...(showEventModal && editEvent ? calendarEventLinkState(editEvent, activeLocalAccountId) : {}),
   }));
   useDeepLinkUrl(
     isEmbedded
@@ -1499,7 +1504,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       openCreateModal(start, end, allDay);
       return;
     }
-    const finalEnd = end ?? (allDay ? start : new Date(start.getTime() + 60 * 60 * 1000));
+    const finalEnd = end ?? (allDay ? start : endAfterEventLength(start, defaultEventLength));
     // The account on screen's calendar, not the first account's (pim-p2-4).
     const preferred = preferredTarget(writableCalendars, activeLocalAccountId, lastEventCalendarIds);
     setShowEventModal(false);
@@ -1516,7 +1521,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
         ? prev.calendarId
         : preferred?.id ?? "",
     }));
-  }), [isMobile, openCreateModal, writableCalendars, closeDetail, whenEditorsDiscarded, activeLocalAccountId, lastEventCalendarIds]);
+  }), [isMobile, openCreateModal, writableCalendars, closeDetail, whenEditorsDiscarded, activeLocalAccountId, lastEventCalendarIds, defaultEventLength]);
 
   // A day in the month view or the all-day row: an all-day event, the same
   // quick editor as a slot in week and day view.
@@ -1634,6 +1639,14 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
     setEditTask(null);
     setShowEventModal(true);
   }), [calendars, isSubscriptionCalendar, whenEditorsDiscarded]);
+
+  // A new event from a message (#1579), parked by the mail page: the
+  // editor opens on it once the calendars are there.
+  useEffect(() => {
+    if (!client || calendars.length === 0) return;
+    const draft = consumePendingEventDraft();
+    if (draft) handleDuplicateEvent({ id: "", calendarIds: {}, ...draft } as CalendarEvent);
+  }, [client, calendars.length, handleDuplicateEvent]);
 
   const handleDeleteEvent = useCallback(async (id: string, sendSchedulingMessages?: boolean) => {
     if (!client) { toast.error(t("notifications.event_error")); return; }
@@ -1779,8 +1792,6 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       ? (audience.organizes ? t("move_confirm_organizer_message") : t("move_confirm_attendee_message"))
       : undefined;
     if (isRecurringEvent(event)) {
-      const moved = { ...event, ...updates };
-      const allDay = !!event.showWithoutTime;
       // The attendees stay as they are; the save works out the rest from
       // where the occurrence went, as for a time changed in the editor.
       const attendees = getParticipantList(event, { resolveName: resolveContactName })
@@ -1794,7 +1805,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
         editor: {
           initialAttendees: attendees,
           attendees,
-          when: { allDay, start: getEventStartDate(moved), end: allDay ? getEventDisplayEndDate(moved) : getEventEndDate(moved) },
+          when: whenAfterMove(event, updates),
           ruleChanged: false,
         },
         // The scope question says it too: one dialog, not two in a row.
@@ -1803,7 +1814,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       return;
     }
     if (audience) {
-      const moved = { ...event, ...updates } as CalendarEvent;
+      const moved = movedEvent(event, updates);
       const title = event.title || t("events.no_title");
       const confirmed = await confirmAction(audience.organizes
         ? {
@@ -1883,6 +1894,27 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
     if (detailEvent?.id === event.id) closeDetail();
     handleDuplicateEvent(event);
   }, [detailEvent, closeDetail, handleDuplicateEvent]);
+
+  const forwardInvitation = useForwardInvitation();
+
+  // The sidebar's list of invitations not answered yet (#1669).
+  const handlePendingRespond = useCallback(async (event: CalendarEvent, participantId: string, status: RsvpStatus) => {
+    if (!client) return false;
+    try {
+      const sent = await rsvpEvent(client, answerTargetId(event), participantId, status, undefined, "series");
+      if (sent) toast.success(t("notifications.rsvp_updated"));
+      return sent;
+    } catch (error) {
+      toast.error(describeError(error, t("notifications.rsvp_error")));
+      return false;
+    }
+  }, [client, rsvpEvent, describeError, t]);
+  const handlePendingOpen = useCallback((event: CalendarEvent) => {
+    setNarrowSidebarOpen(false);
+    const start = getEventStartDate(event);
+    if (!Number.isNaN(start.getTime())) jumpTo(start);
+    openEditModal(event);
+  }, [jumpTo, openEditModal]);
 
   const handleExportICS = useCallback((event: CalendarEvent) => {
     try {
@@ -2447,6 +2479,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
               onSetDue={handleSetTaskDue}
               moveLists={writableTaskCalendars}
               onMoveTask={handleMoveTask}
+              onAddSubtask={openCreateSubtaskModal}
               onQuickCreate={(title, due) => {
                 // Into the first task-only list, else the default calendar,
                 // else the first the user may write to (pim-8).
@@ -2627,6 +2660,9 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       />
       </div>
       )}
+      {!tasksSurface && (
+        <PendingInvitations userEmailsFor={userEmailsFor} onOpen={handlePendingOpen} onRespond={handlePendingRespond} />
+      )}
       <CalendarSidebarPanel
         viewMode={normalizedViewMode}
         // The rail has the Tasks app; the calendar's sidebar needs no way there.
@@ -2733,7 +2769,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
       )}
 
       {inlineApp && (
-        <InlineAppView apps={loadedApps} activeAppId={inlineApp!.id} onClose={closeInlineApp} className="flex-1" />
+        <InlineAppView app={inlineApp} onClose={closeInlineApp} className="flex-1" />
       )}
 
       {!inlineApp && (
@@ -2854,8 +2890,10 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
           {!isMobile && showTaskModal && (
             <div data-end-sheet="" className="w-[400px] border-s border-border flex-shrink-0 overflow-hidden">
               <TaskModal
-                key={editTask?.id ?? 'new-task'}
+                key={editTask?.id ?? (newTaskParent ? `new-subtask:${newTaskParent.id}` : 'new-task')}
                 task={editTask}
+                parentTask={newTaskParent}
+                onAddSubtask={openCreateSubtaskModal}
                 calendars={displayCalendars}
                 isSubscriptionCalendar={isSubscriptionCalendar}
                 onSave={handleSaveTask}
@@ -2929,6 +2967,14 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
             const event = eventContextMenu.data!;
             setCopyToCalendarEvent(event);
           } : undefined}
+          onForward={!answersOnlyMenu && isForwardableMeeting(eventContextMenu.data) ? () => {
+            const event = eventContextMenu.data!;
+            // It goes to the mail page: an editor's unsaved changes are asked about first.
+            whenEditorsDiscarded(() => {
+              closeDetail();
+              void forwardInvitation(event);
+            });
+          } : undefined}
         />
       )}
 
@@ -2955,9 +3001,7 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
                 d.setHours(hour, 0, 0, 0);
                 // Explicit end so the modal keeps the clicked hour instead of
                 // applying its next-hour fallback for date-only defaults (#435).
-                const end = new Date(date);
-                end.setHours(hour + 1, 0, 0, 0);
-                openCreateModal(d, end);
+                openCreateModal(d, endAfterEventLength(d, defaultEventLength));
               } else {
                 const now = displayNow();
                 d.setHours(now.getHours() + 1, 0, 0, 0);
@@ -3047,8 +3091,10 @@ export function CalendarApp({ linkSegments: routeSegments, surface = "calendar" 
           className={isPaneScoped ? "absolute inset-0 z-40 flex flex-col bg-background" : "fixed inset-0 z-50 flex flex-col bg-background pt-[var(--titlebar-inset)]"}
         >
           <TaskModal
-            key={editTask?.id ?? 'new-task'}
+            key={editTask?.id ?? (newTaskParent ? `new-subtask:${newTaskParent.id}` : 'new-task')}
             task={editTask}
+            parentTask={newTaskParent}
+            onAddSubtask={openCreateSubtaskModal}
             calendars={displayCalendars}
             isSubscriptionCalendar={isSubscriptionCalendar}
             onSave={handleSaveTask}

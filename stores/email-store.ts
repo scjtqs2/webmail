@@ -13,10 +13,11 @@ import type { MessagePriority } from "@/lib/message-priority";
 import { withSearchSnippets, type DeferredSnippetBatch } from "@/lib/search-snippet";
 import { afterRequestDispatch } from "@/lib/after-request-dispatch";
 import { useSettingsStore, getMessageListOrderFor } from "@/stores/settings-store";
+import { hiddenSharedMailIds } from "@/lib/shared-mail-visibility";
 import { isMailboxMuted } from "@/lib/notification-mutes";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { orderKeywords, placeHeldRows, sanitizeSortLevels, type HeldKeywords, type SortLevel } from "@/lib/message-list-order";
-import { SearchFilters, DEFAULT_SEARCH_FILTERS, buildJMAPFilter, isFilterEmpty, textFilter } from "@/lib/jmap/search-utils";
+import { SearchFilters, DEFAULT_SEARCH_FILTERS, buildJMAPFilter, isFilterEmpty, isPluginMessageList, textFilter } from "@/lib/jmap/search-utils";
 import { knownTagIds } from "@/lib/known-tag-ids";
 import { emailHooks } from "@/lib/plugin-hooks";
 import { scheduleAutoMarkAsRead } from "@/lib/mark-as-read-delay";
@@ -26,7 +27,7 @@ import { emailInMailbox } from "@/lib/move-targets";
 import { resolveThreadRoute } from "@/lib/thread-routing";
 import { emailKeyFor, threadKeyFor, threadIdFromKey, KEYWORD_PREFIX, KEYWORD_PREFIX_LEGACY } from "@/lib/thread-utils";
 import { provideSearchResults, type ProvidedSearchResult } from "@/lib/plugin-search-results";
-import { positionsByAccount, fetchUnifiedEmails, fetchUnifiedMailboxCounts, searchUnifiedEmails, advancedSearchUnifiedEmails, fetchCrossViewEmails, searchCrossViewEmails, advancedSearchCrossViewEmails, fetchTagEmails, trashAndJunkIds, resolveJmapTarget, unifiedEmptyTargets, searchAcrossAccounts, advancedSearchAcrossAccounts, getCrossUnreadTotal, dedupeUnifiedAccounts, unifiedServerKey, type AcrossAccountsSearchOptions, type UnifiedAccountClient, type UnifiedMailboxCounts } from "@/lib/unified-mailbox";
+import { positionsByAccount, fetchUnifiedEmails, fetchUnifiedMailboxCounts, searchUnifiedEmails, advancedSearchUnifiedEmails, fetchCrossViewEmails, searchCrossViewEmails, advancedSearchCrossViewEmails, fetchTagEmails, trashAndJunkIds, resolveJmapTarget, unifiedEmptyTargets, searchAcrossAccounts, advancedSearchAcrossAccounts, emailsByIdAcrossAccounts, getCrossUnreadTotal, dedupeUnifiedAccounts, unifiedServerKey, type AcrossAccountsSearchOptions, type UnifiedAccountClient, type UnifiedMailboxCounts } from "@/lib/unified-mailbox";
 import { withoutHiddenFolders } from "@/lib/team-mailboxes/hidden-folders";
 import { activeTeamFilterCondition, useTeamListFilter } from "@/lib/team-mailboxes/list-filter";
 import { teamFor } from "@/lib/team-mailboxes/team";
@@ -717,6 +718,11 @@ interface EmailStore {
   renameMailbox: (client: IJMAPClient, mailboxId: string, name: string) => Promise<boolean>;
   deleteMailbox: (client: IJMAPClient, mailboxId: string, options?: { removeEmails?: boolean }) => Promise<boolean>;
   setMailboxRole: (client: IJMAPClient, mailboxId: string, role: string | null) => Promise<void>;
+  /**
+   * Subscribes to a folder or unsubscribes from it on the server (JMAP
+   * isSubscribed, IMAP SUBSCRIBE). Shown at once, undone if the server says no.
+   */
+  setMailboxSubscribed: (client: IJMAPClient, mailboxId: string, isSubscribed: boolean) => Promise<void>;
   reorderMailboxes: (client: IJMAPClient, orderedIds: string[]) => Promise<void>;
   moveMailbox: (client: IJMAPClient, mailboxId: string, newParentId: string | null, orderedSiblingIds?: string[]) => Promise<void>;
   /** Reparents several folders at once; resolves with the ids the server refused. */
@@ -1792,7 +1798,7 @@ interface SourceActionContext {
  * from. An unstamped row is in the account of the folder it is listed in,
  * reached through the login browsed.
  */
-function listRowSource(state: EmailStore): (email: Email) => { login: string | undefined; account: string | undefined } {
+export function listRowSource(state: EmailStore): (email: Email) => { login: string | undefined; account: string | undefined } {
   const auth = useAuthStore.getState();
   const viewLogin = state.viewingAccountId ?? auth.activeAccountId ?? undefined;
   const viewAccount = resolveUnstampedEmailAccountId({
@@ -1820,7 +1826,7 @@ function sourceRowMatcher(state: EmailStore, emailId: string, login: string, acc
  * The folders of JMAP account `accountId` as `login` lists them. A folder
  * without an account id is one of the login's own account.
  */
-function accountFolders(state: EmailStore, login: string, accountId: string, ownAccountId: string): Mailbox[] {
+export function accountFolders(state: EmailStore, login: string, accountId: string, ownAccountId: string): Mailbox[] {
   const cached = state.accountMailboxes[sourceMailboxesKey(login, accountId)];
   if (cached) return cached;
   const list = login === useAuthStore.getState().activeAccountId ? state.mailboxes : state.accountMailboxes[login];
@@ -2454,9 +2460,12 @@ export async function buildUnifiedAccountClients(
           list.push(m);
           sharedByOwner.set(m.accountId, list);
         }
+        const excluded = hiddenSharedMailIds(useSettingsStore.getState().unifiedExcludedSharedAccounts, a.id);
         for (const [ownerId, ownerMailboxes] of sharedByOwner) {
           const label = ownerMailboxes.find((m) => m.accountName)?.accountName || ownerId;
-          built.push({
+          // Left out of the unified mailbox one by one (#962). Its folders
+          // are still listed for actions below, only the merged views skip it.
+          if (!excluded.includes(ownerId)) built.push({
             accountId: ownerId,
             accountLabel: label,
             client: c,
@@ -4202,6 +4211,10 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
   setSearchQuery: (query) => set((state) => dropPageOnSearchEdit(state, {
     ...cancelEmailSearch(state),
     searchQuery: query,
+    // The user's own search replaces a plugin's list of messages (#954).
+    ...(query.trim() && isPluginMessageList(state.searchFilters)
+      ? { searchFilters: { ...state.searchFilters, pluginFilter: null } }
+      : {}),
     ...(query === state.searchQuery ? {} : NO_SELECTION(state)),
     // A new search looks where searches look by default. A scope that only
     // followed the open folder (scopeSearchToOpenFolder) is dropped; one the
@@ -6204,13 +6217,27 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         await get().fetchEmails(client);
         return;
       }
-      startProvidedSearchResults(searchQuery, searchFilters, { get, set });
+      // A plugin's list is no search other plugins could add to.
+      const pluginList = searchFilters.pluginFilter?.emails;
+      if (pluginList) {
+        providedSearchRun = null;
+        if (get().externalSearchResults.length > 0 || get().externalSearchPending.length > 0) {
+          set({ externalSearchResults: [], externalSearchPending: [] });
+        }
+      } else {
+        startProvidedSearchResults(searchQuery, searchFilters, { get, set });
+      }
       const emailsPerPage = useSettingsStore.getState().emailsPerPage;
       let result;
       let accountId;
       let unifiedErrors;
 
-      if (isUnifiedView && crossView) {
+      if (pluginList) {
+        // A plugin's own list (#954): exactly those messages, in its order,
+        // wherever the user is, read from the accounts this login reaches.
+        result = await emailsByIdAcrossAccounts(buildTagViewAccountClients(client), pluginList);
+        unifiedErrors = result.errors;
+      } else if (isUnifiedView && crossView) {
         const includeGroup = useSettingsStore.getState().includeGroupInUnified;
         const built = await buildUnifiedAccountClients({ includeGroup });
         if (!isCurrentSearch()) return;
@@ -6265,7 +6292,7 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       // Plugins may add messages to the results by id; the messages are
       // fetched from the server, so a plugin can't put made-up rows in the list.
       if (!isCurrentSearch()) return;
-      const extraIds = await pluginSearchResultIds(searchQuery, searchFilters, result.emails);
+      const extraIds = pluginList ? [] : await pluginSearchResultIds(searchQuery, searchFilters, result.emails);
       if (!isCurrentSearch()) return;
       if (extraIds.length > 0) {
         const newEmails = await resolveActionClient(client).getSomeEmails(extraIds, accountId);
@@ -6305,7 +6332,11 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
   setSearchFilters: (filters) => {
     set((state) => dropPageOnSearchEdit(state, {
       ...cancelEmailSearch(state),
-      searchFilters: { ...state.searchFilters, ...filters },
+      // A filter the user adds replaces a plugin's list of messages, which no
+      // filter can narrow (#954).
+      searchFilters: isPluginMessageList(state.searchFilters) && !('pluginFilter' in filters)
+        ? { ...state.searchFilters, ...filters, pluginFilter: null }
+        : { ...state.searchFilters, ...filters },
       ...NO_SELECTION(state),
     }));
   },
@@ -8588,6 +8619,29 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       throw error;
     }
     return true;
+  },
+
+  setMailboxSubscribed: async (client, mailboxId, isSubscribed) => {
+    const target = resolveMailboxMutationContext(client, mailboxId);
+    const viewingId = get().viewingAccountId;
+    const apply = (value: boolean) => {
+      const patch = (list: Mailbox[]) => list.map(mb => mb.id === mailboxId ? { ...mb, isSubscribed: value } : mb);
+      if (viewingId) {
+        set((state) => ({
+          accountMailboxes: { ...state.accountMailboxes, [viewingId]: patch(state.accountMailboxes[viewingId] ?? []) },
+        }));
+      } else {
+        set((state) => ({ mailboxes: patch(state.mailboxes) }));
+      }
+    };
+    const previous = resolveActionMailboxes().find(mb => mb.id === mailboxId)?.isSubscribed ?? true;
+    apply(isSubscribed);
+    try {
+      await target.client.updateMailbox(target.mailboxId, { isSubscribed }, target.accountId);
+    } catch (error) {
+      apply(previous);
+      throw error;
+    }
   },
 
   setMailboxRole: async (client, mailboxId, role) => {

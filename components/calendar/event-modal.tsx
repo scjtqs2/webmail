@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeField } from "@/components/ui/time-field";
 import { LinkifiedText } from "@/components/ui/linkified-text";
-import { X, Trash2, Users, CalendarDays, CopyPlus, Pencil, Clock, MapPin, Video, Repeat, Bell, AlignLeft, AlertTriangle, MoreVertical, Lock, Maximize2, Minimize2 } from "@/components/icons";
+import { X, Trash2, Users, CalendarDays, CopyPlus, Pencil, Clock, MapPin, Video, Repeat, Bell, AlignLeft, AlertTriangle, MoreVertical, Lock, Maximize2, Minimize2, Paperclip } from "@/components/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { findMeetingLink, locationAction, mapsUrl, primaryLocationName } from "@/lib/event-links";
 import { descriptionAsText, isHtmlDescription, plainDescriptionFields } from "@/lib/calendar-description";
 import { locationsWithName } from "@/lib/calendar-event-normalization";
 import { ParticipantStatusBadge } from "./rsvp-buttons";
 import { format, parseISO, addDays, addHours, isSameDay } from "date-fns";
-import type { CalendarEvent, Calendar, CalendarParticipant, CalendarEventAlert, CalendarRecurrenceRule } from "@/lib/jmap/types";
+import type { CalendarEvent, Calendar, CalendarLink, CalendarParticipant, CalendarEventAlert, CalendarRecurrenceRule } from "@/lib/jmap/types";
 import { AlertListEditor, AlertSummary, formatEventAlertsLabel } from "./alert-list-editor";
 import { alertRowToOffset, describeAlert, getCalendarDefaultAlerts, newAlertRow, withOwnAlertIds, type AlertAction, type AlertRow as EditableAlertRow, type AlertUnit } from "@/lib/calendar-alerts";
 import { RecurrenceEditor, buildRecurrenceSummary, isSimpleRecurrenceRule } from "./recurrence-editor";
@@ -51,6 +51,7 @@ import { changesWhen, type EditorAttendee, type EventEditorState } from "@/lib/r
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { linkCallback } from "@/lib/plugin-sandbox/slot-callbacks";
 import { useSettingsStore } from "@/stores/settings-store";
+import { endAfterEventLength, eventLengthMs } from "@/lib/calendar-event-length";
 import { cn, generateUUID } from "@/lib/utils";
 import { useFormatEventDate } from "@/hooks/use-format-event-date";
 import { useCalendarLocale } from "@/hooks/use-calendar-locale";
@@ -73,6 +74,9 @@ import { useCvdColor } from "@/hooks/use-cvd-color";
 import { gateLinkClick } from "@/lib/plugin-hook-result";
 import { useCollectionNames } from "@/hooks/use-collection-names";
 import { formatDurationDisplay } from "./event-detail-popover";
+import { attachmentLink, eventAttachments, linksWithAttachmentChanges } from "@/lib/calendar-attachments";
+import { attachmentAccount, EventAttachmentList, EventAttachmentsRow, useEventAttachmentDownload, type PendingAttachment } from "./event-attachments";
+import { formatFileSize } from "@/lib/utils";
 
 export interface PendingEventPreview {
   start: Date;
@@ -337,6 +341,8 @@ export function EventModal({
   const closeFirst = useCloseBesideControls(header);
   const locale = useLocale();
   const timeFormat = useSettingsStore((s) => s.timeFormat);
+  // How long a new event lasts (#1318).
+  const defaultEventLength = useSettingsStore((s) => s.defaultEventLength);
   const timeDisplayFmt = timeFormat === "12h" ? "h:mm a" : "HH:mm";
   // Inside a Pro pane the "mobile" layout must cover the pane, not the
   // viewport - a `fixed inset-0` editor from a split pane would take over
@@ -428,7 +434,7 @@ export function EventModal({
       return getEventEndDate(seed);
     }
     if (defaultEndDate) return new Date(defaultEndDate);
-    return addHours(getInitialStart(), 1);
+    return endAfterEventLength(getInitialStart(), defaultEventLength);
   };
 
   const [title, setTitle] = useState(seed?.title || defaultTitle || "");
@@ -648,6 +654,35 @@ export function EventModal({
   const targetCalendar = calendars.find((c) => c.id === calendarId);
   const targetShared = !!targetCalendar?.isShared && !!targetCalendar.myRights?.mayWriteAll;
   const calendarOwner = useAccountOwner(authClient, targetShared ? targetCalendar?.accountId ?? null : null, targetCalendar?.accountName);
+
+  // Files attached to the event (#1597). Removed ones and newly picked ones
+  // only change the event on save; the picked files are uploaded then, into
+  // the account the event is saved to. Adding is offered only where the
+  // server keeps a link to an uploaded file (Stalwart 1.0); 0.16 drops it.
+  const attachments = useMemo(() => (event ? eventAttachments(event) : []), [event]);
+  const [removedAttachments, setRemovedAttachments] = useState<string[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const keptAttachments = useMemo(
+    () => attachments.filter((a) => !removedAttachments.includes(a.key)),
+    [attachments, removedAttachments],
+  );
+  const downloadAttachment = useEventAttachmentDownload(event);
+  const attachTarget = attachmentAccount(authClient, event ?? targetCalendar);
+  const canAttachFiles = !!attachTarget?.client.supportsCalendarBlobLinks?.(attachTarget.accountId);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  const handlePickAttachments = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    const max = attachTarget?.client.getMaxSizeUpload() ?? 0;
+    const fitting = files.filter((file) => {
+      if (max > 0 && file.size > max) {
+        toast.error(t("attachments.too_large", { name: file.name, max: formatFileSize(max) }));
+        return false;
+      }
+      return true;
+    });
+    if (fitting.length) setPendingAttachments((p) => [...p, ...fitting.map((file) => ({ id: generateUUID(), file }))]);
+  }, [attachTarget, t]);
   const ownerOrganizer = useMemo<OrganizerOnBehalf | null>(() => {
     if (!targetShared || !calendarOwner) return null;
     const mine = new Set(currentUserEmails.map((e) => e.trim().toLowerCase()));
@@ -680,10 +715,10 @@ export function EventModal({
   const formState = useMemo(() => ({
     title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone,
     calendarId, recurrence, customRule, useDefaultAlerts, alertRows, preservedAlerts, attendees, sendInvitations,
-    freeBusyStatus, privacy, color,
+    freeBusyStatus, privacy, color, removedAttachments, pendingAttachments: pendingAttachments.map((p) => p.id),
   }), [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone,
     calendarId, recurrence, customRule, useDefaultAlerts, alertRows, preservedAlerts, attendees, sendInvitations,
-    freeBusyStatus, privacy, color]);
+    freeBusyStatus, privacy, color, removedAttachments, pendingAttachments]);
   const [initialForm] = useState(formState);
   const isDirty = mode === "edit" && JSON.stringify(formState) !== JSON.stringify(initialForm);
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
@@ -694,6 +729,7 @@ export function EventModal({
     setTitle(f.title); setDescription(f.description); setLocation(f.location); setVirtualLocation(f.virtualLocation);
     setStartDate(f.startDate); setStartTime(f.startTime); setEndDate(f.endDate); setEndTime(f.endTime); setAllDay(f.allDay);
     setTimeZone(f.timeZone); setShowZonePicker(false);
+    setRemovedAttachments(f.removedAttachments); setPendingAttachments([]);
     setCalendarId(f.calendarId); setRecurrence(f.recurrence); setCustomRule(f.customRule); setShowRecurrenceEditor(false);
     setUseDefaultAlerts(f.useDefaultAlerts); setAlertRows(f.alertRows); setPreservedAlerts(f.preservedAlerts); setRefreshDefaults(false);
     setAttendees(f.attendees); setSendInvitations(f.sendInvitations);
@@ -989,13 +1025,13 @@ export function EventModal({
       // Clock fields, not Dates: see wallFields.
       const startWall = wallFields(startDate, startTime);
       let endWall = wallFields(endDate, endTime);
-      // An end at or before the start becomes an hour - but an event that
-      // lasts no time (a deadline, a reminder) keeps doing so.
+      // An end at or before the start becomes the default length - but an
+      // event that lasts no time (a deadline, a reminder) keeps doing so.
       const lastedNoTime = !!event && !event.showWithoutTime
         && getEventEndDate(event).getTime() === getEventStartDate(event).getTime();
       const order = compareWall(endWall, startWall);
       if (order < 0 || (order === 0 && !lastedNoTime)) {
-        endWall = addToWall(startWall, 3600000);
+        endWall = addToWall(startWall, eventLengthMs(defaultEventLength));
       }
       // Exact time in the event's zone, not the browser's.
       duration = buildDuration(new Date(0), new Date(Math.max(0, zoneWallDurationMs(startWall, endWall, timeZone))));
@@ -1167,6 +1203,23 @@ export function EventModal({
         const invited = effectiveAttendees.map((a) => a.email).filter((email) => email && !known.has(email.trim().toLowerCase()));
         if (!(await confirmInvitationRecipients(invited))) return;
       }
+      if (pendingAttachments.length > 0 || removedAttachments.length > 0) {
+        let added: CalendarLink[] = [];
+        if (pendingAttachments.length > 0) {
+          try {
+            if (!attachTarget) throw new Error("Not connected");
+            added = await Promise.all(pendingAttachments.map(async ({ file }) => attachmentLink(
+              await attachTarget.client.uploadBlob(file, { accountId: attachTarget.accountId, noHold: true }),
+              file.name,
+            )));
+          } catch {
+            toast.error(t("attachments.upload_failed"));
+            return;
+          }
+        }
+        const links = linksWithAttachmentChanges(event?.links, removedAttachments, added);
+        if (links !== undefined) data.links = links;
+      }
       await onSave(data, shouldSendScheduling, {
         initialAttendees,
         attendees: effectiveAttendees,
@@ -1179,7 +1232,7 @@ export function EventModal({
       savingRef.current = false;
       setIsSaving(false);
     }
-  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone, initialForm, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, freeBusyStatus, privacy, privacyEditable, color, currentUserEmails, userIsOrganizer, organizerOnBehalf, resolveContactName, event, seed, eventDescription, onSave, isSaving, t]);
+  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, timeZone, initialForm, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, freeBusyStatus, privacy, privacyEditable, color, currentUserEmails, userIsOrganizer, organizerOnBehalf, resolveContactName, event, seed, eventDescription, onSave, isSaving, defaultEventLength, pendingAttachments, removedAttachments, attachTarget, t]);
 
   // The user's own answer, and the owner's in a calendar shared with them
   // (lib/calendar-delegate.ts).
@@ -1504,6 +1557,8 @@ export function EventModal({
                 </p>
               </div>
             )}
+
+            <EventAttachmentsRow attachments={attachments} onDownload={downloadAttachment} />
 
             {eventDetailProps && <PluginSlot name="calendar-event-detail" className="w-full" extraProps={eventDetailProps} />}
           </div>
@@ -2006,6 +2061,30 @@ export function EventModal({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-hidden"
             />
           </div>
+
+          {/* Only the organizer changes the files: an attendee's copy would
+              lose or gain one nobody else sees. */}
+          {(keptAttachments.length > 0 || pendingAttachments.length > 0 || (canAttachFiles && userIsOrganizer)) && (
+            <div>
+              <span className="text-sm font-medium mb-1 block">{t("attachments.title")}</span>
+              <EventAttachmentList
+                attachments={keptAttachments}
+                onDownload={downloadAttachment}
+                onRemove={userIsOrganizer ? (key) => setRemovedAttachments((r) => [...r, key]) : undefined}
+                pending={pendingAttachments}
+                onRemovePending={(id) => setPendingAttachments((p) => p.filter((x) => x.id !== id))}
+              />
+              {canAttachFiles && userIsOrganizer && (
+                <>
+                  <input ref={attachInputRef} type="file" multiple hidden onChange={handlePickAttachments} />
+                  <Button variant="outline" size="sm" className="mt-1.5" onClick={() => attachInputRef.current?.click()}>
+                    <Paperclip className="w-4 h-4 me-1.5" />
+                    {t("attachments.add")}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           <PluginSlot name="calendar-event-form" className="w-full" extraProps={eventFormProps} />
         </div>

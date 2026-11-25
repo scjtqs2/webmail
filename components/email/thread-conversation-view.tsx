@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { Email, ThreadGroup } from "@/lib/jmap/types";
-import { EMAIL_SANITIZE_CONFIG, TRANSPARENT_BLOCKED_PIXEL, blockExternalResourcesOnNode, collapseBlockedImageContainers, emailIframeCsp, isOpenableLinkHref, plainTextToSafeHtml, restrictDataUriResourcesOnNode, sanitizeEmailBodyForIframe, sanitizePlainTextRenderedHtml } from "@/lib/email-sanitization";
+import { EMAIL_SANITIZE_CONFIG, TRANSPARENT_BLOCKED_PIXEL, blockExternalResourcesOnNode, collapseBlockedImageContainers, emailIframeCsp, isOpenableLinkHref, plainTextToSafeHtml, proxyExternalResourcesOnNode, restrictDataUriResourcesOnNode, sanitizeEmailBodyForIframe, sanitizePlainTextRenderedHtml } from "@/lib/email-sanitization";
 import { gateLinkClick, linkCheckActive, linkText, resolveExternalLink } from "@/lib/plugin-hook-result";
 import { stripBidiControls } from "@/lib/bidi";
 import { requestInternalMailto } from "@/lib/protocol-handlers/mailto";
@@ -28,6 +28,7 @@ import { htmlToReadableText } from "@/lib/html-to-readable-text";
 import { pauseAnimatedImages } from "@/lib/animated-images";
 import { applyMailTextSize, mailFitOptions } from "@/lib/mail-reading";
 import { useMailReading } from "@/hooks/use-mail-reading";
+import { useRemoteContentProxyBase } from "@/hooks/use-remote-content-proxy";
 import { DARK_PENDING_CLASS, EMAIL_DARK_CANVAS, applyEmailDarkMode, emailDarkModeCss, readSurfaceColor } from "@/lib/email-dark-mode";
 import { useThemeStore } from "@/stores/theme-store";
 import { useShallow } from "zustand/react/shallow";
@@ -61,7 +62,9 @@ import { CONVERSATION_MESSAGE_ATTR, conversationPrintSource, focusedConversation
 import { ConversationMessageMenu } from "./conversation-message-menu";
 import { MessagePrint } from "./message-print";
 import { usePrintListener, usePrinting } from "@/components/print/print-root";
-import { FilePen } from "@/components/icons";
+import { CloudUpload, FilePen } from "@/components/icons";
+import { SaveToFilesDialog, type SaveableAttachment } from "./save-to-files-dialog";
+import { usePolicyStore } from "@/stores/policy-store";
 import { editAccountOf, useEditAttachment } from "@/hooks/use-edit-attachment";
 import { useSettingsStore } from "@/stores/settings-store";
 import { densityShowsAvatar } from "@/lib/density";
@@ -746,6 +749,9 @@ export function ConversationEmailBody({
   // to the user's colours itself.
   const isDark = resolvedTheme === 'dark' && !emailAlwaysLightMode && !reading.forcedColors && !reading.overrideStyles;
   const appFontSources = reading.fontSources.join(' ');
+  // Allowed remote pictures load through this server when the admin turned
+  // that on (#1021); the frame's CSP then names only that folder.
+  const remoteProxyBase = useRemoteContentProxyBase();
   const showVerificationCodes = useSettingsStore((state) => state.showVerificationCodes);
   const verificationCode = useMemo(
     () => (showVerificationCodes ? findVerificationCode(email.subject, verificationCodeBodyText(email)) : null),
@@ -762,6 +768,12 @@ export function ConversationEmailBody({
   const { client: blobClient, accountId } = source;
   const editAccount = source.clientAccountId ?? editAccountOf(email);
   const { canEdit: canEditAttachment, edit: editAttachment } = useEditAttachment(editAccount);
+  // Save to Files, as in the reader (email-viewer): the login's own mail or a
+  // shared or group account of it, whose blob is copied over. Not with
+  // downloads off: the copy in Files would get around the policy.
+  const filesFeatureEnabled = usePolicyStore((s) => s.isFeatureEnabled('filesEnabled'));
+  const canSaveToFiles = filesFeatureEnabled && !!client && blobClient === client && !!client.supportsFiles?.() && !devices.noDownloads;
+  const [saveToFilesTarget, setSaveToFilesTarget] = useState<SaveableAttachment | null>(null);
   // Reported as phishing: a banner, links off, no cards (as in the reader).
   const phishingMarked = usePhishingMarked(email);
   const tPhishing = useTranslations('phishing_report');
@@ -842,7 +854,7 @@ export function ConversationEmailBody({
     // blocking, like any other mail body (#797).
     if (pluginBody.html) {
       const withCids = rewriteCidReferences(pluginBody.html, { ...cidBlobUrls, ...pluginBody.cidUrls }, TRANSPARENT_BLOCKED_PIXEL);
-      const { html, blockedExternalContent } = sanitizeEmailBodyForIframe(withCids, !allowExternal);
+      const { html, blockedExternalContent } = sanitizeEmailBodyForIframe(withCids, !allowExternal, remoteProxyBase);
       if (blockedExternalContent) {
         if (!hasBlockedContent) setHasBlockedContent(true);
         return { html: collapseBlockedImageContainers(html), isHtml: true };
@@ -883,6 +895,7 @@ export function ConversationEmailBody({
           if (!allowExternal && blockExternalResourcesOnNode(node)) {
             blockedExternalContent = true;
           }
+          if (allowExternal && remoteProxyBase) proxyExternalResourcesOnNode(node, remoteProxyBase);
 
           if (node.tagName === 'A' || node.tagName === 'AREA') {
             node.setAttribute('target', '_blank');
@@ -930,7 +943,7 @@ export function ConversationEmailBody({
   // `hasBlockedContent` is only read to skip a redundant setState; as a
   // dependency it would re-run the sanitizer once the banner shows.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, allowExternal, cidBlobUrls, pluginBody, t]);
+  }, [email, allowExternal, remoteProxyBase, cidBlobUrls, pluginBody, t]);
 
   // "Show mail as plain text" (Settings > Accessibility): the message's own
   // text/plain part, or a readable conversion of the HTML.
@@ -983,7 +996,7 @@ export function ConversationEmailBody({
     if (!emailContent.isHtml || !emailContent.html) return '';
     // Strict while external content is blocked: the network-level backstop
     // for whatever the DOM walk above cannot see.
-    const csp = emailIframeCsp(!allowExternal, appFontSources ? appFontSources.split(' ') : []);
+    const csp = emailIframeCsp(!allowExternal, appFontSources ? appFontSources.split(' ') : [], remoteProxyBase);
     // Colours are rewritten after load (applyEmailDarkMode in handleIframeLoad).
     return `<!DOCTYPE html><html${bodyLanguage ? ` lang="${bodyLanguage}"` : ''} data-reading="${reading.frameKey}" class="${isDark ? DARK_PENDING_CLASS : ''}"${isDark ? ` data-surface="${encodeURIComponent(activeThemeId ?? '')}"` : ''}><head>
 <meta charset="utf-8">
@@ -1020,7 +1033,7 @@ export function ConversationEmailBody({
   pre { white-space: pre-wrap; word-wrap: break-word; }
   ${isDark ? emailDarkModeCss() : ''}
 </style>${devices.noPrint ? '<style>@media print{html,body{display:none!important}}</style>' : ''}${devices.noDownloads ? `<style>${NO_SAVE_MEDIA_CSS}</style>` : ''}</head><body dir="auto">${emailContent.html}${reading.frameCss ? `<style>${reading.frameCss}</style>` : ''}</body></html>`;
-  }, [emailContent.isHtml, emailContent.html, allowExternal, isDark, activeThemeId, bodyLanguage, reading.frameKey, reading.frameCss, appFontSources, devices.noPrint, devices.noDownloads]);
+  }, [emailContent.isHtml, emailContent.html, allowExternal, isDark, activeThemeId, bodyLanguage, reading.frameKey, reading.frameCss, appFontSources, remoteProxyBase, devices.noPrint, devices.noDownloads]);
   useLayoutEffect(() => { setHtmlBodyEl(null); }, [emailIframeSrcDoc]);
   // One object per body: React writes innerHTML again whenever this object
   // changes, dropping whatever was mounted in the body.
@@ -1125,6 +1138,7 @@ export function ConversationEmailBody({
       unknownSender: t('email_viewer.unknown_sender'),
     }),
     externalBlocked: !allowExternal,
+    remoteProxyBase,
     watermark,
     noPrint: devices.noPrint,
   }));
@@ -1197,6 +1211,15 @@ export function ConversationEmailBody({
                   >
                     <FilePen className="h-4 w-4" />
                   </button>
+                )}
+                {canSaveToFiles && attachment.blobId && (
+                  <IconButton
+                    label={t('email_viewer.save_to_files.title')}
+                    className="-ms-1.5 self-center text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); setSaveToFilesTarget(attachment); }}
+                  >
+                    <CloudUpload className="h-4 w-4" />
+                  </IconButton>
                 )}
                 <AttachmentPluginMenu emailId={email.id} attachment={attachment} className="-ms-1.5 self-center p-2 rounded-lg" />
                 </span>
@@ -1328,6 +1351,9 @@ export function ConversationEmailBody({
         />
       </div>
 
+      {canSaveToFiles && client && saveToFilesTarget && (
+        <SaveToFilesDialog attachment={saveToFilesTarget} client={client} blobAccountId={accountId} onClose={() => setSaveToFilesTarget(null)} />
+      )}
     </div>
   );
 }

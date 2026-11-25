@@ -4930,7 +4930,7 @@ export class JMAPClient implements IJMAPClient {
     };
   }
 
-  async updateMailbox(mailboxId: string, changes: { name?: string; parentId?: string | null; role?: string | null; sortOrder?: number }, accountId?: string): Promise<void> {
+  async updateMailbox(mailboxId: string, changes: { name?: string; parentId?: string | null; role?: string | null; sortOrder?: number; isSubscribed?: boolean }, accountId?: string): Promise<void> {
     const targetAccountId = accountId || this.accountId;
     const response = await this.request([
       ["Mailbox/set", {
@@ -8013,6 +8013,19 @@ export class JMAPClient implements IJMAPClient {
     return Array.isArray(blob?.supportedTypeNames) && blob.supportedTypeNames.includes("ContactCard");
   }
 
+  /**
+   * Whether CalendarEvent/set in the account keeps a link that carries a
+   * blobId, which is how a file is attached to an event. Stalwart 1.0 does
+   * and lists CalendarEvent among the blob capability's supportedTypeNames;
+   * 0.16 lists only Email, Thread and SieveScript, and silently drops such a
+   * link from the event while it keeps links with an href.
+   */
+  supportsCalendarBlobLinks(accountId?: string): boolean {
+    const id = accountId || this.getCalendarsAccountId();
+    const blob = this.getAccountCapability("urn:ietf:params:jmap:blob", id) as { supportedTypeNames?: unknown } | undefined;
+    return Array.isArray(blob?.supportedTypeNames) && blob.supportedTypeNames.includes("CalendarEvent");
+  }
+
   rejectContactBlobMedia(accountId?: string): void {
     this.contactBlobMediaRejected.add(accountId || this.getContactsAccountId());
   }
@@ -10482,6 +10495,7 @@ export class JMAPClient implements IJMAPClient {
   async batchCreateCalendarEvents(
     events: Partial<CalendarEvent>[],
     targetAccountId?: string,
+    sendSchedulingMessages = false,
   ): Promise<{ created: CalendarEvent[]; failed: string[]; notCreated: Record<string, CalendarSetError> }> {
     if (events.length === 0) return { created: [], failed: [], notCreated: {} };
 
@@ -10505,14 +10519,15 @@ export class JMAPClient implements IJMAPClient {
         createMap[`new-${index}`] = clean;
       }
 
-      // Never emit iMIP scheduling messages when importing. Imported events often
+      // No iMIP scheduling messages when importing (only joining a forwarded
+      // invitation asks for them, to send the REPLY). Imported events often
       // carry an organizer/participants where the current user is the organizer;
       // without this, Stalwart tries to send invitation emails to every attendee
       // synchronously during CalendarEvent/set, which is both wrong (importing a
       // calendar should not spam invites) and can block the request indefinitely,
       // leaving the import spinner spinning forever (#411).
       const response = await this.request([
-        ["CalendarEvent/set", { accountId, sendSchedulingMessages: false, create: createMap }, "0"]
+        ["CalendarEvent/set", { accountId, sendSchedulingMessages, create: createMap }, "0"]
       ], this.calendarUsing());
 
       // A method-level error (unknown calendar, missing capability, …) is

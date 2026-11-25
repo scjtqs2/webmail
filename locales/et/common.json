@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO on lubatud, kuid identiteedipakkujaga ei saadud ühendust. Kontrolli OAuth seadistust.",
       "oauth_issuer_mismatch": "Selle pakkuja kaudu sisselogimine pole õigesti seadistatud. Administraator peab määrama selle väljastaja (issuer) aadressi.",
       "token_exchange_failed": "Sinu parool ja kood võeti vastu, aga meiliserver keeldus sellele rakendusele seansi algatamisest. Palu administraatoril kontrollida selle OAuth-kliendi seadeid.",
-      "login_refused": "Meiliserver keeldus sellest sisselogimisest enne sinu koodi kontrollimist. Palu administraatoril kontrollida OAuth-kliendi seadeid."
+      "login_refused": "Meiliserver keeldus sellest sisselogimisest enne sinu koodi kontrollimist. Palu administraatoril kontrollida OAuth-kliendi seadeid.",
+      "primary_sign_in_required": "Logi kõigepealt sisse oma põhikontole. Selle serveri saab lisada ainult lisakontona."
     },
     "show_password": "Näita parooli",
     "hide_password": "Peida parool",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Mitme väärtuse jaoks eralda need komadega."
   },
   "sidebar": {
+    "sign_in_again": "Logi uuesti sisse",
     "close": "Sulge",
     "compose": "Koosta",
     "compose_hint": "Koosta (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Lisa veel üks konto",
     "mv_manage_account": "Halda oma kontot",
     "mv_storage_used": "{percent}% mahust {total} kasutatud",
-    "accessibility": "Juurdepääsetavus"
+    "accessibility": "Juurdepääsetavus",
+    "folder_hidden": "Kaust on peidetud. Saad selle uuesti nähtavaks teha jaotises Seaded › Kaustad ja sildid.",
+    "folder_hide_failed": "Kausta ei õnnestunud peita."
   },
   "account_unread": {
     "others": "Lugemata teistes kontodes: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Vasta kõigile",
     "forward_message": "Saada edasi",
     "from": "Saatja",
+    "from_account": "Konto: {name}",
     "to": "Saajale",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1181,6 +1186,7 @@
     "show_less": "Näita vähem",
     "send_failed": "Kirja saatmine ebaõnnestus",
     "send_offline": "Paistab, et oled võrgust väljas. Kiri on alles, saada see uuesti, kui oled taas ühenduses.",
+    "archive_after_reply_queued": "Kiri saadetakse, kui oled taas võrgus. Algne kiri jääb postkasti.",
     "send_timeout": "Server lakkas vastamast. Enne uuesti saatmist kontrolli oma saadetud kirjade kausta — sõnum võis siiski välja minna.",
     "submission_quota": "Serveris on selle konto kohta liiga palju saadetud kirjade kirjeid. Bulwark eemaldas need, mida sai; kui see kordub, palu administraatoril e-kirjade saatmise piirangut tõsta.",
     "submission_limit": "Server keeldus kirja saatmast, sest piirang on täis: {reason}",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "Kaasa rühma postkastid",
-          "description": "Kaasa ühendatud vaatesse ka jagatud/rühma postkastid."
+          "description": "Kaasa ühendatud vaatesse ka jagatud/rühma postkastid.",
+          "accounts_label": "Jagatud postkastid ühendatud postkastis",
+          "accounts_description": "Eemalda linnuke postkastilt, mida sa iga päev ei loe. See jääb külgribale."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "Kuva kirjad alati heledas režiimis",
-        "description": "Kuva kirja sisu heledas režiimis ka siis, kui rakendus on tumedas režiimis, vältimaks tumeda režiimi teisendusprobleeme"
+        "description": "Näita kirju ja kirjutatavat teksti heledal taustal ka siis, kui rakendus on tumedas režiimis"
       },
       "external_content": {
         "label": "Väline sisu",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "Kohatäidete hoiatus",
         "description": "Küsi kinnitust enne kirja saatmist, kus on veel kohatäiteid nagu [TIME] või [Teie nimi], tühje malliväljasid või pooleli teksti nagu TODO või TBD."
+      },
+      "archive_after_reply": {
+        "label": "Arhiveeri pärast vastamist",
+        "description": "Kui vastad postkastis olevale kirjale või edastad selle, arhiveeritakse see pärast sinu kirja saatmist."
       },
       "recipient_mentions": {
         "label": "Maini adressaate @-ga",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, one {# aadress} other {# aadressi}}",
         "empty": "Maskeeritud aadresse veel pole.",
         "website": "Veebisait (valikuline)",
+        "domain": "Domeen",
+        "domain_default": "Vaikedomeen",
+        "domain_not_allowed": "Server ei luba sinu kontole selles domeenis maskeeritud aadresse. Vali teine domeen.",
         "description": "Kirjeldus (valikuline)",
         "no_website": "Määramata",
         "enabled": "Lubatud",
@@ -2877,7 +2892,16 @@
       "error_delete": "Kausta kustutamine ebaõnnestus",
       "error_delete_has_children": "Kausta ei saa kustutada: selles on veel alamkaustu. Kustuta või liiguta need enne.",
       "error_delete_has_email": "Kausta ei saa kustutada: selles on veel kirju. Liiguta või kustuta need enne.",
-      "error_role": "Kausta rolli uuendamine ebaõnnestus"
+      "error_role": "Kausta rolli uuendamine ebaõnnestus",
+      "hide_unsubscribed": {
+        "label": "Peida tellimata kaustad",
+        "description": "Kaustad, mille tellimuse siin või mõnes teises rakenduses, näiteks Thunderbirdis, lõpetad, kaovad külgribalt. Nende kirjad jäävad serverisse."
+      },
+      "show_folder": "Näita külgribal",
+      "hide_folder": "Peida külgribalt",
+      "show_folder_named": "Näita kausta {name} külgribal",
+      "hide_folder_named": "Peida kaust {name} külgribalt",
+      "error_subscription": "Kausta ei õnnestunud näidata ega peita."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "Väline",
       "managed_by_tooltip": "Hallatud {source} poolt. Muuda seda vastavas rakenduses või kasuta Sieve lähtekoodi redaktorit.",
+      "server_rules": "Serveri reeglid",
+      "server_rules_description": "Need lisas sinu e-posti teenuse pakkuja. Need käivituvad enne sinu filtreid ja neid ei saa siin muuta.",
       "quick_rule_names": {
         "move_sender": "Liiguta saatjalt {sender} kausta {folder}",
         "move_domain": "Liiguta domeenilt @{domain} kausta {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Kaust ei ole tühi. Tühjenda see enne.",
     "delete_with_contents_title": "Kaust ei ole tühi",
     "delete_with_contents_message": "Kaust \"{name}\" sisaldab veel {count, plural, one {1 sõnum} other {# sõnumit}}. Kas kustutada kaust ja kõik selle sõnumid? Seda ei saa tagasi võtta.",
-    "delete_with_contents_confirm": "Kustuta kaust ja sõnumid"
+    "delete_with_contents_confirm": "Kustuta kaust ja sõnumid",
+    "hide_folder": "Peida külgribalt"
   },
   "mail_p2_folders": {
     "all_folders": "Kõik kaustad",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Mainib sõna „{keyword}“, kuid ühtegi faili pole lisatud",
     "warning_placeholders": "Kohatäitetekst, mida saajad näevad:",
     "warning_proofreading": "Lahendamata õigekirja- või grammatikavead: {count}",
+    "warning_account": "Vastus kontolt {sending}, kuid kiri saabus kontole {received}",
+    "account_warning_title": "Vastata teiselt kontolt?",
+    "account_warning_message": "See kiri saabus kontole {received}. Vastus saadetakse kontolt {sending}.",
+    "account_warning_back": "Muuda saatjat",
     "empty_text_title": "Kas saata ilma tekstita?",
     "empty_text_message": "Selles kirjas pole teksti ega manust. Kas saata see ikkagi?",
     "scheduled_for": "Ajastatud: {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Ressurss",
         "location": "Asukoht",
         "other": "Muu"
-      }
+      },
+      "filter_label": "Näita",
+      "filter_all": "Kõik",
+      "filter_people": "Inimesed",
+      "filter_groups": "Rühmad"
     },
     "title": "Kontaktid",
     "disabled_title": "Administraator on kontaktid välja lülitanud",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Kas lõpetada kalendri tellimus?",
       "confirm": "Kustuta"
     },
+    "attachments": {
+      "title": "Manused",
+      "add": "Lisa fail",
+      "remove": "Eemalda {name}",
+      "download": "Laadi alla {name}",
+      "unnamed": "Manus",
+      "download_failed": "Manust ei õnnestunud alla laadida.",
+      "upload_failed": "Faili ei õnnestunud üles laadida. Sündmust ei salvestatud.",
+      "too_large": "„{name}” on suurem, kui server lubab ({max} faili kohta)"
+    },
     "alerts": {
       "title": "Meeldetuletused",
       "none": "Meeldetuletusi pole",
@@ -5229,6 +5274,10 @@
       "working_days": "Tööpäevad",
       "title": "Kalendri seaded",
       "default_view": "Kalender avaneb vaates",
+      "default_event_length": "Sündmuste vaikekestus",
+      "default_event_length_desc": "Kui kaua uus sündmus kestab, kui klõpsad kalendris kellaajal või lood sündmuse.",
+      "event_length_minutes": "{minutes} minutit",
+      "event_length_hours": "{hours, plural, one {# tund} other {# tundi}}",
       "week_starts_on": "Nädal algab",
       "time_format": "Ajavorming",
       "default_calendar": "Vaikekalender",
@@ -5531,6 +5580,8 @@
       "cancel": "Tühista",
       "save": "Salvesta",
       "quick_add_placeholder": "Lisa ülesanne...",
+      "add_subtask": "Lisa alamülesanne…",
+      "subtask_of": "Ülesande {title} alamülesanne",
       "due_today": "Täna",
       "due_tomorrow": "Homme",
       "overdue": "Tähtaeg möödas"
@@ -5678,6 +5729,25 @@
     "answered_by": "Vastas {who}",
     "organizer_owner": "{name} (saadad sina)",
     "organizer_me": "Sina"
+  },
+  "calendar_forward": {
+    "menu": "Edasta…",
+    "heading": "Edastatud kutse",
+    "when": "Millal: {value}",
+    "where": "Kus: {value}",
+    "organizer": "Korraldaja: {value}",
+    "failed": "Kutset ei õnnestunud edastada.",
+    "add_replier": "Lisa {name} koosolekule",
+    "not_invited": "{name} ei ole sellele koosolekule kutsutud. Keegi edastas talle kutse.",
+    "added": "Lisatud koosolekule"
+  },
+  "calendar_invitations": {
+    "title": "Kutsed",
+    "from": "Saatja: {name}"
+  },
+  "event_from_mail": {
+    "menu": "Loo sündmus…",
+    "link_line": "E-kiri: {link}"
   },
   "free_busy_share": {
     "button": "Jaga minu vaba/hõivatud aega grupiga {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "Kalender",
       "addressBook": "Aadressiraamat",
       "file": "Fail"
-    }
+    },
+    "shared_items": "Mida sa jagad",
+    "stop_sharing": "Lõpeta {item} jagamine kasutajaga {name}",
+    "stop_sharing_title": "Kas lõpetada {item} jagamine kasutajaga {name}?",
+    "stop_sharing_message": "{name} kaotab ligipääsu üksusele {item}. Kõik muu, mida jagad, jääb alles.",
+    "stop_sharing_confirm": "Lõpeta jagamine",
+    "stopped_sharing": "Kasutajal {name} pole enam ligipääsu üksusele {item}",
+    "stop_sharing_failed": "{item} jagamist ei õnnestunud lõpetada"
   },
   "advanced_search": {
     "title": "Täpsem otsing",
@@ -6101,6 +6178,11 @@
     "zipping": "{name} valmistamine",
     "download_canceled": "Allalaadimine tühistati",
     "zip_error": "Faili {name} ei õnnestunud alla laadida",
+    "download_to_folder": "Laadi kausta alla…",
+    "downloading_to_folder": "Laaditakse alla kausta {folder}",
+    "downloaded_to_folder": "{count, plural, one {Salvestati # fail kausta {folder}.} other {Salvestati # faili kausta {folder}.}}",
+    "downloaded_to_folder_partial": "Salvestati {saved} faili {total}-st kausta {folder}.",
+    "download_to_folder_failed": "Faile ei saanud kausta {folder} salvestada.",
     "not_available": "Failihoidla ei ole selles serveris saadaval",
     "cancel": "Tühista",
     "create": "Loo",
@@ -7938,14 +8020,20 @@
       "added": "Aadress lisatud.",
       "saved": "Aadress salvestatud.",
       "deleted": "Aadress kustutatud.",
-      "delete_title": "Kas kustutada see aadress?"
+      "delete_title": "Kas kustutada see aadress?",
+      "offer_new_mail": "Paku uute kirjade jaoks. Väljas: ainult vastamiseks sellele aadressile saadetud kirjadele.",
+      "offer_new_mail_named": "Paku aadressi {address} uute kirjade jaoks"
     },
     "signatures": {
       "title": "Allkirjad",
-      "description": "Lisatakse teie kirjutatud kirjade lõppu. Igal aadressil on oma.",
+      "description": "Lisatakse teie kirjutatud kirjade lõppu. Igal aadressil on oma või see kasutab teise aadressi allkirja.",
       "saved": "Allkiri salvestatud.",
       "error": "Allkirja ei õnnestunud salvestada. Proovige uuesti.",
-      "no_addresses": "Teil pole veel aadressi, millelt saata."
+      "no_addresses": "Teil pole veel aadressi, millelt saata.",
+      "use_label": "Allkiri",
+      "own": "Oma allkiri",
+      "same_as": "Sama mis {address}",
+      "shared_note": "Kasutab aadressi {address} allkirja. Muutke seda seal."
     },
     "search": {
       "addresses": "identiteet identiteedid alias saatja saatja aadress saatja nimi identity alias sender",

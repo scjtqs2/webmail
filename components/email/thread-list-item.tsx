@@ -40,6 +40,7 @@ import { ThreadEmailItem } from "./thread-email-item";
 import { EmailHoverActions } from "./email-hover-actions";
 import { SearchSnippetText } from "./search-snippet-text";
 import { PluginRowBadges } from "./plugin-row-badges";
+import { usePluginSender } from "@/hooks/use-plugin-sender";
 import { TeamRowBadges } from "@/components/team-mailboxes/team-row-badges";
 import { useOwnDomainAddress } from "@/hooks/use-own-domain-address";
 import { useSenderWarning } from "@/hooks/use-sender-warning";
@@ -76,6 +77,18 @@ function isMousePressOnRow(e: React.PointerEvent): boolean {
  * its hover actions), the browser's pointerover comes from the list around
  * it, and React builds no onPointerEnter from that.
  */
+/**
+ * A conversation's names with its newest message's sender as a plugin shows
+ * it (onSenderResolve, #633) in place of the name From gives.
+ */
+function withShownSender(names: string[], latest: Email, shown: { name: string; email: string } | null): string[] {
+  const from = latest.from?.[0];
+  if (!shown || !from) return names;
+  const fromName = from.name || from.email.split('@')[0];
+  const shownName = shown.name || shown.email.split('@')[0];
+  return names.map((name) => (name === fromName ? shownName : name));
+}
+
 /**
  * Role of the folder the list shows (sender vs recipient, junk actions). In
  * aggregate role views the selected mailbox is virtual, so the unified role
@@ -127,13 +140,14 @@ function useShowAccountDot(tintListRowsByAccount: boolean): boolean {
 }
 
 /**
- * Rows swipe on a phone, and on a touch screen below the full desktop: a
- * tablet draws the compact desktop layout and keeps the phone's gesture.
+ * Rows swipe on a phone and on any touch screen, at any width: a tablet in
+ * landscape draws the full desktop layout and keeps the phone's gesture
+ * (#1831). The gesture listens to touch events only, so a mouse never swipes.
  */
 function useSwipeRows(): boolean {
   const isMobile = useUIStore((state) => state.isMobile);
-  const touchCompact = useMediaQuery("(pointer: coarse) and (width < 64rem)");
-  return isMobile || touchCompact;
+  const touchScreen = useMediaQuery("(pointer: coarse)");
+  return isMobile || touchScreen;
 }
 
 /**
@@ -565,7 +579,9 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
     // "me"). In aggregate role-views the selected mailbox is virtual → fall back
     // to the unified role so junk-contextual UI and avatar hiding work.
     const showRecipient = currentMailboxRole === 'sent' || currentMailboxRole === 'drafts';
-    const sender = showRecipient ? (email.to?.[0] ?? email.from?.[0]) : email.from?.[0];
+    // A plugin may show another sender than From (onSenderResolve, #633).
+    const pluginSender = usePluginSender(showRecipient ? null : email);
+    const sender = showRecipient ? (email.to?.[0] ?? email.from?.[0]) : (pluginSender ?? email.from?.[0]);
     // Every row's checkbox says which message it picks (not "Select emails").
     const selectRowLabel = tBatch('select_row', {
       sender: sender?.name || sender?.email || '',
@@ -580,7 +596,8 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
     const showAccountDot = useShowAccountDot(tintListRowsByAccount);
     const hideJunkAvatarImages = currentMailboxRole === 'junk' && !showAvatarsInJunk;
     const senderWarning = useSenderWarning(showRecipient ? undefined : email);
-    const brandDomain = useBrandDomain(showRecipient ? undefined : email);
+    // A brand logo vouches for From's domain, not for a sender a plugin shows.
+    const brandDomain = useBrandDomain(showRecipient || pluginSender ? undefined : email);
     // Show the originating folder in the aggregate "All …" views.
     const showSourceFolder = useShowSourceFolder(email.sourceFolder);
     const getAccountById = useAccountStore((state) => state.getAccountById);
@@ -1279,19 +1296,20 @@ const ConversationRow = React.forwardRef<HTMLDivElement, ThreadListItemProps>(
     // "me"). Aggregate role-views use a virtual selected mailbox → fall back to
     // the unified role so junk-contextual UI and avatar hiding work.
     const showRecipient = currentMailboxRole === 'sent' || currentMailboxRole === 'drafts';
+    const threadPluginSender = usePluginSender(showRecipient ? null : latestEmail);
     const displayNames = showRecipient
       ? Array.from(new Set(
           thread.emails.flatMap(e => (e.to ?? []).map(r => r.name || r.email.split('@')[0]))
         )).slice(0, 4)
-      : participantNames;
-    const avatarPerson = showRecipient ? latestEmail.to?.[0] : latestEmail.from?.[0];
+      : withShownSender(participantNames, latestEmail, threadPluginSender);
+    const avatarPerson = showRecipient ? latestEmail.to?.[0] : (threadPluginSender ?? latestEmail.from?.[0]);
     const selectRowLabel = tBatch('select_row', {
       sender: avatarPerson?.name || avatarPerson?.email || '',
       subject: latestEmail.subject || tEmailViewer('no_subject'),
     });
     const hideJunkAvatarImages = currentMailboxRole === 'junk' && !showAvatarsInJunk;
     const senderWarning = useSenderWarning(showRecipient ? undefined : latestEmail);
-    const brandDomain = useBrandDomain(showRecipient ? undefined : latestEmail);
+    const brandDomain = useBrandDomain(showRecipient || threadPluginSender ? undefined : latestEmail);
 
     const { dragHandlers, isDragging: isThreadDragging } = useEmailDrag({
       email: latestEmail,

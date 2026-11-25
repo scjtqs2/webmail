@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSOは有効ですが、IDプロバイダーに接続できません。OAuth設定を確認してください。",
       "oauth_issuer_mismatch": "このプロバイダーでのサインインは正しく設定されていません。管理者がプロバイダーの発行者 (issuer) アドレスを設定する必要があります。",
       "token_exchange_failed": "パスワードとコードは受け付けられましたが、メールサーバーがこのアプリのセッション開始を拒否しました。管理者に OAuth クライアントの設定を確認してもらってください。",
-      "login_refused": "メールサーバーがコードを確認する前にこのサインインを拒否しました。OAuth クライアントの設定を確認するよう管理者に依頼してください。"
+      "login_refused": "メールサーバーがコードを確認する前にこのサインインを拒否しました。OAuth クライアントの設定を確認するよう管理者に依頼してください。",
+      "primary_sign_in_required": "先にメインのアカウントにサインインしてください。このサーバーは追加のアカウントとしてのみ追加できます。"
     },
     "show_password": "パスワードを表示",
     "hide_password": "パスワードを隠す",
@@ -140,6 +141,7 @@
     "filter_values_hint": "複数の値はカンマで区切ります。"
   },
   "sidebar": {
+    "sign_in_again": "再ログイン",
     "close": "閉じる",
     "compose": "作成",
     "compose_hint": "作成 (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "別のアカウントを追加",
     "mv_manage_account": "アカウントを管理",
     "mv_storage_used": "{total} のうち {percent}% を使用中",
-    "accessibility": "アクセシビリティ"
+    "accessibility": "アクセシビリティ",
+    "folder_hidden": "フォルダーを非表示にしました。設定 › フォルダーとタグで再表示できます。",
+    "folder_hide_failed": "フォルダーを非表示にできませんでした。"
   },
   "account_unread": {
     "others": "他のアカウントの未読: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "全員に返信",
     "forward_message": "転送",
     "from": "送信元",
+    "from_account": "アカウント: {name}",
     "to": "宛先",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1189,6 +1194,7 @@
     "recipients_refused": "送信されませんでした: サーバーが {recipients} を拒否しました。",
     "recipients_partly_refused": "サーバーが {recipients} を拒否しました。他の宛先にはメッセージが届きます。",
     "send_offline": "オフラインのようです。メッセージはそのまま残っています。オンラインに戻ったら再送信してください。",
+    "archive_after_reply_queued": "オンラインに戻ったときにメッセージが送信されます。元のメッセージは受信トレイに残ります。",
     "formatting": "書式",
     "send_recipients_rejected": "送信されませんでした。サーバーがすべての宛先を拒否しました。",
     "send_plugin_failed": "送信されませんでした。送信を処理するプラグインが失敗したか、時間がかかりすぎました。もう一度送信する前に送信済みフォルダーを確認してください。",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "グループ受信トレイを含める",
-          "description": "共有/グループ受信トレイも統合ビューに含めます。"
+          "description": "共有/グループ受信トレイも統合ビューに含めます。",
+          "accounts_label": "統合メールボックスに含める共有メールボックス",
+          "accounts_description": "毎日は読まないメールボックスのチェックを外します。サイドバーには残ります。"
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "メールを常にライトモードで表示",
-        "description": "アプリがダークモードの場合でもメールをライトモードで表示し、ダークモード変換の問題を回避します"
+        "description": "アプリがダークモードでも、メールと作成中のテキストを明るい背景で表示します"
       },
       "external_content": {
         "label": "外部コンテンツ",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "プレースホルダーの警告",
         "description": "[TIME] や [あなたの名前] などのプレースホルダー、空のテンプレート項目、TODO や TBD などの未完成のテキストが残っているメッセージを送信する前に確認します。"
+      },
+      "archive_after_reply": {
+        "label": "返信後にアーカイブ",
+        "description": "受信トレイのメッセージに返信または転送すると、送信後にそのメッセージをアーカイブします。"
       },
       "recipient_mentions": {
         "label": "@で宛先をメンション",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, other {# 件のアドレス}}",
         "empty": "マスクアドレスはまだありません。",
         "website": "ウェブサイト（任意）",
+        "domain": "ドメイン",
+        "domain_default": "既定のドメイン",
+        "domain_not_allowed": "このアカウントでは、サーバーがこのドメインのマスクアドレスを許可していません。別のドメインを選んでください。",
         "description": "説明（任意）",
         "no_website": "指定なし",
         "enabled": "有効",
@@ -2870,7 +2885,16 @@
       "error_delete": "フォルダーの削除に失敗しました",
       "error_delete_has_children": "フォルダーを削除できません：サブフォルダーが含まれています。先にサブフォルダーを削除または移動してください。",
       "error_delete_has_email": "フォルダーを削除できません：メールが含まれています。先にメールを移動または削除してください。",
-      "error_role": "フォルダーの役割の更新に失敗しました"
+      "error_role": "フォルダーの役割の更新に失敗しました",
+      "hide_unsubscribed": {
+        "label": "購読していないフォルダーを非表示",
+        "description": "ここや Thunderbird などの別のアプリで購読を解除したフォルダーはサイドバーに表示されなくなります。メールはサーバーに残ります。"
+      },
+      "show_folder": "サイドバーに表示",
+      "hide_folder": "サイドバーから非表示",
+      "show_folder_named": "{name} をサイドバーに表示",
+      "hide_folder_named": "{name} をサイドバーから非表示",
+      "error_subscription": "フォルダーの表示を切り替えられませんでした。"
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "外部",
       "managed_by_tooltip": "{source} によって管理されています。そのアプリで編集するか、生の Sieve エディターを使用してください。",
+      "server_rules": "サーバーのルール",
+      "server_rules_description": "メールサービスの提供者が追加したルールです。フィルターより先に実行され、ここでは変更できません。",
       "quick_rule_names": {
         "move_sender": "{sender} から {folder} へ移動",
         "move_domain": "@{domain} から {folder} へ移動",
@@ -4208,7 +4234,8 @@
     "delete_with_contents_confirm": "フォルダーとメッセージを削除",
     "placeholder_folder_name": "フォルダー名",
     "create": "作成",
-    "rename_confirm": "名前を変更"
+    "rename_confirm": "名前を変更",
+    "hide_folder": "サイドバーから非表示"
   },
   "mail_p2_folders": {
     "all_folders": "すべてのフォルダー",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "「{keyword}」とありますが、ファイルが添付されていません",
     "warning_placeholders": "受信者に表示されるプレースホルダー:",
     "warning_proofreading": "未解決のスペル・文法の問題: {count}",
+    "warning_account": "{sending} から返信しますが、メッセージは {received} に届きました",
+    "account_warning_title": "別のアカウントから返信しますか？",
+    "account_warning_message": "このメッセージは {received} に届きました。返信は {sending} から送信されます。",
+    "account_warning_back": "差出人を変更",
     "empty_text_title": "本文なしで送信しますか？",
     "empty_text_message": "このメッセージには本文も添付ファイルもありません。そのまま送信しますか？",
     "scheduled_for": "{when} に送信予定",
@@ -4542,7 +4573,11 @@
         "resource": "リソース",
         "location": "場所",
         "other": "その他"
-      }
+      },
+      "filter_label": "表示",
+      "filter_all": "すべて",
+      "filter_people": "ユーザー",
+      "filter_groups": "グループ"
     },
     "title": "連絡先",
     "disabled_title": "連絡先は管理者によって無効にされています",
@@ -5192,6 +5227,16 @@
       "subscription_title": "カレンダーの購読を解除しますか？",
       "confirm": "削除"
     },
+    "attachments": {
+      "title": "添付ファイル",
+      "add": "ファイルを追加",
+      "remove": "{name} を外す",
+      "download": "{name} をダウンロード",
+      "unnamed": "添付ファイル",
+      "download_failed": "添付ファイルをダウンロードできませんでした。",
+      "upload_failed": "ファイルをアップロードできませんでした。予定は保存されていません。",
+      "too_large": "「{name}」はサーバーの上限を超えています（1 ファイルあたり {max}）"
+    },
     "alerts": {
       "title": "リマインダー",
       "none": "リマインダーなし",
@@ -5229,6 +5274,10 @@
       "working_days": "勤務日",
       "title": "カレンダー設定",
       "default_view": "カレンダーの初期表示",
+      "default_event_length": "予定の既定の長さ",
+      "default_event_length_desc": "カレンダーで時刻をクリックしたときや予定を作成したときの、新しい予定の長さです。",
+      "event_length_minutes": "{minutes}分",
+      "event_length_hours": "{hours, number}時間",
       "week_starts_on": "週の開始曜日",
       "time_format": "時刻の形式",
       "default_calendar": "デフォルトのカレンダー",
@@ -5502,6 +5551,8 @@
       "cancel": "キャンセル",
       "save": "保存",
       "quick_add_placeholder": "タスクを追加...",
+      "add_subtask": "サブタスクを追加…",
+      "subtask_of": "{title} のサブタスク",
       "due_today": "今日が期限",
       "due_tomorrow": "明日が期限",
       "overdue": "期限切れ"
@@ -5811,6 +5862,11 @@
     "zipping": "{name} を準備しています",
     "download_canceled": "ダウンロードをキャンセルしました",
     "zip_error": "{name} をダウンロードできませんでした",
+    "download_to_folder": "フォルダーにダウンロード…",
+    "downloading_to_folder": "{folder} にダウンロードしています",
+    "downloaded_to_folder": "{count, plural, other {# 個のファイルを {folder} に保存しました。}}",
+    "downloaded_to_folder_partial": "{total} 個中 {saved} 個のファイルを {folder} に保存しました。",
+    "download_to_folder_failed": "ファイルを {folder} に保存できませんでした。",
     "not_available": "ファイルストレージはこのサーバーで利用できません",
     "cancel": "キャンセル",
     "create": "作成",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name}（あなたが代理で送信）",
     "organizer_me": "あなた"
   },
+  "calendar_forward": {
+    "menu": "転送…",
+    "heading": "転送された招待",
+    "when": "日時: {value}",
+    "where": "場所: {value}",
+    "organizer": "主催者: {value}",
+    "failed": "招待を転送できませんでした。",
+    "add_replier": "{name} を会議に追加",
+    "not_invited": "{name} はこの会議に招待されていません。誰かが招待を転送しました。",
+    "added": "会議に追加しました"
+  },
+  "calendar_invitations": {
+    "title": "招待",
+    "from": "{name} から"
+  },
+  "event_from_mail": {
+    "menu": "予定を作成…",
+    "link_line": "メール: {link}"
+  },
   "free_busy_share": {
     "button": "自分の空き時間を {group} と共有",
     "already": "空き時間は {group} と共有されています",
@@ -6570,7 +6645,14 @@
       "calendar": "カレンダー",
       "addressBook": "アドレス帳",
       "file": "ファイル"
-    }
+    },
+    "shared_items": "共有しているもの",
+    "stop_sharing": "{item} の {name} との共有を停止",
+    "stop_sharing_title": "{item} の {name} との共有を停止しますか？",
+    "stop_sharing_message": "{name} は {item} にアクセスできなくなります。ほかに共有しているものはそのままです。",
+    "stop_sharing_confirm": "共有を停止",
+    "stopped_sharing": "{name} は {item} にアクセスできなくなりました",
+    "stop_sharing_failed": "{item} の共有を停止できませんでした"
   },
   "quote_header": {
     "reply_line": "{date}に{from}が書きました:",
@@ -7938,14 +8020,20 @@
       "added": "アドレスを追加しました。",
       "saved": "アドレスを保存しました。",
       "deleted": "アドレスを削除しました。",
-      "delete_title": "このアドレスを削除しますか?"
+      "delete_title": "このアドレスを削除しますか?",
+      "offer_new_mail": "新規メールで選択肢に表示。オフ: このアドレス宛てのメールへの返信にのみ使います。",
+      "offer_new_mail_named": "{address} を新規メールで選択肢に表示"
     },
     "signatures": {
       "title": "署名",
-      "description": "書いたメッセージの最後に付きます。アドレスごとに別の署名を使えます。",
+      "description": "書いたメッセージの最後に付きます。アドレスごとに別の署名を使うか、他のアドレスの署名を使えます。",
       "saved": "署名を保存しました。",
       "error": "署名を保存できませんでした。もう一度お試しください。",
-      "no_addresses": "送信に使えるアドレスがまだありません。"
+      "no_addresses": "送信に使えるアドレスがまだありません。",
+      "use_label": "署名",
+      "own": "このアドレス専用の署名",
+      "same_as": "{address} と同じ",
+      "shared_note": "{address} の署名を使っています。編集はそちらで行います。"
     },
     "search": {
       "addresses": "ID アイデンティティ エイリアス 差出人 差出人アドレス 送信元アドレス identity alias sender",

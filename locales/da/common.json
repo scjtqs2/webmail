@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO er aktiveret, men identitetsudbyderen kunne ikke nås. Kontrollér din OAuth-konfiguration.",
       "oauth_issuer_mismatch": "Login med denne udbyder er ikke sat korrekt op. Administratoren skal angive udbyderens issuer-adresse.",
       "token_exchange_failed": "Din adgangskode og kode blev accepteret, men mailserveren nægtede at starte en session for denne app. Bed din administrator om at kontrollere OAuth-klientindstillingerne.",
-      "login_refused": "Mailserveren afviste dette login, før den tjekkede din kode. Bed din administrator om at kontrollere OAuth-klientindstillingerne."
+      "login_refused": "Mailserveren afviste dette login, før den tjekkede din kode. Bed din administrator om at kontrollere OAuth-klientindstillingerne.",
+      "primary_sign_in_required": "Log først ind på din hovedkonto. Denne server kan kun tilføjes som en ekstra konto."
     },
     "show_password": "Vis adgangskode",
     "hide_password": "Skjul adgangskode",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Adskil flere værdier med kommaer."
   },
   "sidebar": {
+    "sign_in_again": "Log ind igen",
     "close": "Luk",
     "compose": "Ny besked",
     "compose_hint": "Ny besked (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Tilføj en anden konto",
     "mv_manage_account": "Administrer din konto",
     "mv_storage_used": "{percent}% af {total} brugt",
-    "accessibility": "Tilgængelighed"
+    "accessibility": "Tilgængelighed",
+    "folder_hidden": "Mappen er skjult. Vis den igen under Indstillinger › Mapper og tags.",
+    "folder_hide_failed": "Mappen kunne ikke skjules."
   },
   "account_unread": {
     "others": "Ulæste i andre konti: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Svar alle",
     "forward_message": "Videresend",
     "from": "Fra",
+    "from_account": "Konto: {name}",
     "to": "Til",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1184,6 +1189,7 @@
     "recipients_refused": "Ikke sendt: serveren afviste {recipients}.",
     "recipients_partly_refused": "Serveren afviste {recipients}. De øvrige modtagere får beskeden.",
     "send_offline": "Du ser ud til at være offline. Beskeden er her stadig, send den igen, når du er online.",
+    "archive_after_reply_queued": "Din besked sendes, når du er online igen. Den oprindelige bliver i indbakken.",
     "formatting": "Formatering",
     "send_recipients_rejected": "Ikke sendt: serveren afviste alle modtagere.",
     "send_plugin_failed": "Ikke sendt - et plugin, der står for afsendelsen, fejlede eller tog for lang tid. Tjek mappen Sendt, før du sender igen.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "Inkluder gruppepostkasser",
-          "description": "Inkluder også delte/gruppepostkasser i den samlede visning."
+          "description": "Inkluder også delte/gruppepostkasser i den samlede visning.",
+          "accounts_label": "Delte postkasser i den samlede postkasse",
+          "accounts_description": "Fjern fluebenet ved en postkasse, du ikke læser hver dag. Den bliver i sidepanelet."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "Vis altid e-mails i lys tilstand",
-        "description": "Vis e-mail-indhold i lys tilstand, selv når appen er i mørk tilstand, for at undgå problemer med mørk tilstand-konvertering"
+        "description": "Vis e-mails og den tekst, du skriver, på lys baggrund, selv når appen er i mørk tilstand"
       },
       "external_content": {
         "label": "Eksternt indhold",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "Advarsel om pladsholdere",
         "description": "Bed om bekræftelse, før en besked sendes, der stadig har pladsholdere som [TIME] eller [Dit navn], tomme skabelonfelter eller ufærdig tekst som TODO eller TBD."
+      },
+      "archive_after_reply": {
+        "label": "Arkivér efter svar",
+        "description": "Når du svarer på eller videresender en besked i din indbakke, arkiveres den, når din besked er sendt."
       },
       "recipient_mentions": {
         "label": "Nævn modtagere med @",
@@ -2537,6 +2549,9 @@
         "count": "{count, plural, one {# adresse} other {# adresser}}",
         "empty": "Ingen maskerede adresser endnu.",
         "website": "Websted (valgfrit)",
+        "domain": "Domæne",
+        "domain_default": "Standarddomæne",
+        "domain_not_allowed": "Serveren tillader ikke maskerede adresser på dette domæne for din konto. Vælg et andet domæne.",
         "description": "Beskrivelse (valgfrit)",
         "no_website": "Ikke angivet",
         "enabled": "Aktiveret",
@@ -2873,7 +2888,16 @@
       "error_delete": "Kunne ikke slette mappe",
       "error_delete_has_children": "Kan ikke slette mappe: den indeholder stadig undermapper. Slet eller flyt dem først.",
       "error_delete_has_email": "Kan ikke slette mappe: den indeholder stadig e-mails. Flyt eller slet dem først.",
-      "error_role": "Kunne ikke opdatere mappens rolle"
+      "error_role": "Kunne ikke opdatere mappens rolle",
+      "hide_unsubscribed": {
+        "label": "Skjul mapper, du ikke abonnerer på",
+        "description": "Mapper, du afmelder her eller i en anden app som Thunderbird, forsvinder fra sidepanelet. Deres mails bliver på serveren."
+      },
+      "show_folder": "Vis i sidepanelet",
+      "hide_folder": "Skjul i sidepanelet",
+      "show_folder_named": "Vis {name} i sidepanelet",
+      "hide_folder_named": "Skjul {name} i sidepanelet",
+      "error_subscription": "Mappen kunne ikke vises eller skjules."
     },
     "advanced": {
       "debug_mode": {
@@ -3209,6 +3233,8 @@
       },
       "origin_external": "Ekstern",
       "managed_by_tooltip": "Administreres af {source}. Redigér det i den pågældende app, eller brug raw Sieve-editoren.",
+      "server_rules": "Serverregler",
+      "server_rules_description": "Din mailudbyder har tilføjet dem. De kører før dine filtre og kan ikke ændres her.",
       "quick_rule_names": {
         "move_sender": "Flyt fra {sender} til {folder}",
         "move_domain": "Flyt fra @{domain} til {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Mappen er ikke tom. Tøm den først.",
     "delete_with_contents_title": "Mappen er ikke tom",
     "delete_with_contents_message": "Mappen \"{name}\" indeholder stadig {count, plural, one {1 besked} other {# beskeder}}. Slet mappen og alle dens beskeder? Dette kan ikke fortrydes.",
-    "delete_with_contents_confirm": "Slet mappe og beskeder"
+    "delete_with_contents_confirm": "Slet mappe og beskeder",
+    "hide_folder": "Skjul i sidepanelet"
   },
   "mail_p2_folders": {
     "all_folders": "Alle mapper",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Nævner \"{keyword}\", men ingen fil er vedhæftet",
     "warning_placeholders": "Pladsholdertekst, som modtagerne vil se:",
     "warning_proofreading": "Åbne stave- eller grammatikfejl: {count}",
+    "warning_account": "Svar fra {sending}, men beskeden kom til {received}",
+    "account_warning_title": "Svar fra en anden konto?",
+    "account_warning_message": "Denne besked kom til {received}. Svaret sendes fra {sending}.",
+    "account_warning_back": "Skift afsender",
     "empty_text_title": "Send uden tekst?",
     "empty_text_message": "Denne besked har ingen tekst og ingen vedhæftet fil. Send den alligevel?",
     "scheduled_for": "Planlagt til {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Ressource",
         "location": "Sted",
         "other": "Andet"
-      }
+      },
+      "filter_label": "Vis",
+      "filter_all": "Alle",
+      "filter_people": "Personer",
+      "filter_groups": "Grupper"
     },
     "title": "Kontakter",
     "disabled_title": "Kontakter er slået fra af din administrator",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Afmeld kalender?",
       "confirm": "Slet"
     },
+    "attachments": {
+      "title": "Vedhæftninger",
+      "add": "Tilføj fil",
+      "remove": "Fjern {name}",
+      "download": "Download {name}",
+      "unnamed": "Vedhæftet fil",
+      "download_failed": "Den vedhæftede fil kunne ikke hentes.",
+      "upload_failed": "En fil kunne ikke uploades. Begivenheden blev ikke gemt.",
+      "too_large": "\"{name}\" er større, end serveren tillader ({max} pr. fil)"
+    },
     "alerts": {
       "title": "Påmindelse",
       "none": "Ingen påmindelse",
@@ -5229,6 +5274,10 @@
       "working_days": "Arbejdsdage",
       "title": "Kalenderindstillinger",
       "default_view": "Kalenderen åbner i",
+      "default_event_length": "Standardlængde for begivenheder",
+      "default_event_length_desc": "Hvor lang en ny begivenhed er, når du klikker på et tidspunkt i kalenderen eller opretter en.",
+      "event_length_minutes": "{minutes} minutter",
+      "event_length_hours": "{hours, plural, one {# time} other {# timer}}",
       "week_starts_on": "Ugen starter på",
       "time_format": "Tidsformat",
       "default_calendar": "Standardkalender",
@@ -5528,6 +5577,8 @@
       "cancel": "Annuller",
       "save": "Gem",
       "quick_add_placeholder": "Tilføj en opgave...",
+      "add_subtask": "Tilføj underopgave…",
+      "subtask_of": "Underopgave til {title}",
       "due_today": "I dag",
       "due_tomorrow": "I morgen",
       "overdue": "Forfalden"
@@ -5678,6 +5729,25 @@
     "answered_by": "Besvaret af {who}",
     "organizer_owner": "{name} (sendt af dig)",
     "organizer_me": "Dig"
+  },
+  "calendar_forward": {
+    "menu": "Videresend…",
+    "heading": "Videresendt invitation",
+    "when": "Hvornår: {value}",
+    "where": "Hvor: {value}",
+    "organizer": "Arrangør: {value}",
+    "failed": "Invitationen kunne ikke videresendes.",
+    "add_replier": "Føj {name} til mødet",
+    "not_invited": "{name} er ikke inviteret til dette møde. Nogen har videresendt invitationen.",
+    "added": "Føjet til mødet"
+  },
+  "calendar_invitations": {
+    "title": "Invitationer",
+    "from": "Fra {name}"
+  },
+  "event_from_mail": {
+    "menu": "Opret begivenhed…",
+    "link_line": "E-mail: {link}"
   },
   "free_busy_share": {
     "button": "Del min ledig/optaget med {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "Kalender",
       "addressBook": "Adressebog",
       "file": "Fil"
-    }
+    },
+    "shared_items": "Det, du deler",
+    "stop_sharing": "Stop med at dele {item} med {name}",
+    "stop_sharing_title": "Stop med at dele {item} med {name}?",
+    "stop_sharing_message": "{name} mister adgangen til {item}. Alt andet, du deler med dem, bliver.",
+    "stop_sharing_confirm": "Stop deling",
+    "stopped_sharing": "{name} har ikke længere adgang til {item}",
+    "stop_sharing_failed": "Kunne ikke stoppe deling af {item}"
   },
   "advanced_search": {
     "title": "Avanceret søgning",
@@ -6100,6 +6177,11 @@
     "zipping": "Forbereder {name}",
     "download_canceled": "Download annulleret",
     "zip_error": "Kunne ikke downloade {name}",
+    "download_to_folder": "Download til en mappe…",
+    "downloading_to_folder": "Downloader til {folder}",
+    "downloaded_to_folder": "{count, plural, one {Gemte # fil i {folder}.} other {Gemte # filer i {folder}.}}",
+    "downloaded_to_folder_partial": "Gemte {saved} af {total} filer i {folder}.",
+    "download_to_folder_failed": "Filerne kunne ikke gemmes i {folder}.",
     "not_available": "Fillager er ikke tilgængeligt på denne server",
     "cancel": "Annuller",
     "create": "Opret",
@@ -7938,14 +8020,20 @@
       "added": "Adressen er tilføjet.",
       "saved": "Adressen er gemt.",
       "deleted": "Adressen er slettet.",
-      "delete_title": "Slet denne adresse?"
+      "delete_title": "Slet denne adresse?",
+      "offer_new_mail": "Tilbyd til ny post. Fra: bruges kun til at svare på post sendt til denne adresse.",
+      "offer_new_mail_named": "Tilbyd {address} til ny post"
     },
     "signatures": {
       "title": "Signaturer",
-      "description": "Tilføjes i slutningen af de beskeder, du skriver. Hver adresse har sin egen.",
+      "description": "Tilføjes i slutningen af de beskeder, du skriver. Hver adresse har sin egen eller bruger signaturen fra en anden adresse.",
       "saved": "Signaturen er gemt.",
       "error": "Signaturen kunne ikke gemmes. Prøv igen.",
-      "no_addresses": "Der er endnu ingen adresse at sende fra."
+      "no_addresses": "Der er endnu ingen adresse at sende fra.",
+      "use_label": "Signatur",
+      "own": "Sin egen signatur",
+      "same_as": "Samme som {address}",
+      "shared_note": "Bruger signaturen fra {address}. Rediger den dér."
     },
     "search": {
       "addresses": "identitet identiteter alias afsender afsenderadresse fra-adresse identity alias sender",

@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO je povoleno, ale nelze se připojit k poskytovateli identity. Zkontrolujte konfiguraci OAuth.",
       "oauth_issuer_mismatch": "Přihlášení přes tohoto poskytovatele není správně nastaveno. Správce musí nastavit jeho adresu vydavatele (issuer).",
       "token_exchange_failed": "Heslo a kód byly přijaty, ale poštovní server odmítl pro tuto aplikaci zahájit relaci. Požádejte správce o kontrolu nastavení klienta OAuth.",
-      "login_refused": "Poštovní server toto přihlášení odmítl dříve, než ověřil váš kód. Požádejte správce, aby zkontroloval nastavení klienta OAuth."
+      "login_refused": "Poštovní server toto přihlášení odmítl dříve, než ověřil váš kód. Požádejte správce, aby zkontroloval nastavení klienta OAuth.",
+      "primary_sign_in_required": "Nejdřív se přihlaste ke svému hlavnímu účtu. Tento server lze přidat jen jako další účet."
     },
     "show_password": "Zobrazit heslo",
     "hide_password": "Skrýt heslo",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Více hodnot oddělte čárkami."
   },
   "sidebar": {
+    "sign_in_again": "Přihlásit se znovu",
     "close": "Zavřít",
     "compose": "Napsat",
     "compose_hint": "Napsat (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Přidat další účet",
     "mv_manage_account": "Spravovat účet",
     "mv_storage_used": "Využito {percent} % z {total}",
-    "accessibility": "Přístupnost"
+    "accessibility": "Přístupnost",
+    "folder_hidden": "Složka je skrytá. Znovu ji zobrazíte v Nastavení › Složky a štítky.",
+    "folder_hide_failed": "Složku se nepodařilo skrýt."
   },
   "account_unread": {
     "others": "Nepřečtené v ostatních účtech: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Odpovědět všem",
     "forward_message": "Přeposlat",
     "from": "Od",
+    "from_account": "Účet: {name}",
     "to": "Komu",
     "cc": "Kopie",
     "bcc": "Skrytá kopie",
@@ -1182,6 +1187,7 @@
     "recipients_refused": "Neodesláno: server odmítl {recipients}.",
     "recipients_partly_refused": "Server odmítl {recipients}. Ostatní příjemci zprávu dostanou.",
     "send_offline": "Zdá se, že jste offline. Zpráva tu zůstává, odešlete ji znovu, až budete online.",
+    "archive_after_reply_queued": "Zpráva se odešle, až budete znovu online. Původní zpráva zůstane v doručené poště.",
     "formatting": "Formátování",
     "send_recipients_rejected": "Neodesláno – server odmítl všechny příjemce.",
     "send_plugin_failed": "Neodesláno – plugin, který zajišťuje odeslání, selhal nebo trval příliš dlouho. Před opětovným odesláním zkontrolujte složku Odeslané.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Zahrnout skupinové schránky",
-          "description": "Zahrnout do sjednoceného zobrazení také sdílené/skupinové schránky."
+          "description": "Zahrnout do sjednoceného zobrazení také sdílené/skupinové schránky.",
+          "accounts_label": "Sdílené schránky ve sjednocené schránce",
+          "accounts_description": "Odškrtněte schránku, kterou nečtete každý den. Zůstane v postranním panelu."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "Vždy zobrazovat zprávy ve světlém režimu",
-        "description": "Vykreslovat obsah e-mailu ve světlém režimu, i když je aplikace v tmavém režimu, aby se předešlo problémům s konverzí"
+        "description": "Zobrazovat e-maily i text, který píšete, na světlém pozadí, i když je aplikace v tmavém režimu"
       },
       "external_content": {
         "label": "Externí obsah",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Upozornění na zástupné texty",
         "description": "Před odesláním zprávy, která stále obsahuje zástupné texty jako [TIME] nebo [Vaše jméno], nevyplněná pole šablony nebo nedokončený text jako TODO či TBD, požádat o potvrzení."
+      },
+      "archive_after_reply": {
+        "label": "Po odpovědi archivovat",
+        "description": "Když odpovíte na zprávu v doručené poště nebo ji přepošlete, po odeslání vaší zprávy se archivuje."
       },
       "recipient_mentions": {
         "label": "Zmiňovat příjemce pomocí @",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, one {# adresa} few {# adresy} many {# adresy} other {# adres}}",
         "empty": "Zatím žádné maskované adresy.",
         "website": "Web (nepovinné)",
+        "domain": "Doména",
+        "domain_default": "Výchozí doména",
+        "domain_not_allowed": "Server pro váš účet nepovoluje maskované adresy v této doméně. Zvolte jinou doménu.",
         "description": "Popis (nepovinné)",
         "no_website": "Neuvedeno",
         "enabled": "Zapnuto",
@@ -2870,7 +2885,16 @@
       "error_delete": "Složku se nepodařilo odstranit",
       "error_delete_has_children": "Složku nelze odstranit: stále obsahuje podsložky. Nejprve je odstraňte nebo přesuňte.",
       "error_delete_has_email": "Složku nelze odstranit: stále obsahuje zprávy. Nejprve je přesuňte nebo odstraňte.",
-      "error_role": "Roli složky se nepodařilo aktualizovat"
+      "error_role": "Roli složky se nepodařilo aktualizovat",
+      "hide_unsubscribed": {
+        "label": "Skrýt neodebírané složky",
+        "description": "Složky, jejichž odběr zrušíte tady nebo v jiné aplikaci, například Thunderbirdu, zmizí z postranního panelu. Jejich pošta zůstane na serveru."
+      },
+      "show_folder": "Zobrazit v postranním panelu",
+      "hide_folder": "Skrýt z postranního panelu",
+      "show_folder_named": "Zobrazit {name} v postranním panelu",
+      "hide_folder_named": "Skrýt {name} z postranního panelu",
+      "error_subscription": "Složku se nepodařilo zobrazit ani skrýt."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Externí",
       "managed_by_tooltip": "Spravováno aplikací {source}. Úpravy provádějte v příslušné aplikaci nebo použijte editor zdrojového kódu Sieve.",
+      "server_rules": "Pravidla serveru",
+      "server_rules_description": "Přidal je váš poskytovatel pošty. Běží před vašimi filtry a tady je změnit nelze.",
       "quick_rule_names": {
         "move_sender": "Přesunout od {sender} do {folder}",
         "move_domain": "Přesunout od @{domain} do {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Složka není prázdná. Nejprve ji vyprázdněte.",
     "delete_with_contents_title": "Složka není prázdná",
     "delete_with_contents_message": "Složka „{name}“ stále obsahuje {count, plural, one {1 zprávu} few {# zprávy} other {# zpráv}}. Smazat složku i všechny její zprávy? Tuto akci nelze vrátit.",
-    "delete_with_contents_confirm": "Smazat složku i zprávy"
+    "delete_with_contents_confirm": "Smazat složku i zprávy",
+    "hide_folder": "Skrýt z postranního panelu"
   },
   "mail_p2_folders": {
     "all_folders": "Všechny složky",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Zmiňuje „{keyword}“, ale není připojen žádný soubor",
     "warning_placeholders": "Zástupný text, který příjemci uvidí:",
     "warning_proofreading": "Nevyřešené pravopisné či gramatické chyby: {count}",
+    "warning_account": "Odpověď z účtu {sending}, ale zpráva přišla na účet {received}",
+    "account_warning_title": "Odpovědět z jiného účtu?",
+    "account_warning_message": "Tato zpráva přišla na účet {received}. Odpověď se odešle z účtu {sending}.",
+    "account_warning_back": "Změnit odesílatele",
     "empty_text_title": "Odeslat bez textu?",
     "empty_text_message": "Tato zpráva nemá text ani přílohu. Přesto ji odeslat?",
     "scheduled_for": "Naplánováno na {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Prostředek",
         "location": "Místo",
         "other": "Jiné"
-      }
+      },
+      "filter_label": "Zobrazit",
+      "filter_all": "Vše",
+      "filter_people": "Lidé",
+      "filter_groups": "Skupiny"
     },
     "title": "Kontakty",
     "disabled_title": "Kontakty vypnul správce",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Zrušit odběr kalendáře?",
       "confirm": "Odstranit"
     },
+    "attachments": {
+      "title": "Přílohy",
+      "add": "Přidat soubor",
+      "remove": "Odebrat {name}",
+      "download": "Stáhnout {name}",
+      "unnamed": "Příloha",
+      "download_failed": "Přílohu se nepodařilo stáhnout.",
+      "upload_failed": "Soubor se nepodařilo nahrát. Událost nebyla uložena.",
+      "too_large": "„{name}“ je větší, než server povoluje ({max} na soubor)"
+    },
     "alerts": {
       "title": "Připomenutí",
       "none": "Žádné připomenutí",
@@ -5229,6 +5274,10 @@
       "working_days": "Pracovní dny",
       "title": "Nastavení kalendáře",
       "default_view": "Kalendář se otevře v",
+      "default_event_length": "Výchozí délka událostí",
+      "default_event_length_desc": "Jak dlouho trvá nová událost, když kliknete na čas v kalendáři nebo ji vytvoříte.",
+      "event_length_minutes": "{minutes} minut",
+      "event_length_hours": "{hours, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodin}}",
       "week_starts_on": "Týden začíná v",
       "time_format": "Formát času",
       "default_calendar": "Výchozí kalendář",
@@ -5502,6 +5551,8 @@
       "cancel": "Zrušit",
       "save": "Uložit",
       "quick_add_placeholder": "Přidat úkol...",
+      "add_subtask": "Přidat podúkol…",
+      "subtask_of": "Podúkol úkolu {title}",
       "due_today": "Dnes",
       "due_tomorrow": "Zítra",
       "overdue": "Po termínu"
@@ -5811,6 +5862,11 @@
     "zipping": "Připravuje se {name}",
     "download_canceled": "Stahování zrušeno",
     "zip_error": "{name} se nepodařilo stáhnout",
+    "download_to_folder": "Stáhnout do složky…",
+    "downloading_to_folder": "Stahování do složky {folder}",
+    "downloaded_to_folder": "{count, plural, one {Uložen # soubor do složky {folder}.} few {Uloženy # soubory do složky {folder}.} many {Uloženo # souboru do složky {folder}.} other {Uloženo # souborů do složky {folder}.}}",
+    "downloaded_to_folder_partial": "Uloženo {saved} z {total} souborů do složky {folder}.",
+    "download_to_folder_failed": "Soubory se nepodařilo uložit do složky {folder}.",
     "not_available": "Úložiště souborů není na tomto serveru k dispozici",
     "cancel": "Zrušit",
     "create": "Vytvořit",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name} (odesláno vámi)",
     "organizer_me": "Vy"
   },
+  "calendar_forward": {
+    "menu": "Přeposlat…",
+    "heading": "Přeposlaná pozvánka",
+    "when": "Kdy: {value}",
+    "where": "Kde: {value}",
+    "organizer": "Organizátor: {value}",
+    "failed": "Pozvánku se nepodařilo přeposlat.",
+    "add_replier": "Přidat {name} na schůzku",
+    "not_invited": "{name} na tuto schůzku není pozván. Někdo mu pozvánku přeposlal.",
+    "added": "Přidáno na schůzku"
+  },
+  "calendar_invitations": {
+    "title": "Pozvánky",
+    "from": "Od {name}"
+  },
+  "event_from_mail": {
+    "menu": "Vytvořit událost…",
+    "link_line": "E-mail: {link}"
+  },
   "free_busy_share": {
     "button": "Sdílet můj volný čas se skupinou {group}",
     "already": "Váš volný čas je sdílen se skupinou {group}",
@@ -6570,7 +6645,14 @@
       "calendar": "Kalendář",
       "addressBook": "Adresář",
       "file": "Soubor"
-    }
+    },
+    "shared_items": "Co sdílíte",
+    "stop_sharing": "Přestat sdílet {item} s {name}",
+    "stop_sharing_title": "Přestat sdílet {item} s {name}?",
+    "stop_sharing_message": "{name} ztratí přístup k {item}. Vše ostatní, co s nimi sdílíte, zůstane.",
+    "stop_sharing_confirm": "Přestat sdílet",
+    "stopped_sharing": "{name} už nemá přístup k {item}",
+    "stop_sharing_failed": "Sdílení {item} se nepodařilo zrušit"
   },
   "quote_header": {
     "reply_line": "Dne {date} napsal(a) {from}:",
@@ -7938,14 +8020,20 @@
       "added": "Adresa přidána.",
       "saved": "Adresa uložena.",
       "deleted": "Adresa smazána.",
-      "delete_title": "Smazat tuto adresu?"
+      "delete_title": "Smazat tuto adresu?",
+      "offer_new_mail": "Nabízet pro nové e-maily. Vypnuto: jen pro odpovědi na poštu poslanou na tuto adresu.",
+      "offer_new_mail_named": "Nabízet {address} pro nové e-maily"
     },
     "signatures": {
       "title": "Podpisy",
-      "description": "Přidá se na konec zpráv, které píšete. Každá adresa má svůj vlastní.",
+      "description": "Přidá se na konec zpráv, které píšete. Každá adresa má svůj vlastní, nebo používá podpis jiné adresy.",
       "saved": "Podpis uložen.",
       "error": "Podpis se nepodařilo uložit. Zkuste to znovu.",
-      "no_addresses": "Zatím nemáte adresu, ze které lze odesílat."
+      "no_addresses": "Zatím nemáte adresu, ze které lze odesílat.",
+      "use_label": "Podpis",
+      "own": "Vlastní podpis",
+      "same_as": "Stejný jako {address}",
+      "shared_note": "Používá podpis adresy {address}. Upravte ho tam."
     },
     "search": {
       "addresses": "identita identity alias aliasy odesílatel adresa odesílatele adresa od identity alias sender",

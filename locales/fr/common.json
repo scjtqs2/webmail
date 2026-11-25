@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "Le SSO est activé mais le fournisseur d'identité est injoignable. Vérifiez votre configuration OAuth.",
       "oauth_issuer_mismatch": "La connexion avec ce fournisseur n'est pas configurée correctement. L'administrateur doit définir son adresse d'émetteur (issuer).",
       "token_exchange_failed": "Votre mot de passe et votre code ont été acceptés, mais le serveur de messagerie a refusé d'ouvrir une session pour cette application. Demandez à votre administrateur de vérifier les paramètres de son client OAuth.",
-      "login_refused": "Le serveur de messagerie a refusé cette connexion avant de vérifier votre code. Demandez à votre administrateur de vérifier les paramètres de son client OAuth."
+      "login_refused": "Le serveur de messagerie a refusé cette connexion avant de vérifier votre code. Demandez à votre administrateur de vérifier les paramètres de son client OAuth.",
+      "primary_sign_in_required": "Connectez-vous d'abord à votre compte principal. Ce serveur ne peut être ajouté que comme compte supplémentaire."
     },
     "show_password": "Afficher le mot de passe",
     "hide_password": "Masquer le mot de passe",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Pour plusieurs valeurs, séparez-les par des virgules."
   },
   "sidebar": {
+    "sign_in_again": "Se reconnecter",
     "close": "Fermer",
     "compose": "Composer",
     "compose_hint": "Composer (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Ajouter un autre compte",
     "mv_manage_account": "Gérer votre compte",
     "mv_storage_used": "{percent} % de {total} utilisés",
-    "accessibility": "Accessibilité"
+    "accessibility": "Accessibilité",
+    "folder_hidden": "Dossier masqué. Vous pouvez le réafficher dans Paramètres › Dossiers et étiquettes.",
+    "folder_hide_failed": "Impossible de masquer le dossier."
   },
   "account_unread": {
     "others": "Non lus dans les autres comptes : {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Répondre à tous",
     "forward_message": "Transférer",
     "from": "De",
+    "from_account": "Compte : {name}",
     "to": "À",
     "cc": "Cc",
     "bcc": "CCI",
@@ -1189,6 +1194,7 @@
     "recipients_refused": "Non envoyé : le serveur a refusé {recipients}.",
     "recipients_partly_refused": "Le serveur a refusé {recipients}. Les autres destinataires reçoivent le message.",
     "send_offline": "Vous semblez hors ligne. Le message est toujours là ; renvoyez-le une fois de nouveau en ligne.",
+    "archive_after_reply_queued": "Votre message sera envoyé dès que vous serez de nouveau en ligne. L'original reste dans la boîte de réception.",
     "formatting": "Mise en forme",
     "send_recipients_rejected": "Non envoyé : le serveur a refusé tous les destinataires.",
     "send_plugin_failed": "Non envoyé : un plugin chargé de l'envoi a échoué ou a pris trop de temps. Vérifiez le dossier Envoyés avant de renvoyer le message.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Inclure les boîtes de groupe",
-          "description": "Inclure également les boîtes partagées ou de groupe dans la vue unifiée."
+          "description": "Inclure également les boîtes partagées ou de groupe dans la vue unifiée.",
+          "accounts_label": "Boîtes partagées dans la boîte unifiée",
+          "accounts_description": "Décochez une boîte que vous ne lisez pas tous les jours. Elle reste dans la barre latérale."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "Toujours afficher les e-mails en mode clair",
-        "description": "Afficher le contenu des e-mails en mode clair même lorsque l'application est en mode sombre, évitant les problèmes de conversion"
+        "description": "Afficher les e-mails, et le texte que vous écrivez, sur fond clair même lorsque l'application est en mode sombre"
       },
       "external_content": {
         "label": "Contenu externe",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Avertissement d'espaces réservés",
         "description": "Demander confirmation avant d'envoyer un message qui contient encore des espaces réservés comme [TIME] ou [Votre nom], des champs de modèle vides ou du texte inachevé comme TODO ou TBD."
+      },
+      "archive_after_reply": {
+        "label": "Archiver après la réponse",
+        "description": "Lorsque vous répondez à un message de la boîte de réception ou le transférez, il est archivé une fois votre message envoyé."
       },
       "recipient_mentions": {
         "label": "Mentionner les destinataires avec @",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, one {# adresse} other {# adresses}}",
         "empty": "Aucune adresse masquée pour l'instant.",
         "website": "Site web (facultatif)",
+        "domain": "Domaine",
+        "domain_default": "Domaine par défaut",
+        "domain_not_allowed": "Le serveur n'autorise pas d'adresses masquées sur ce domaine pour votre compte. Choisissez un autre domaine.",
         "description": "Description (facultatif)",
         "no_website": "Non renseigné",
         "enabled": "Activée",
@@ -2870,7 +2885,16 @@
       "error_delete": "Échec de la suppression du dossier",
       "error_delete_has_children": "Impossible de supprimer le dossier : il contient encore des sous-dossiers. Supprimez-les ou déplacez-les d'abord.",
       "error_delete_has_email": "Impossible de supprimer le dossier : il contient encore des e-mails. Déplacez-les ou supprimez-les d'abord.",
-      "error_role": "Échec de la mise à jour du rôle du dossier"
+      "error_role": "Échec de la mise à jour du rôle du dossier",
+      "hide_unsubscribed": {
+        "label": "Masquer les dossiers non abonnés",
+        "description": "Les dossiers dont vous vous désabonnez ici ou dans une autre application, comme Thunderbird, quittent la barre latérale. Leurs messages restent sur le serveur."
+      },
+      "show_folder": "Afficher dans la barre latérale",
+      "hide_folder": "Masquer de la barre latérale",
+      "show_folder_named": "Afficher {name} dans la barre latérale",
+      "hide_folder_named": "Masquer {name} de la barre latérale",
+      "error_subscription": "Impossible d'afficher ou de masquer le dossier."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Externe",
       "managed_by_tooltip": "Géré par {source}. Modifiez-le dans cette application, ou utilisez l'éditeur Sieve brut.",
+      "server_rules": "Règles du serveur",
+      "server_rules_description": "Votre fournisseur de messagerie les a ajoutées. Elles s'appliquent avant vos filtres et ne peuvent pas être modifiées ici.",
       "quick_rule_names": {
         "move_sender": "Déplacer de {sender} vers {folder}",
         "move_domain": "Déplacer de @{domain} vers {folder}",
@@ -4208,7 +4234,8 @@
     "delete_with_contents_confirm": "Supprimer le dossier et les messages",
     "placeholder_folder_name": "Nom du dossier",
     "create": "Créer",
-    "rename_confirm": "Renommer"
+    "rename_confirm": "Renommer",
+    "hide_folder": "Masquer de la barre latérale"
   },
   "mail_p2_folders": {
     "all_folders": "Tous les dossiers",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Mentionne « {keyword} », mais aucun fichier n'est joint",
     "warning_placeholders": "Texte de remplacement que les destinataires verront :",
     "warning_proofreading": "Fautes d'orthographe ou de grammaire restantes : {count}",
+    "warning_account": "Réponse depuis {sending}, mais le message est arrivé sur {received}",
+    "account_warning_title": "Répondre depuis un autre compte ?",
+    "account_warning_message": "Ce message est arrivé sur {received}. La réponse sera envoyée depuis {sending}.",
+    "account_warning_back": "Changer l'expéditeur",
     "empty_text_title": "Envoyer sans texte ?",
     "empty_text_message": "Ce message n'a ni texte ni pièce jointe. L'envoyer quand même ?",
     "scheduled_for": "Programmé pour {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Ressource",
         "location": "Lieu",
         "other": "Autre"
-      }
+      },
+      "filter_label": "Afficher",
+      "filter_all": "Tout",
+      "filter_people": "Personnes",
+      "filter_groups": "Groupes"
     },
     "title": "Contacts",
     "disabled_title": "Les contacts ont été désactivés par votre administrateur",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Se désabonner du calendrier ?",
       "confirm": "Supprimer"
     },
+    "attachments": {
+      "title": "Pièces jointes",
+      "add": "Ajouter un fichier",
+      "remove": "Retirer {name}",
+      "download": "Télécharger {name}",
+      "unnamed": "Pièce jointe",
+      "download_failed": "Impossible de télécharger la pièce jointe.",
+      "upload_failed": "Un fichier n'a pas pu être envoyé. L'événement n'a pas été enregistré.",
+      "too_large": "« {name} » dépasse la taille autorisée par le serveur ({max} par fichier)"
+    },
     "alerts": {
       "title": "Rappel",
       "none": "Aucun rappel",
@@ -5229,6 +5274,10 @@
       "working_days": "Jours travaillés",
       "title": "Paramètres du calendrier",
       "default_view": "Le calendrier s'ouvre en",
+      "default_event_length": "Durée par défaut des événements",
+      "default_event_length_desc": "La durée d'un nouvel événement quand vous cliquez sur une heure du calendrier ou en créez un.",
+      "event_length_minutes": "{minutes} minutes",
+      "event_length_hours": "{hours, plural, one {# heure} other {# heures}}",
       "week_starts_on": "La semaine commence le",
       "time_format": "Format de l'heure",
       "default_calendar": "Calendrier par défaut",
@@ -5528,6 +5577,8 @@
       "cancel": "Annuler",
       "save": "Enregistrer",
       "quick_add_placeholder": "Ajouter une tâche...",
+      "add_subtask": "Ajouter une sous-tâche…",
+      "subtask_of": "Sous-tâche de {title}",
       "due_today": "Échéance aujourd'hui",
       "due_tomorrow": "Échéance demain",
       "overdue": "En retard"
@@ -5811,6 +5862,11 @@
     "zipping": "Préparation de {name}",
     "download_canceled": "Téléchargement annulé",
     "zip_error": "Impossible de télécharger {name}",
+    "download_to_folder": "Télécharger dans un dossier…",
+    "downloading_to_folder": "Téléchargement dans {folder}",
+    "downloaded_to_folder": "{count, plural, one {# fichier enregistré dans {folder}.} other {# fichiers enregistrés dans {folder}.}}",
+    "downloaded_to_folder_partial": "{saved} fichiers sur {total} enregistrés dans {folder}.",
+    "download_to_folder_failed": "Impossible d'enregistrer les fichiers dans {folder}.",
     "not_available": "Le stockage de fichiers n'est pas disponible sur ce serveur",
     "cancel": "Annuler",
     "create": "Créer",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name} (envoyé par vous)",
     "organizer_me": "Vous"
   },
+  "calendar_forward": {
+    "menu": "Transférer…",
+    "heading": "Invitation transférée",
+    "when": "Quand : {value}",
+    "where": "Où : {value}",
+    "organizer": "Organisateur : {value}",
+    "failed": "Impossible de transférer l'invitation.",
+    "add_replier": "Ajouter {name} à la réunion",
+    "not_invited": "{name} n'est pas invité à cette réunion. Quelqu'un lui a transféré l'invitation.",
+    "added": "Ajouté à la réunion"
+  },
+  "calendar_invitations": {
+    "title": "Invitations",
+    "from": "De {name}"
+  },
+  "event_from_mail": {
+    "menu": "Créer un événement…",
+    "link_line": "E-mail : {link}"
+  },
   "free_busy_share": {
     "button": "Partager mes disponibilités avec {group}",
     "already": "Vos disponibilités sont partagées avec {group}",
@@ -6570,7 +6645,14 @@
       "calendar": "Calendrier",
       "addressBook": "Carnet d'adresses",
       "file": "Fichier"
-    }
+    },
+    "shared_items": "Ce que vous partagez",
+    "stop_sharing": "Ne plus partager {item} avec {name}",
+    "stop_sharing_title": "Ne plus partager {item} avec {name} ?",
+    "stop_sharing_message": "{name} perd l'accès à {item}. Tout le reste de ce que vous partagez est conservé.",
+    "stop_sharing_confirm": "Ne plus partager",
+    "stopped_sharing": "{name} n'a plus accès à {item}",
+    "stop_sharing_failed": "Impossible d'arrêter le partage de {item}"
   },
   "quote_header": {
     "reply_line": "Le {date}, {from} a écrit :",
@@ -7938,14 +8020,20 @@
       "added": "Adresse ajoutée.",
       "saved": "Adresse enregistrée.",
       "deleted": "Adresse supprimée.",
-      "delete_title": "Supprimer cette adresse ?"
+      "delete_title": "Supprimer cette adresse ?",
+      "offer_new_mail": "Proposer pour les nouveaux e-mails. Désactivé : seulement pour répondre aux e-mails envoyés à cette adresse.",
+      "offer_new_mail_named": "Proposer {address} pour les nouveaux e-mails"
     },
     "signatures": {
       "title": "Signatures",
-      "description": "Ajoutée à la fin des messages que vous écrivez. Chaque adresse a la sienne.",
+      "description": "Ajoutée à la fin des messages que vous écrivez. Chaque adresse a la sienne ou utilise la signature d'une autre adresse.",
       "saved": "Signature enregistrée.",
       "error": "La signature n'a pas pu être enregistrée. Réessayez.",
-      "no_addresses": "Vous n'avez encore aucune adresse d'envoi."
+      "no_addresses": "Vous n'avez encore aucune adresse d'envoi.",
+      "use_label": "Signature",
+      "own": "Sa propre signature",
+      "same_as": "La même que {address}",
+      "shared_note": "Utilise la signature de {address}. Modifiez-la là-bas."
     },
     "search": {
       "addresses": "identité identités alias expéditeur adresse d'expédition adresse de l'expéditeur identity alias sender",

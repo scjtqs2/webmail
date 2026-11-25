@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "El SSO està activat, però no s'ha pogut contactar amb el proveïdor d'identitat. Comproveu la configuració d'OAuth.",
       "oauth_issuer_mismatch": "L'inici de sessió amb aquest proveïdor no està ben configurat. L'administrador n'ha de definir l'adreça de l'emissor (issuer).",
       "token_exchange_failed": "La contrasenya i el codi s'han acceptat, però el servidor de correu s'ha negat a iniciar una sessió per a aquesta aplicació. Demaneu a l'administrador que revisi la configuració del client OAuth.",
-      "login_refused": "El servidor de correu ha rebutjat aquest inici de sessió abans de comprovar el codi. Demaneu a l'administrador que revisi la configuració del client OAuth."
+      "login_refused": "El servidor de correu ha rebutjat aquest inici de sessió abans de comprovar el codi. Demaneu a l'administrador que revisi la configuració del client OAuth.",
+      "primary_sign_in_required": "Primer inicieu la sessió al vostre compte principal. Aquest servidor només es pot afegir com a compte addicional."
     },
     "show_password": "Mostra la contrasenya",
     "hide_password": "Amaga la contrasenya",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Per coincidir amb diversos valors, separeu-los amb comes."
   },
   "sidebar": {
+    "sign_in_again": "Torna a iniciar la sessió",
     "close": "Tanca",
     "compose": "Redacta",
     "compose_hint": "Redacta (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Afegeix un altre compte",
     "mv_manage_account": "Gestiona el teu compte",
     "mv_storage_used": "{percent}% de {total} utilitzat",
-    "accessibility": "Accessibilitat"
+    "accessibility": "Accessibilitat",
+    "folder_hidden": "Carpeta amagada. La podeu tornar a mostrar a Configuració › Carpetes i etiquetes.",
+    "folder_hide_failed": "No s'ha pogut amagar la carpeta."
   },
   "account_unread": {
     "others": "Sense llegir en altres comptes: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Respon a tots",
     "forward_message": "Reenvia",
     "from": "De",
+    "from_account": "Compte: {name}",
     "to": "Per a",
     "cc": "Cc",
     "bcc": "CCO",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "No s'ha enviat: el servidor ha rebutjat {recipients}.",
     "recipients_partly_refused": "El servidor ha rebutjat {recipients}. Els altres destinataris reben el missatge.",
     "send_offline": "Sembla que no tens connexió. El missatge continua aquí; torna a enviar-lo quan tornis a estar en línia.",
+    "archive_after_reply_queued": "El missatge s'enviarà quan torneu a estar en línia. L'original es queda a la safata d'entrada.",
     "formatting": "Format",
     "send_recipients_rejected": "No s'ha enviat: el servidor ha rebutjat tots els destinataris.",
     "send_plugin_failed": "No s'ha enviat: un connector que gestiona l'enviament ha fallat o ha trigat massa. Comprova la carpeta Enviats abans de tornar-ho a enviar.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "Inclou les safates d'entrada de grup",
-          "description": "Combina també les safates d'entrada compartides o de grup a la vista unificada."
+          "description": "Combina també les safates d'entrada compartides o de grup a la vista unificada.",
+          "accounts_label": "Bústies compartides a la bústia unificada",
+          "accounts_description": "Desmarqueu una bústia que no llegiu cada dia. Continua a la barra lateral."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "Mostra sempre els correus en mode clar",
-        "description": "Renderitza el contingut del correu en mode clar encara que l'aplicació estigui en mode fosc, evitant problemes de conversió del mode fosc"
+        "description": "Mostra els correus, i el text que escrius, sobre un fons clar encara que l'aplicació estigui en mode fosc"
       },
       "external_content": {
         "label": "Contingut extern",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "Avís de marcadors",
         "description": "Demana confirmació abans d'enviar un missatge que encara té marcadors com [TIME] o [El teu nom], camps de plantilla buits o text inacabat com TODO o TBD."
+      },
+      "archive_after_reply": {
+        "label": "Arxiva després de respondre",
+        "description": "Quan responeu o reenvieu un missatge de la safata d'entrada, s'arxiva un cop enviat el vostre missatge."
       },
       "recipient_mentions": {
         "label": "Esmentar destinataris amb @",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, one {# adreça} other {# adreces}}",
         "empty": "Encara no hi ha cap adreça emmascarada.",
         "website": "Lloc web (opcional)",
+        "domain": "Domini",
+        "domain_default": "Domini predeterminat",
+        "domain_not_allowed": "El servidor no permet adreces emmascarades en aquest domini per al vostre compte. Trieu un altre domini.",
         "description": "Descripció (opcional)",
         "no_website": "No especificat",
         "enabled": "Activada",
@@ -2877,7 +2892,16 @@
       "error_delete": "No s'ha pogut suprimir la carpeta",
       "error_delete_has_children": "No es pot suprimir la carpeta: encara conté subcarpetes. Suprimiu-les o moveu-les primer.",
       "error_delete_has_email": "No es pot suprimir la carpeta: encara conté correus. Moveu-los o suprimiu-los primer.",
-      "error_role": "No s'ha pogut actualitzar el rol de la carpeta"
+      "error_role": "No s'ha pogut actualitzar el rol de la carpeta",
+      "hide_unsubscribed": {
+        "label": "Amaga les carpetes no subscrites",
+        "description": "Les carpetes de les quals us doneu de baixa aquí o en una altra aplicació, com ara Thunderbird, surten de la barra lateral. El correu es queda al servidor."
+      },
+      "show_folder": "Mostra a la barra lateral",
+      "hide_folder": "Amaga de la barra lateral",
+      "show_folder_named": "Mostra {name} a la barra lateral",
+      "hide_folder_named": "Amaga {name} de la barra lateral",
+      "error_subscription": "No s'ha pogut mostrar ni amagar la carpeta."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "Extern",
       "managed_by_tooltip": "Gestionat per {source}. Editeu-ho en aquesta aplicació, o utilitzeu l'editor Sieve en brut.",
+      "server_rules": "Regles del servidor",
+      "server_rules_description": "Les ha afegit el vostre proveïdor de correu. S'executen abans dels vostres filtres i no es poden canviar aquí.",
       "quick_rule_names": {
         "move_sender": "Mou de {sender} a {folder}",
         "move_domain": "Mou de @{domain} a {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "La carpeta no és buida. Buideu-la primer.",
     "delete_with_contents_title": "La carpeta no està buida",
     "delete_with_contents_message": "La carpeta \"{name}\" encara conté {count, plural, one {1 missatge} other {# missatges}}. Vols suprimir la carpeta i tots els seus missatges? No es pot desfer.",
-    "delete_with_contents_confirm": "Suprimeix la carpeta i els missatges"
+    "delete_with_contents_confirm": "Suprimeix la carpeta i els missatges",
+    "hide_folder": "Amaga de la barra lateral"
   },
   "mail_p2_folders": {
     "all_folders": "Totes les carpetes",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Esmenta «{keyword}», però no hi ha cap fitxer adjunt",
     "warning_placeholders": "Text de mostra que veuran els destinataris:",
     "warning_proofreading": "Errors d'ortografia o gramàtica pendents: {count}",
+    "warning_account": "Resposta des de {sending}, però el missatge va arribar a {received}",
+    "account_warning_title": "Respondre des d'un altre compte?",
+    "account_warning_message": "Aquest missatge va arribar a {received}. La resposta s'enviarà des de {sending}.",
+    "account_warning_back": "Canvia el remitent",
     "empty_text_title": "Vols enviar-lo sense text?",
     "empty_text_message": "Aquest missatge no té text ni cap fitxer adjunt. Vols enviar-lo igualment?",
     "scheduled_for": "Programat per a {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Recurs",
         "location": "Ubicació",
         "other": "Altre"
-      }
+      },
+      "filter_label": "Mostra",
+      "filter_all": "Tots",
+      "filter_people": "Persones",
+      "filter_groups": "Grups"
     },
     "title": "Contactes",
     "disabled_title": "L'administrador ha desactivat els contactes",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Voleu cancel·lar la subscripció al calendari?",
       "confirm": "Suprimeix"
     },
+    "attachments": {
+      "title": "Fitxers adjunts",
+      "add": "Afegeix un fitxer",
+      "remove": "Treu {name}",
+      "download": "Baixa {name}",
+      "unnamed": "Fitxer adjunt",
+      "download_failed": "No s'ha pogut baixar el fitxer adjunt.",
+      "upload_failed": "No s'ha pogut pujar un fitxer. L'esdeveniment no s'ha desat.",
+      "too_large": "«{name}» supera la mida que permet el servidor ({max} per fitxer)"
+    },
     "alerts": {
       "title": "Recordatoris",
       "none": "Cap recordatori",
@@ -5229,6 +5274,10 @@
       "working_days": "Dies laborables",
       "title": "Configuració del calendari",
       "default_view": "El calendari s'obre a",
+      "default_event_length": "Durada predeterminada dels esdeveniments",
+      "default_event_length_desc": "Quant dura un esdeveniment nou quan feu clic en una hora del calendari o en creeu un.",
+      "event_length_minutes": "{minutes} minuts",
+      "event_length_hours": "{hours, plural, one {# hora} other {# hores}}",
       "week_starts_on": "La setmana comença el",
       "time_format": "Format d'hora",
       "default_calendar": "Calendari predeterminat",
@@ -5531,6 +5580,8 @@
       "cancel": "Cancel·la",
       "save": "Desa",
       "quick_add_placeholder": "Afegiu una tasca...",
+      "add_subtask": "Afegeix una subtasca…",
+      "subtask_of": "Subtasca de {title}",
       "due_today": "Avui",
       "due_tomorrow": "Demà",
       "overdue": "Vençuda"
@@ -5678,6 +5729,25 @@
     "answered_by": "Resposta de {who}",
     "organizer_owner": "{name} (enviat per vós)",
     "organizer_me": "Vós"
+  },
+  "calendar_forward": {
+    "menu": "Reenvia…",
+    "heading": "Invitació reenviada",
+    "when": "Quan: {value}",
+    "where": "On: {value}",
+    "organizer": "Organitzador: {value}",
+    "failed": "No s'ha pogut reenviar la invitació.",
+    "add_replier": "Afegeix {name} a la reunió",
+    "not_invited": "{name} no està convidat a aquesta reunió. Algú li ha reenviat la invitació.",
+    "added": "Afegit a la reunió"
+  },
+  "calendar_invitations": {
+    "title": "Invitacions",
+    "from": "De {name}"
+  },
+  "event_from_mail": {
+    "menu": "Crea un esdeveniment…",
+    "link_line": "Correu: {link}"
   },
   "free_busy_share": {
     "button": "Comparteix la meva disponibilitat amb {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "Calendari",
       "addressBook": "Llibreta d'adreces",
       "file": "Fitxer"
-    }
+    },
+    "shared_items": "El que compartiu",
+    "stop_sharing": "Deixa de compartir {item} amb {name}",
+    "stop_sharing_title": "Voleu deixar de compartir {item} amb {name}?",
+    "stop_sharing_message": "{name} perd l'accés a {item}. La resta del que hi compartiu es manté.",
+    "stop_sharing_confirm": "Deixa de compartir",
+    "stopped_sharing": "{name} ja no té accés a {item}",
+    "stop_sharing_failed": "No s'ha pogut deixar de compartir {item}"
   },
   "advanced_search": {
     "title": "Cerca avançada",
@@ -6101,6 +6178,11 @@
     "zipping": "S'està preparant {name}",
     "download_canceled": "S'ha cancel·lat la baixada",
     "zip_error": "No s'ha pogut baixar {name}",
+    "download_to_folder": "Baixa a una carpeta…",
+    "downloading_to_folder": "S'està baixant a {folder}",
+    "downloaded_to_folder": "{count, plural, one {S'ha desat # fitxer a {folder}.} other {S'han desat # fitxers a {folder}.}}",
+    "downloaded_to_folder_partial": "S'han desat {saved} de {total} fitxers a {folder}.",
+    "download_to_folder_failed": "No s'han pogut desar els fitxers a {folder}.",
     "not_available": "L'emmagatzematge de fitxers no està disponible en aquest servidor",
     "cancel": "Cancel·la",
     "create": "Crea",
@@ -7938,14 +8020,20 @@
       "added": "S'ha afegit l'adreça.",
       "saved": "S'ha desat l'adreça.",
       "deleted": "S'ha suprimit l'adreça.",
-      "delete_title": "Voleu suprimir aquesta adreça?"
+      "delete_title": "Voleu suprimir aquesta adreça?",
+      "offer_new_mail": "Oferir per a correus nous. Desactivat: només per respondre correus enviats a aquesta adreça.",
+      "offer_new_mail_named": "Oferir {address} per a correus nous"
     },
     "signatures": {
       "title": "Signatures",
-      "description": "S'afegeix al final dels missatges que escriviu. Cada adreça té la seva.",
+      "description": "S'afegeix al final dels missatges que escriviu. Cada adreça té la seva o fa servir la signatura d'una altra adreça.",
       "saved": "S'ha desat la signatura.",
       "error": "No s'ha pogut desar la signatura. Torneu-ho a provar.",
-      "no_addresses": "Encara no teniu cap adreça per enviar."
+      "no_addresses": "Encara no teniu cap adreça per enviar.",
+      "use_label": "Signatura",
+      "own": "La seva pròpia signatura",
+      "same_as": "La mateixa que {address}",
+      "shared_note": "Fa servir la signatura de {address}. Editeu-la allà."
     },
     "search": {
       "addresses": "identitat identitats àlies remitent adreça del remitent adreça de identity alias sender",

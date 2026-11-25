@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO er aktivert, men identitetsleverandøren kunne ikke nås. Sjekk OAuth-konfigurasjonen.",
       "oauth_issuer_mismatch": "Innlogging med denne leverandøren er ikke satt opp riktig. Administratoren må angi leverandørens issuer-adresse.",
       "token_exchange_failed": "Passordet og koden ble godtatt, men e-postserveren nektet å starte en økt for denne appen. Be administratoren din om å sjekke OAuth-klientinnstillingene.",
-      "login_refused": "E-postserveren avviste denne påloggingen før den sjekket koden din. Be administratoren din om å sjekke OAuth-klientinnstillingene."
+      "login_refused": "E-postserveren avviste denne påloggingen før den sjekket koden din. Be administratoren din om å sjekke OAuth-klientinnstillingene.",
+      "primary_sign_in_required": "Logg først inn på hovedkontoen din. Denne serveren kan bare legges til som en ekstra konto."
     },
     "show_password": "Vis passord",
     "hide_password": "Skjul passord",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Skill flere verdier med komma."
   },
   "sidebar": {
+    "sign_in_again": "Logg inn igjen",
     "close": "Lukk",
     "compose": "Skriv",
     "compose_hint": "Skriv (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Legg til en annen konto",
     "mv_manage_account": "Administrer kontoen",
     "mv_storage_used": "{percent} % av {total} brukt",
-    "accessibility": "Tilgjengelighet"
+    "accessibility": "Tilgjengelighet",
+    "folder_hidden": "Mappen er skjult. Vis den igjen under Innstillinger › Mapper og etiketter.",
+    "folder_hide_failed": "Kunne ikke skjule mappen."
   },
   "account_unread": {
     "others": "Uleste i andre kontoer: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Svar alle",
     "forward_message": "Videresend",
     "from": "Fra",
+    "from_account": "Konto: {name}",
     "to": "Til",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "Ikke sendt: serveren avviste {recipients}.",
     "recipients_partly_refused": "Serveren avviste {recipients}. De andre mottakerne får meldingen.",
     "send_offline": "Du ser ut til å være frakoblet. Meldingen er her fortsatt, send den på nytt når du er tilkoblet igjen.",
+    "archive_after_reply_queued": "Meldingen sendes når du er tilkoblet igjen. Originalen blir liggende i innboksen.",
     "formatting": "Formatering",
     "send_recipients_rejected": "Ikke sendt – serveren avviste alle mottakerne.",
     "send_plugin_failed": "Ikke sendt - et tillegg som står for sendingen, mislyktes eller brukte for lang tid. Sjekk Sendt-mappen før du sender på nytt.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "Ta med gruppeinnbokser",
-          "description": "Ta også med delte innbokser og gruppeinnbokser i den samlede visningen."
+          "description": "Ta også med delte innbokser og gruppeinnbokser i den samlede visningen.",
+          "accounts_label": "Delte postbokser i den samlede postboksen",
+          "accounts_description": "Fjern haken ved en postboks du ikke leser hver dag. Den blir værende i sidepanelet."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "Vis alltid e-poster i lysmodus",
-        "description": "Vis e-postinnhold i lys modus selv når programmet bruker mørk modus. Dette unngår problemer ved konvertering til mørk modus."
+        "description": "Vis e-post, og teksten du skriver, på lys bakgrunn selv når appen bruker mørk modus"
       },
       "external_content": {
         "label": "Eksternt innhold",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "Advarsel om plassholdere",
         "description": "Be om bekreftelse før du sender en melding som fortsatt har plassholdere som [TIME] eller [Ditt navn], tomme malfelt eller uferdig tekst som TODO eller TBD."
+      },
+      "archive_after_reply": {
+        "label": "Arkiver etter svar",
+        "description": "Når du svarer på eller videresender en melding i innboksen, arkiveres den når meldingen din er sendt."
       },
       "recipient_mentions": {
         "label": "Nevn mottakere med @",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, one {# adresse} other {# adresser}}",
         "empty": "Ingen maskerte adresser ennå.",
         "website": "Nettsted (valgfritt)",
+        "domain": "Domene",
+        "domain_default": "Standarddomene",
+        "domain_not_allowed": "Serveren tillater ikke maskerte adresser på dette domenet for kontoen din. Velg et annet domene.",
         "description": "Beskrivelse (valgfritt)",
         "no_website": "Ikke angitt",
         "enabled": "Aktivert",
@@ -2877,7 +2892,16 @@
       "error_delete": "Kunne ikke slette mappen",
       "error_delete_has_children": "Kan ikke slette mappen: den inneholder fortsatt undermapper. Slett eller flytt dem først.",
       "error_delete_has_email": "Kan ikke slette mappen: den inneholder fortsatt e-poster. Flytt eller slett dem først.",
-      "error_role": "Kunne ikke oppdatere mapperollen"
+      "error_role": "Kunne ikke oppdatere mapperollen",
+      "hide_unsubscribed": {
+        "label": "Skjul mapper du ikke abonnerer på",
+        "description": "Mapper du avslutter abonnementet på her eller i en annen app, som Thunderbird, forsvinner fra sidepanelet. E-posten deres blir liggende på serveren."
+      },
+      "show_folder": "Vis i sidepanelet",
+      "hide_folder": "Skjul fra sidepanelet",
+      "show_folder_named": "Vis {name} i sidepanelet",
+      "hide_folder_named": "Skjul {name} fra sidepanelet",
+      "error_subscription": "Kunne ikke vise eller skjule mappen."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "Ekstern",
       "managed_by_tooltip": "Denne regelen administreres av {source}. Rediger den der, eller bruk redigereren for rå Sieve-kode.",
+      "server_rules": "Serverregler",
+      "server_rules_description": "E-postleverandøren din har lagt dem til. De kjører før filtrene dine og kan ikke endres her.",
       "quick_rule_names": {
         "move_sender": "Flytt fra {sender} til {folder}",
         "move_domain": "Flytt fra @{domain} til {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Mappen er ikke tom. Tøm den først.",
     "delete_with_contents_title": "Mappen er ikke tom",
     "delete_with_contents_message": "Mappen «{name}» inneholder fortsatt {count, plural, one {1 melding} other {# meldinger}}. Slette mappen og alle meldingene i den? Dette kan ikke angres.",
-    "delete_with_contents_confirm": "Slett mappe og meldinger"
+    "delete_with_contents_confirm": "Slett mappe og meldinger",
+    "hide_folder": "Skjul fra sidepanelet"
   },
   "mail_p2_folders": {
     "all_folders": "Alle mapper",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Nevner «{keyword}», men ingen fil er lagt ved",
     "warning_placeholders": "Plassholdertekst som mottakerne vil se:",
     "warning_proofreading": "Åpne stave- eller grammatikkfeil: {count}",
+    "warning_account": "Svar fra {sending}, men meldingen kom til {received}",
+    "account_warning_title": "Svare fra en annen konto?",
+    "account_warning_message": "Denne meldingen kom til {received}. Svaret sendes fra {sending}.",
+    "account_warning_back": "Bytt avsender",
     "empty_text_title": "Sende uten tekst?",
     "empty_text_message": "Denne meldingen har verken tekst eller vedlegg. Sende den likevel?",
     "scheduled_for": "Planlagt til {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Ressurs",
         "location": "Sted",
         "other": "Annet"
-      }
+      },
+      "filter_label": "Vis",
+      "filter_all": "Alle",
+      "filter_people": "Personer",
+      "filter_groups": "Grupper"
     },
     "title": "Kontakter",
     "disabled_title": "Kontakter er slått av av administratoren",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Vil du fjerne abonnementet på kalenderen?",
       "confirm": "Slett"
     },
+    "attachments": {
+      "title": "Vedlegg",
+      "add": "Legg til fil",
+      "remove": "Fjern {name}",
+      "download": "Last ned {name}",
+      "unnamed": "Vedlegg",
+      "download_failed": "Vedlegget kunne ikke lastes ned.",
+      "upload_failed": "En fil kunne ikke lastes opp. Hendelsen ble ikke lagret.",
+      "too_large": "«{name}» er større enn serveren tillater ({max} per fil)"
+    },
     "alerts": {
       "title": "Påminnelser",
       "none": "Ingen påminnelser",
@@ -5229,6 +5274,10 @@
       "working_days": "Arbeidsdager",
       "title": "Kalenderinnstillinger",
       "default_view": "Kalenderen åpner i",
+      "default_event_length": "Standard varighet for hendelser",
+      "default_event_length_desc": "Hvor lenge en ny hendelse varer når du klikker på et klokkeslett i kalenderen eller oppretter en.",
+      "event_length_minutes": "{minutes} minutter",
+      "event_length_hours": "{hours, plural, one {# time} other {# timer}}",
       "week_starts_on": "Uken starter på",
       "time_format": "Tidsformat",
       "default_calendar": "Standardkalender",
@@ -5531,6 +5580,8 @@
       "cancel": "Avbryt",
       "save": "Lagre",
       "quick_add_placeholder": "Legg til en oppgave...",
+      "add_subtask": "Legg til deloppgave…",
+      "subtask_of": "Deloppgave av {title}",
       "due_today": "I dag",
       "due_tomorrow": "I morgen",
       "overdue": "Forfalt"
@@ -5678,6 +5729,25 @@
     "answered_by": "Besvart av {who}",
     "organizer_owner": "{name} (sendt av deg)",
     "organizer_me": "Deg"
+  },
+  "calendar_forward": {
+    "menu": "Videresend…",
+    "heading": "Videresendt invitasjon",
+    "when": "Når: {value}",
+    "where": "Hvor: {value}",
+    "organizer": "Arrangør: {value}",
+    "failed": "Invitasjonen kunne ikke videresendes.",
+    "add_replier": "Legg {name} til i møtet",
+    "not_invited": "{name} er ikke invitert til dette møtet. Noen har videresendt invitasjonen.",
+    "added": "Lagt til i møtet"
+  },
+  "calendar_invitations": {
+    "title": "Invitasjoner",
+    "from": "Fra {name}"
+  },
+  "event_from_mail": {
+    "menu": "Opprett hendelse…",
+    "link_line": "E-post: {link}"
   },
   "free_busy_share": {
     "button": "Del min ledig/opptatt med {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "Kalender",
       "addressBook": "Adressebok",
       "file": "Fil"
-    }
+    },
+    "shared_items": "Det du deler",
+    "stop_sharing": "Slutt å dele {item} med {name}",
+    "stop_sharing_title": "Slutte å dele {item} med {name}?",
+    "stop_sharing_message": "{name} mister tilgangen til {item}. Alt annet du deler med dem, blir værende.",
+    "stop_sharing_confirm": "Slutt å dele",
+    "stopped_sharing": "{name} har ikke lenger tilgang til {item}",
+    "stop_sharing_failed": "Kunne ikke slutte å dele {item}"
   },
   "advanced_search": {
     "title": "Avansert søk",
@@ -6101,6 +6178,11 @@
     "zipping": "Forbereder {name}",
     "download_canceled": "Nedlasting avbrutt",
     "zip_error": "Kunne ikke laste ned {name}",
+    "download_to_folder": "Last ned til en mappe…",
+    "downloading_to_folder": "Laster ned til {folder}",
+    "downloaded_to_folder": "{count, plural, one {Lagret # fil i {folder}.} other {Lagret # filer i {folder}.}}",
+    "downloaded_to_folder_partial": "Lagret {saved} av {total} filer i {folder}.",
+    "download_to_folder_failed": "Kunne ikke lagre filene i {folder}.",
     "not_available": "Fillagring er ikke tilgjengelig på denne serveren",
     "cancel": "Avbryt",
     "create": "Opprett",
@@ -7938,14 +8020,20 @@
       "added": "Adressen er lagt til.",
       "saved": "Adressen er lagret.",
       "deleted": "Adressen er slettet.",
-      "delete_title": "Vil du slette denne adressen?"
+      "delete_title": "Vil du slette denne adressen?",
+      "offer_new_mail": "Tilby for ny e-post. Av: brukes bare til å svare på e-post sendt til denne adressen.",
+      "offer_new_mail_named": "Tilby {address} for ny e-post"
     },
     "signatures": {
       "title": "Signaturer",
-      "description": "Legges til på slutten av meldingene du skriver. Hver adresse har sin egen.",
+      "description": "Legges til på slutten av meldingene du skriver. Hver adresse har sin egen eller bruker signaturen til en annen adresse.",
       "saved": "Signaturen er lagret.",
       "error": "Signaturen kunne ikke lagres. Prøv igjen.",
-      "no_addresses": "Det finnes ingen adresse å sende fra ennå."
+      "no_addresses": "Det finnes ingen adresse å sende fra ennå.",
+      "use_label": "Signatur",
+      "own": "Sin egen signatur",
+      "same_as": "Samme som {address}",
+      "shared_note": "Bruker signaturen til {address}. Rediger den der."
     },
     "search": {
       "addresses": "identitet identiteter alias avsender avsenderadresse fra-adresse identity sender",

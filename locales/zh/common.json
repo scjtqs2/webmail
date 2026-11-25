@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO 已启用，但无法访问身份提供者。检查您的 OAuth 配置。",
       "oauth_issuer_mismatch": "通过此身份提供者登录的配置不正确。管理员需要设置其颁发者（issuer）地址。",
       "token_exchange_failed": "密码和验证码已通过，但邮件服务器拒绝为此应用建立会话。请联系管理员检查其 OAuth 客户端设置。",
-      "login_refused": "邮件服务器在检查你的验证码之前拒绝了此次登录。请让管理员检查 OAuth 客户端设置。"
+      "login_refused": "邮件服务器在检查你的验证码之前拒绝了此次登录。请让管理员检查 OAuth 客户端设置。",
+      "primary_sign_in_required": "请先登录你的主账户。此服务器只能作为附加账户添加。"
     },
     "show_password": "显示密码",
     "hide_password": "隐藏密码",
@@ -140,6 +141,7 @@
     "filter_values_hint": "要匹配多个值，请用逗号分隔。"
   },
   "sidebar": {
+    "sign_in_again": "重新登录",
     "close": "关闭",
     "compose": "写邮件",
     "compose_hint": "写邮件 (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "添加其他账户",
     "mv_manage_account": "管理您的账户",
     "mv_storage_used": "已使用 {total} 中的 {percent}%",
-    "accessibility": "无障碍"
+    "accessibility": "无障碍",
+    "folder_hidden": "文件夹已隐藏。可在 设置 › 文件夹与标签 中重新显示。",
+    "folder_hide_failed": "无法隐藏该文件夹。"
   },
   "account_unread": {
     "others": "其他账户中的未读邮件：{count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "全部回复",
     "forward_message": "转发",
     "from": "发件人",
+    "from_account": "账户：{name}",
     "to": "收件人",
     "cc": "抄送",
     "bcc": "密送",
@@ -1182,6 +1187,7 @@
     "recipients_refused": "未发送：服务器拒绝了 {recipients}。",
     "recipients_partly_refused": "服务器拒绝了 {recipients}。其他收件人会收到此邮件。",
     "send_offline": "你似乎已离线。邮件仍保留在这里，恢复联网后请再次发送。",
+    "archive_after_reply_queued": "您恢复联网后邮件将会发出。原邮件仍保留在收件箱中。",
     "formatting": "格式",
     "send_recipients_rejected": "未发送：服务器拒绝了所有收件人。",
     "send_plugin_failed": "未发送：负责发送的插件失败或耗时过长。再次发送前，请先检查“已发送”文件夹。",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "包含群组收件箱",
-          "description": "在统一视图中也合并共享/群组收件箱。"
+          "description": "在统一视图中也合并共享/群组收件箱。",
+          "accounts_label": "统一邮箱中的共享邮箱",
+          "accounts_description": "取消勾选不常看的邮箱。它仍会显示在侧边栏中。"
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "始终以浅色模式显示邮件",
-        "description": "即使应用处于深色模式，也以浅色模式呈现邮件内容，避免深色模式转换问题"
+        "description": "即使应用处于深色模式，也在浅色背景上显示邮件和你正在撰写的文字"
       },
       "external_content": {
         "label": "外部内容",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "占位符提醒",
         "description": "发送仍含有占位符（如 [TIME] 或 [您的姓名]）、空白模板字段或未完成文本（如 TODO 或 TBD）的邮件前请求确认。"
+      },
+      "archive_after_reply": {
+        "label": "回复后归档",
+        "description": "回复或转发收件箱中的邮件后，在您的邮件发出后将其归档。"
       },
       "recipient_mentions": {
         "label": "使用 @ 提及收件人",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, other {# 个地址}}",
         "empty": "还没有隐藏地址。",
         "website": "网站（可选）",
+        "domain": "域名",
+        "domain_default": "默认域名",
+        "domain_not_allowed": "服务器不允许你的账户在此域名上使用隐藏地址。请选择其他域名。",
         "description": "描述（可选）",
         "no_website": "未指定",
         "enabled": "已启用",
@@ -2870,7 +2885,16 @@
       "error_delete": "删除文件夹失败",
       "error_delete_has_children": "无法删除文件夹：其中仍包含子文件夹。请先删除或移动它们。",
       "error_delete_has_email": "无法删除文件夹：其中仍包含邮件。请先移动或删除这些邮件。",
-      "error_role": "无法更新文件夹角色"
+      "error_role": "无法更新文件夹角色",
+      "hide_unsubscribed": {
+        "label": "隐藏未订阅的文件夹",
+        "description": "在这里或在 Thunderbird 等其他应用中取消订阅的文件夹会从侧边栏消失。其中的邮件仍保留在服务器上。"
+      },
+      "show_folder": "在侧边栏显示",
+      "hide_folder": "从侧边栏隐藏",
+      "show_folder_named": "在侧边栏显示 {name}",
+      "hide_folder_named": "从侧边栏隐藏 {name}",
+      "error_subscription": "无法显示或隐藏该文件夹。"
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "外部",
       "managed_by_tooltip": "由 {source} 管理。请在该应用中编辑，或使用原始 Sieve 编辑器。",
+      "server_rules": "服务器规则",
+      "server_rules_description": "这些规则由您的邮件服务商添加，会在您的过滤器之前运行，无法在此更改。",
       "quick_rule_names": {
         "move_sender": "将 {sender} 的邮件移至 {folder}",
         "move_domain": "将 @{domain} 的邮件移至 {folder}",
@@ -4208,7 +4234,8 @@
     "delete_with_contents_confirm": "删除文件夹和邮件",
     "placeholder_folder_name": "文件夹名称",
     "create": "创建",
-    "rename_confirm": "重命名"
+    "rename_confirm": "重命名",
+    "hide_folder": "从侧边栏隐藏"
   },
   "mail_p2_folders": {
     "all_folders": "所有文件夹",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "提到了“{keyword}”，但没有附加文件",
     "warning_placeholders": "收件人会看到的占位文本：",
     "warning_proofreading": "未处理的拼写或语法问题：{count}",
+    "warning_account": "从 {sending} 回复，但邮件发到了 {received}",
+    "account_warning_title": "要从其他账户回复吗？",
+    "account_warning_message": "这封邮件发到了 {received}。回复将从 {sending} 发送。",
+    "account_warning_back": "更改发件人",
     "empty_text_title": "不写正文就发送？",
     "empty_text_message": "这封邮件没有正文，也没有附件。仍然发送？",
     "scheduled_for": "已安排在 {when} 发送",
@@ -4542,7 +4573,11 @@
         "resource": "资源",
         "location": "地点",
         "other": "其他"
-      }
+      },
+      "filter_label": "显示",
+      "filter_all": "全部",
+      "filter_people": "人员",
+      "filter_groups": "群组"
     },
     "title": "联系人",
     "disabled_title": "管理员已关闭联系人",
@@ -5192,6 +5227,16 @@
       "subscription_title": "退订日历？",
       "confirm": "删除"
     },
+    "attachments": {
+      "title": "附件",
+      "add": "添加文件",
+      "remove": "移除 {name}",
+      "download": "下载 {name}",
+      "unnamed": "附件",
+      "download_failed": "无法下载附件。",
+      "upload_failed": "无法上传文件。活动未保存。",
+      "too_large": "“{name}”超过了服务器允许的大小（每个文件 {max}）"
+    },
     "alerts": {
       "title": "提醒",
       "none": "无提醒",
@@ -5229,6 +5274,10 @@
       "working_days": "工作日",
       "title": "日历设置",
       "default_view": "日历打开时显示",
+      "default_event_length": "日程默认时长",
+      "default_event_length_desc": "在日历中点击某个时间或新建日程时，新日程的时长。",
+      "event_length_minutes": "{minutes} 分钟",
+      "event_length_hours": "{hours, number} 小时",
       "week_starts_on": "一周开始于",
       "time_format": "时间格式",
       "default_calendar": "默认日历",
@@ -5502,6 +5551,8 @@
       "cancel": "取消",
       "save": "保存",
       "quick_add_placeholder": "添加任务...",
+      "add_subtask": "添加子任务…",
+      "subtask_of": "{title} 的子任务",
       "due_today": "今天",
       "due_tomorrow": "明天",
       "overdue": "逾期"
@@ -5811,6 +5862,11 @@
     "zipping": "正在准备 {name}",
     "download_canceled": "已取消下载",
     "zip_error": "无法下载 {name}",
+    "download_to_folder": "下载到文件夹…",
+    "downloading_to_folder": "正在下载到 {folder}",
+    "downloaded_to_folder": "{count, plural, other {已将 # 个文件保存到 {folder}。}}",
+    "downloaded_to_folder_partial": "已将 {total} 个文件中的 {saved} 个保存到 {folder}。",
+    "download_to_folder_failed": "无法将文件保存到 {folder}。",
     "not_available": "文件存储在此服务器上不可用",
     "cancel": "取消",
     "create": "创建",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name}（由你代发）",
     "organizer_me": "你"
   },
+  "calendar_forward": {
+    "menu": "转发…",
+    "heading": "转发的邀请",
+    "when": "时间：{value}",
+    "where": "地点：{value}",
+    "organizer": "组织者：{value}",
+    "failed": "无法转发邀请。",
+    "add_replier": "将 {name} 添加到会议",
+    "not_invited": "{name} 未受邀参加此会议。有人转发了邀请。",
+    "added": "已添加到会议"
+  },
+  "calendar_invitations": {
+    "title": "邀请",
+    "from": "来自 {name}"
+  },
+  "event_from_mail": {
+    "menu": "创建日程…",
+    "link_line": "邮件：{link}"
+  },
   "free_busy_share": {
     "button": "与 {group} 共享我的忙闲时间",
     "already": "你的忙闲时间已与 {group} 共享",
@@ -6570,7 +6645,14 @@
       "calendar": "日历",
       "addressBook": "地址簿",
       "file": "文件"
-    }
+    },
+    "shared_items": "你共享的内容",
+    "stop_sharing": "停止与 {name} 共享 {item}",
+    "stop_sharing_title": "停止与 {name} 共享 {item}？",
+    "stop_sharing_message": "{name} 将无法再访问 {item}。你与其共享的其他内容保持不变。",
+    "stop_sharing_confirm": "停止共享",
+    "stopped_sharing": "{name} 已无法访问 {item}",
+    "stop_sharing_failed": "无法停止共享 {item}"
   },
   "quote_header": {
     "reply_line": "在 {date}，{from} 写道：",
@@ -7938,14 +8020,20 @@
       "added": "地址已添加。",
       "saved": "地址已保存。",
       "deleted": "地址已删除。",
-      "delete_title": "删除这个地址?"
+      "delete_title": "删除这个地址?",
+      "offer_new_mail": "用于新邮件。关闭后：只在回复发到此地址的邮件时使用。",
+      "offer_new_mail_named": "将 {address} 用于新邮件"
     },
     "signatures": {
       "title": "签名",
-      "description": "添加在你所写邮件的末尾。每个地址都有自己的签名。",
+      "description": "添加在你所写邮件的末尾。每个地址都有自己的签名，或使用另一个地址的签名。",
       "saved": "签名已保存。",
       "error": "无法保存签名。请重试。",
-      "no_addresses": "还没有可以发信的地址。"
+      "no_addresses": "还没有可以发信的地址。",
+      "use_label": "签名",
+      "own": "自己的签名",
+      "same_as": "与 {address} 相同",
+      "shared_note": "使用 {address} 的签名。请在那里编辑。"
     },
     "search": {
       "addresses": "身份 别名 发件人 发件人地址 发件地址 identity alias sender",

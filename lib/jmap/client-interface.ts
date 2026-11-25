@@ -259,7 +259,7 @@ export interface IJMAPClient {
   /** Email/changes since `sinceState`; null when the server cannot compute the delta. */
   getEmailChanges?(sinceState: string, accountId?: string, maxChanges?: number): Promise<CollectionChanges | null>;
   createMailbox(name: string, parentId?: string, accountId?: string, options?: { role?: string }): Promise<Mailbox>;
-  updateMailbox(mailboxId: string, changes: { name?: string; parentId?: string | null; role?: string | null; sortOrder?: number }, accountId?: string): Promise<void>;
+  updateMailbox(mailboxId: string, changes: { name?: string; parentId?: string | null; role?: string | null; sortOrder?: number; isSubscribed?: boolean }, accountId?: string): Promise<void>;
   // Many folder updates in as few Mailbox/set calls as the server allows.
   // Refused folders don't stop the rest: returns their ids with the SetError type.
   updateMailboxes(updates: Record<string, { name?: string; parentId?: string | null; role?: string | null; sortOrder?: number }>, accountId?: string): Promise<Record<string, string>>;
@@ -673,6 +673,8 @@ export interface IJMAPClient {
 
   // ── Calendars ─────────────────────────────────────────────────
   getCalendarsAccountId(): string;
+  /** Whether CalendarEvent/set in the account keeps links that carry a blobId, so files can be attached (Stalwart 1.0). */
+  supportsCalendarBlobLinks?(accountId?: string): boolean;
   getCalendars(): Promise<Calendar[]>;
   getAllCalendars(): Promise<Calendar[]>;
   getAllCalendarsWithFailures(): Promise<{ calendars: Calendar[]; failedAccountIds: string[] }>;
@@ -683,7 +685,7 @@ export interface IJMAPClient {
   getCalendarEvents(calendarIds?: string[], targetAccountId?: string): Promise<CalendarEvent[]>;
   getCalendarEvent(id: string, targetAccountId?: string): Promise<CalendarEvent | null>;
   createCalendarEvent(event: Partial<CalendarEvent>, sendSchedulingMessages?: boolean, targetAccountId?: string): Promise<CalendarEvent>;
-  batchCreateCalendarEvents(events: Partial<CalendarEvent>[], targetAccountId?: string): Promise<{ created: CalendarEvent[]; failed: string[]; notCreated: Record<string, { type?: string; description?: string }> }>;
+  batchCreateCalendarEvents(events: Partial<CalendarEvent>[], targetAccountId?: string, sendSchedulingMessages?: boolean): Promise<{ created: CalendarEvent[]; failed: string[]; notCreated: Record<string, { type?: string; description?: string }> }>;
   updateCalendarEvent(
     eventId: string,
     updates: Partial<CalendarEvent>,

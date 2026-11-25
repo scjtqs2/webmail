@@ -108,6 +108,7 @@ import { useIdentityStore } from "@/stores/identity-store";
 import { useProMultiAccountIdentities, stripCrossAccountIdentityPrefix } from "@/hooks/use-pro-multi-account-identities";
 import { useAccountStore } from "@/stores/account-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useThemeStore } from "@/stores/theme-store";
 import { ComposerPanelButton, ComposerPanelHead, ComposerPanelToggle, ComposerPluginSidebar, isPanelOpen, useComposerSidebars } from "./composer-plugin-sidebars";
 import { dragKindFromTypes } from "@/components/pro/pro-shell-drop";
 import { useIsPaneScoped } from "@/hooks/use-pane-context";
@@ -127,7 +128,8 @@ import { offlineActive, offlineAllowed } from "@/lib/offline/offline-mode";
 import { useBrowserOnline } from "@/hooks/use-browser-online";
 import { appPath, buildSettingsPath } from "@/lib/deep-links";
 import type { FileNode, Identity, Mailbox } from "@/lib/jmap/types";
-import { resolveComposerFrom } from "@/lib/composer-identity";
+import { replyAccountMismatch, resolveComposerFrom } from "@/lib/composer-identity";
+import { accountRowText } from "@/lib/account-utils";
 import { useContactStore, getContactDisplayName, getContactPrimaryEmail } from "@/stores/contact-store";
 import { renderTemplateWithPlugins, notifyTemplateApplied } from "@/stores/template-store";
 import { useTemplateSources } from "@/hooks/use-template-sources";
@@ -161,6 +163,7 @@ import { whenPolicySettled } from "@/stores/policy-store";
 import { ClassificationLabelPicker, type ClassificationPickerHandle } from "./classification-label-picker";
 import { useComposerClassification } from "./use-composer-classification";
 import { findComposeIdentityId, findDraftIdentityId, findReplyIdentityId, resolveReplyFrom } from "@/lib/reply-identity";
+import { isReplyOnlyIdentity } from "@/lib/reply-only-identities";
 import { askReplyIdentity, hasReplyIdentityPlugins } from "@/lib/plugin-reply-identity";
 import { buildReplyRecipients, isSelfSent, ownReplyAddresses } from "@/lib/reply-recipients";
 import { computeReplyThreadingHeaders, type ReplyThreadingHeaders } from "@/lib/email-threading";
@@ -738,6 +741,11 @@ export function EmailComposer({
   const router = useRouter();
   const showAdvancedSettings = useSettingsStore((state) => state.showAdvancedSettings);
   const timeFormat = useSettingsStore((state) => state.timeFormat);
+  // "Always show emails in light mode" covers the writing area too: in a dark
+  // theme the message is written on a light page, as most recipients see it.
+  const emailAlwaysLightMode = useSettingsStore((state) => state.emailAlwaysLightMode);
+  const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
+  const lightPaper = emailAlwaysLightMode && resolvedTheme === 'dark';
   const plainTextModeDefault = useSettingsStore((state) => state.plainTextMode);
   // Per-message format (#1022). Seeded from the "plain text only" setting -
   // or the format a re-opened / stashed draft was written in - and switchable
@@ -819,6 +827,14 @@ export function EmailComposer({
   const identityGroups = multiAccountIdentities.enabled
     ? multiAccountIdentities.groups
     : [];
+  // Addresses marked "replies only" (#1673) are not offered for new mail:
+  // neither listed in From nor picked from the open mailbox. Replies and
+  // forwards still match them, and list them.
+  const replyOnlyIdentities = useSettingsStore((state) => state.replyOnlyIdentities);
+  const offeredForNewMail = useCallback((identity: Identity) => {
+    const { localAccountId, rawId } = stripCrossAccountIdentityPrefix(identity.id);
+    return !isReplyOnlyIdentity(replyOnlyIdentities, localAccountId ?? composerAccountIdRef.current, rawId);
+  }, [replyOnlyIdentities]);
   const primaryIdentity = activeIdentities[0] ?? null;
   // The account this composer belongs to (see composerAccountIdRef above).
   const activeAccountId = composerAccountIdRef.current;
@@ -1405,6 +1421,10 @@ export function EmailComposer({
   const checkThenScheduleRef = useRef<() => void>(() => {});
   // Open proofreading issues, once a checker asked to warn about them.
   const proofreadingConfirmedRef = useRef(false);
+  // The account a reply was confirmed to leave from, though the original came
+  // to another one. Picking yet another account asks again.
+  const accountConfirmedRef = useRef<string | null>(null);
+  const fromSelectRef = useRef<HTMLSelectElement>(null);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() => {
     if (initialData?.tags !== undefined) return initialData.tags;
@@ -1474,11 +1494,26 @@ export function EmailComposer({
   // scopes decide the organisation signature and disclaimer: the identity's
   // own account, else the one the composer was opened in.
   const composingAccountId = currentIdentityParts.localAccountId ?? composerAccountIdRef.current;
+  // With several accounts, the From row names the account the message leaves
+  // from, with the colour the unified views tell accounts apart by (#1666).
+  // Two accounts with the same name are named by their address instead.
+  const accountEntries = useAccountStore((s) => s.accounts);
+  const accountNameOf = (accountId: string) => {
+    const account = accountEntries.find((a) => a.id === accountId);
+    return account ? toUnicodeEmail(accountRowText(account, accountEntries).title) : accountId;
+  };
+  const sendingAccount = multiAccountIdentities.enabled
+    ? accountEntries.find((a) => a.id === composingAccountId)
+    : undefined;
   // What the header calls it. A re-opened draft is in "compose" mode; a reply
   // draft is still a reply (compose-p3-6).
   const titleMode: 'compose' | 'reply' | 'replyAll' | 'forward' = replyKindSwitched ?? (mode !== 'compose'
     ? mode
     : initialData?.kind ?? (initialData?.inReplyTo?.length ? 'reply' : 'compose'));
+  // The From list of a new message leaves out reply-only addresses, but
+  // never the one it is sent from (a re-opened draft keeps its sender).
+  const listedInFrom = (identity: Identity) =>
+    titleMode !== 'compose' || identity.id === currentIdentity?.id || offeredForNewMail(identity);
   // Classification label (enterprise pack): the labels of the account and
   // identity the message goes out from; replies and forwards start with
   // the original's label, re-opened drafts with theirs.
@@ -1817,7 +1852,7 @@ export function EmailComposer({
         ? useAccountStore.getState().getAccountById(activeAccountId)?.email?.trim().toLowerCase()
         : undefined;
       if (loginEmail && composeFromAccountEmail?.trim().toLowerCase() === loginEmail) return;
-      const composeIdentityId = findComposeIdentityId(identities, composeFromAccountEmail);
+      const composeIdentityId = findComposeIdentityId(identities.filter(offeredForNewMail), composeFromAccountEmail);
       if (composeIdentityId) {
         setSelectedIdentityId(composeIdentityId);
       }
@@ -1919,6 +1954,7 @@ export function EmailComposer({
     composeFromAccountEmail,
     fromOverrideEnabled,
     identities,
+    offeredForNewMail,
     sourceAccountIdentities,
     sourceAccountId,
     activeAccountId,
@@ -4496,6 +4532,23 @@ export function EmailComposer({
         if (open > 0) warnings.push({ kind: 'proofreading', count: open });
       }
 
+      // A reply leaving from another account than the one the original came
+      // to (#1666). The draft of a reply re-opened later is still a reply.
+      const accountMismatch = replyAccountMismatch(
+        titleMode,
+        replyTo?.accountId ?? composerAccountIdRef.current,
+        composingAccountId,
+        useAccountStore.getState().accounts.map((a) => a.id),
+      );
+      if (accountMismatch && accountConfirmedRef.current !== accountMismatch.sending) {
+        warnings.push({
+          kind: 'account',
+          login: accountMismatch.sending,
+          received: accountNameOf(accountMismatch.received),
+          sending: accountNameOf(accountMismatch.sending),
+        });
+      }
+
       if (warnings.length > 0) {
         setSendWarnings({ items: warnings, delayedUntil, ...(checkOnly ? { schedule: true } : {}) });
         return;
@@ -5902,6 +5955,21 @@ export function EmailComposer({
           <div className={cn("flex items-center gap-2 px-4 py-2.5 border-b border-border/50", dockCompact && "py-1", dockCompact && !dockFromShown && "hidden")} data-composer-from="">
             <span className="text-sm text-muted-foreground min-w-12 md:min-w-16 shrink-0 whitespace-nowrap">{t('from')}:</span>
             <div className={cn("flex-1 flex items-center gap-1 min-w-0", fromOverrideEnabled && "flex-wrap")}>
+              {sendingAccount && (
+                <span
+                  data-composer-from-account={sendingAccount.id}
+                  title={t('from_account', { name: accountNameOf(sendingAccount.id) })}
+                  className="inline-flex items-center gap-1.5 shrink-0 max-w-[40%] md:max-w-[14rem] rounded-full border border-border bg-muted/60 ps-1.5 pe-2 py-0.5 me-1 text-xs text-foreground"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: sendingAccount.avatarColor }}
+                  />
+                  <span aria-hidden="true" className="truncate" dir="auto">{accountNameOf(sendingAccount.id)}</span>
+                  <span className="sr-only">{t('from_account', { name: accountNameOf(sendingAccount.id) })}</span>
+                </span>
+              )}
               {fromOverrideEnabled ? (
                 // Both fields need room to type in: on a narrow composer they take a
                 // line of their own, or a line each, rather than squeeze to nothing.
@@ -5924,6 +5992,7 @@ export function EmailComposer({
                 </div>
               ) : identities.length > 0 ? (
                 <select
+                  ref={fromSelectRef}
                   data-testid="composer-from"
                   aria-label={t('from')}
                   value={currentIdentity?.id || ''}
@@ -5953,7 +6022,9 @@ export function EmailComposer({
                     </option>
                   )}
                   {identityGroups.length > 0
-                    ? identityGroups.map((group) => (
+                    ? identityGroups.map((group) => ({ ...group, identities: group.identities.filter(listedInFrom) }))
+                      .filter((group) => group.identities.length > 0)
+                      .map((group) => (
                         <optgroup key={group.localAccountId} label={toUnicodeEmail(group.accountLabel)}>
                           {group.identities.map((identity) => {
                             const displayEmail = toUnicodeEmail(subAddressTag
@@ -5967,7 +6038,7 @@ export function EmailComposer({
                           })}
                         </optgroup>
                       ))
-                    : identities.map((identity) => {
+                    : identities.filter(listedInFrom).map((identity) => {
                         const displayEmail = toUnicodeEmail(subAddressTag
                           ? generateSubAddress(identity.email, subAddressTag, subAddressDelimiter)
                           : identity.email);
@@ -6303,7 +6374,7 @@ export function EmailComposer({
       </div>
 
       {/* The writing area: text, signature and quote read as one page, with the focus shown on it (app/accessibility.css). */}
-      <div className={cn("flex-1", pinFields && "min-h-0 overflow-auto")} onMouseDown={focusBodyFromEmptySpace} data-composer-writing="">
+      <div className={cn("flex-1", pinFields && "min-h-0 overflow-auto")} onMouseDown={focusBodyFromEmptySpace} data-composer-writing="" data-light-paper={lightPaper ? "" : undefined}>
         {wantsPluginDraft && (
           <PluginSlot name="composer-above-body" className="w-full" extraProps={pluginDraftProps} />
         )}
@@ -7006,6 +7077,7 @@ export function EmailComposer({
             if (first?.kind === 'subject') subjectInputRef.current?.focus();
             else if (first?.kind === 'placeholders') selectPlaceholder(first.matches[0]);
             else if (first?.kind === 'proofreading') proofreading.navigate(1);
+            else if (first?.kind === 'account') fromSelectRef.current?.focus();
             else if (first?.kind === 'text') {
               if (plainTextModeRef.current) bodyRef.current?.focus();
               else editorRef.current?.commands.focus();
@@ -7026,6 +7098,8 @@ export function EmailComposer({
               if (dontAskAgain) updateSetting('placeholderWarningEnabled', false);
             } else if (warning.kind === 'proofreading') {
               proofreadingConfirmedRef.current = true;
+            } else if (warning.kind === 'account') {
+              accountConfirmedRef.current = warning.login;
             }
           }
           setSendWarnings(null);

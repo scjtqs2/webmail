@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO este activată, dar furnizorul de identitate nu a putut fi contactat. Verificați configurația OAuth.",
       "oauth_issuer_mismatch": "Autentificarea prin acest furnizor nu este configurată corect. Administratorul trebuie să seteze adresa emitentului (issuer) acestuia.",
       "token_exchange_failed": "Parola și codul au fost acceptate, dar serverul de e-mail a refuzat să pornească o sesiune pentru această aplicație. Cereți administratorului să verifice setările clientului OAuth.",
-      "login_refused": "Serverul de e-mail a refuzat această autentificare înainte de a verifica codul. Cereți administratorului să verifice setările clientului OAuth."
+      "login_refused": "Serverul de e-mail a refuzat această autentificare înainte de a verifica codul. Cereți administratorului să verifice setările clientului OAuth.",
+      "primary_sign_in_required": "Conectează-te mai întâi la contul principal. Acest server poate fi adăugat doar ca cont suplimentar."
     },
     "show_password": "Afișează parola",
     "hide_password": "Ascunde parola",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Separați mai multe valori prin virgule."
   },
   "sidebar": {
+    "sign_in_again": "Autentifică-te din nou",
     "close": "Închide",
     "compose": "Compune",
     "compose_hint": "Compune (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Adaugă alt cont",
     "mv_manage_account": "Gestionează contul",
     "mv_storage_used": "{percent}% din {total} folosit",
-    "accessibility": "Accesibilitate"
+    "accessibility": "Accesibilitate",
+    "folder_hidden": "Dosar ascuns. Îl puteți afișa din nou în Setări › Dosare și etichete.",
+    "folder_hide_failed": "Dosarul nu a putut fi ascuns."
   },
   "account_unread": {
     "others": "Necitite în alte conturi: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Răspunde tuturor",
     "forward_message": "Redirecționează",
     "from": "De la",
+    "from_account": "Cont: {name}",
     "to": "Către",
     "cc": "Cc",
     "bcc": "Bcc",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "Netrimis: serverul a respins {recipients}.",
     "recipients_partly_refused": "Serverul a respins {recipients}. Ceilalți destinatari primesc mesajul.",
     "send_offline": "Se pare că ești offline. Mesajul este încă aici; trimite-l din nou când revii online.",
+    "archive_after_reply_queued": "Mesajul va fi trimis când revii online. Originalul rămâne în Mesaje primite.",
     "formatting": "Formatare",
     "send_recipients_rejected": "Netrimis: serverul a respins toți destinatarii.",
     "send_plugin_failed": "Nu a fost trimis - un plugin care se ocupă de trimitere a eșuat sau a durat prea mult. Verifică dosarul Trimise înainte de a trimite din nou.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "Includeți căsuțele de e-mail de grup",
-          "description": "De asemenea, integrați căsuțele de e-mail partajate/de grup în vizualizarea unificată."
+          "description": "De asemenea, integrați căsuțele de e-mail partajate/de grup în vizualizarea unificată.",
+          "accounts_label": "Cutii partajate în cutia unificată",
+          "accounts_description": "Debifați o cutie pe care nu o citiți zilnic. Rămâne în bara laterală."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "Afișați întotdeauna e-mailurile în modul luminos",
-        "description": "Afișați conținutul e-mailurilor în modul luminos chiar și atunci când aplicația se află în modul întunecat, evitând astfel problemele de conversie asociate modului întunecat"
+        "description": "Afișați e-mailurile și textul pe care îl scrieți pe fundal luminos, chiar și când aplicația este în modul întunecat"
       },
       "external_content": {
         "label": "Conținut extern",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "Avertisment pentru substituenți",
         "description": "Cere confirmare înainte de a trimite un mesaj care încă are substituenți precum [TIME] sau [Numele tău], câmpuri de șablon goale sau text neterminat precum TODO sau TBD."
+      },
+      "archive_after_reply": {
+        "label": "Arhivează după răspuns",
+        "description": "Când răspunzi la un mesaj din Mesaje primite sau îl redirecționezi, acesta este arhivat după ce mesajul tău este trimis."
       },
       "recipient_mentions": {
         "label": "Menționează destinatarii cu @",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, one {# adresă} few {# adrese} other {# de adrese}}",
         "empty": "Nu există încă adrese mascate.",
         "website": "Site web (opțional)",
+        "domain": "Domeniu",
+        "domain_default": "Domeniu implicit",
+        "domain_not_allowed": "Serverul nu permite adrese mascate pe acest domeniu pentru contul tău. Alege alt domeniu.",
         "description": "Descriere (opțional)",
         "no_website": "Nespecificat",
         "enabled": "Activată",
@@ -2877,7 +2892,16 @@
       "error_delete": "Nu s-a putut șterge folderul",
       "error_delete_has_children": "Nu se poate șterge folderul: acesta conține încă subfoldere. Ștergeți-le sau mutați-le mai întâi.",
       "error_delete_has_email": "Nu se poate șterge folderul: acesta conține încă e-mailuri. Mutați-le sau ștergeți-le mai întâi.",
-      "error_role": "Nu s-a putut actualiza rolul folderului"
+      "error_role": "Nu s-a putut actualiza rolul folderului",
+      "hide_unsubscribed": {
+        "label": "Ascunde dosarele neabonate",
+        "description": "Dosarele de la care vă dezabonați aici sau în altă aplicație, cum ar fi Thunderbird, dispar din bara laterală. Mesajele lor rămân pe server."
+      },
+      "show_folder": "Afișează în bara laterală",
+      "hide_folder": "Ascunde din bara laterală",
+      "show_folder_named": "Afișează {name} în bara laterală",
+      "hide_folder_named": "Ascunde {name} din bara laterală",
+      "error_subscription": "Dosarul nu a putut fi afișat sau ascuns."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "Extern",
       "managed_by_tooltip": "Gestionat de {source}. Editați-l în acea aplicație sau utilizați editorul brut Sieve.",
+      "server_rules": "Reguli ale serverului",
+      "server_rules_description": "Le-a adăugat furnizorul dvs. de e-mail. Rulează înaintea filtrelor dvs. și nu pot fi modificate aici.",
       "quick_rule_names": {
         "move_sender": "Mută de la {sender} în {folder}",
         "move_domain": "Mută de la @{domain} în {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Dosarul nu este gol. Goliți-l mai întâi.",
     "delete_with_contents_title": "Dosarul nu este gol",
     "delete_with_contents_message": "Dosarul „{name}” încă mai conține {count, plural, one {1 mesaj} other {# mesaje}}. Ștergi dosarul și toate mesajele sale? Acțiunea nu poate fi anulată.",
-    "delete_with_contents_confirm": "Șterge dosarul și mesajele"
+    "delete_with_contents_confirm": "Șterge dosarul și mesajele",
+    "hide_folder": "Ascunde din bara laterală"
   },
   "mail_p2_folders": {
     "all_folders": "Toate dosarele",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Menționează „{keyword}”, dar niciun fișier nu este atașat",
     "warning_placeholders": "Text substituent pe care îl vor vedea destinatarii:",
     "warning_proofreading": "Greșeli de ortografie sau gramatică nerezolvate: {count}",
+    "warning_account": "Răspuns din contul {sending}, dar mesajul a sosit în contul {received}",
+    "account_warning_title": "Răspundeți din alt cont?",
+    "account_warning_message": "Acest mesaj a sosit în contul {received}. Răspunsul va fi trimis din contul {sending}.",
+    "account_warning_back": "Schimbați expeditorul",
     "empty_text_title": "Trimiteți fără text?",
     "empty_text_message": "Acest mesaj nu are text și nici atașament. Îl trimiteți totuși?",
     "scheduled_for": "Programat pentru {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Resursă",
         "location": "Locație",
         "other": "Altul"
-      }
+      },
+      "filter_label": "Afișează",
+      "filter_all": "Toate",
+      "filter_people": "Persoane",
+      "filter_groups": "Grupuri"
     },
     "title": "Contacte",
     "disabled_title": "Contactele au fost dezactivate de administrator",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Vă dezabonați de la calendar?",
       "confirm": "Ștergeți"
     },
+    "attachments": {
+      "title": "Anexe",
+      "add": "Adaugă fișier",
+      "remove": "Elimină {name}",
+      "download": "Descărcați {name}",
+      "unnamed": "Atașament",
+      "download_failed": "Atașamentul nu a putut fi descărcat.",
+      "upload_failed": "Un fișier nu a putut fi încărcat. Evenimentul nu a fost salvat.",
+      "too_large": "„{name}” depășește dimensiunea permisă de server ({max} per fișier)"
+    },
     "alerts": {
       "title": "Memento-uri",
       "none": "Fără mementouri",
@@ -5229,6 +5274,10 @@
       "working_days": "Zile lucrătoare",
       "title": "Setări calendar",
       "default_view": "Calendarul se deschide în",
+      "default_event_length": "Durata implicită a evenimentelor",
+      "default_event_length_desc": "Cât durează un eveniment nou când dați clic pe o oră din calendar sau creați unul.",
+      "event_length_minutes": "{minutes, plural, one {# minut} few {# minute} other {# de minute}}",
+      "event_length_hours": "{hours, plural, one {# oră} few {# ore} other {# de ore}}",
       "week_starts_on": "Săptămâna începe pe",
       "time_format": "Formatul orei",
       "default_calendar": "Calendarul implicit",
@@ -5531,6 +5580,8 @@
       "cancel": "Anulează",
       "save": "Salvare",
       "quick_add_placeholder": "Adăugați o sarcină...",
+      "add_subtask": "Adaugă o subsarcină…",
+      "subtask_of": "Subsarcină a sarcinii {title}",
       "due_today": "Astăzi",
       "due_tomorrow": "Mâine",
       "overdue": "Restant"
@@ -5678,6 +5729,25 @@
     "answered_by": "Răspuns de {who}",
     "organizer_owner": "{name} (trimis de tine)",
     "organizer_me": "Tu"
+  },
+  "calendar_forward": {
+    "menu": "Redirecționează…",
+    "heading": "Invitație redirecționată",
+    "when": "Când: {value}",
+    "where": "Unde: {value}",
+    "organizer": "Organizator: {value}",
+    "failed": "Invitația nu a putut fi redirecționată.",
+    "add_replier": "Adaugă pe {name} la întâlnire",
+    "not_invited": "{name} nu este invitat la această întâlnire. Cineva i-a redirecționat invitația.",
+    "added": "Adăugat la întâlnire"
+  },
+  "calendar_invitations": {
+    "title": "Invitații",
+    "from": "De la {name}"
+  },
+  "event_from_mail": {
+    "menu": "Creează eveniment…",
+    "link_line": "E-mail: {link}"
   },
   "free_busy_share": {
     "button": "Partajează disponibilitatea mea cu {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "Calendar",
       "addressBook": "Agendă",
       "file": "Fișier"
-    }
+    },
+    "shared_items": "Ce partajați",
+    "stop_sharing": "Nu mai partaja {item} cu {name}",
+    "stop_sharing_title": "Nu mai partajați {item} cu {name}?",
+    "stop_sharing_message": "{name} pierde accesul la {item}. Restul elementelor partajate rămân.",
+    "stop_sharing_confirm": "Nu mai partaja",
+    "stopped_sharing": "{name} nu mai are acces la {item}",
+    "stop_sharing_failed": "Nu s-a putut opri partajarea {item}"
   },
   "advanced_search": {
     "title": "Căutare avansată",
@@ -6101,6 +6178,11 @@
     "zipping": "Se pregătește {name}",
     "download_canceled": "Descărcare anulată",
     "zip_error": "Nu s-a putut descărca {name}",
+    "download_to_folder": "Descarcă într-un dosar…",
+    "downloading_to_folder": "Se descarcă în {folder}",
+    "downloaded_to_folder": "{count, plural, one {S-a salvat # fișier în {folder}.} few {S-au salvat # fișiere în {folder}.} other {S-au salvat # de fișiere în {folder}.}}",
+    "downloaded_to_folder_partial": "S-au salvat {saved} din {total} fișiere în {folder}.",
+    "download_to_folder_failed": "Fișierele nu au putut fi salvate în {folder}.",
     "not_available": "Stocarea fișierelor nu este disponibilă pe acest server",
     "cancel": "Anulează",
     "create": "Creați",
@@ -7938,14 +8020,20 @@
       "added": "Adresa a fost adăugată.",
       "saved": "Adresa a fost salvată.",
       "deleted": "Adresa a fost ștearsă.",
-      "delete_title": "Ștergeți această adresă?"
+      "delete_title": "Ștergeți această adresă?",
+      "offer_new_mail": "Propune pentru e-mailuri noi. Dezactivat: doar pentru răspunsuri la e-mailurile trimise la această adresă.",
+      "offer_new_mail_named": "Propune {address} pentru e-mailuri noi"
     },
     "signatures": {
       "title": "Semnături",
-      "description": "Se adaugă la sfârșitul mesajelor pe care le scrieți. Fiecare adresă are semnătura ei.",
+      "description": "Se adaugă la sfârșitul mesajelor pe care le scrieți. Fiecare adresă are semnătura ei sau folosește semnătura altei adrese.",
       "saved": "Semnătura a fost salvată.",
       "error": "Semnătura nu a putut fi salvată. Încercați din nou.",
-      "no_addresses": "Nu există încă nicio adresă de pe care să trimiteți."
+      "no_addresses": "Nu există încă nicio adresă de pe care să trimiteți.",
+      "use_label": "Semnătură",
+      "own": "Semnătura proprie",
+      "same_as": "La fel ca {address}",
+      "shared_note": "Folosește semnătura adresei {address}. Editați-o acolo."
     },
     "search": {
       "addresses": "identitate identități alias expeditor adresa expeditorului adresa de la identity sender",

@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "تسجيل الدخول الموحد (SSO) مفعّل، لكن تعذّر الوصول إلى مزوّد الهوية. تحقق من إعدادات OAuth.",
       "oauth_issuer_mismatch": "تسجيل الدخول عبر هذا المزوّد غير مُعدّ بشكل صحيح. يجب على المسؤول تعيين عنوان جهة الإصدار (issuer) الخاص به.",
       "token_exchange_failed": "تم قبول كلمة المرور والرمز، لكن خادم البريد رفض بدء جلسة لهذا التطبيق. اطلب من المسؤول التحقق من إعدادات عميل OAuth.",
-      "login_refused": "رفض خادم البريد تسجيل الدخول هذا قبل التحقق من الرمز. اطلب من المسؤول التحقق من إعدادات عميل OAuth."
+      "login_refused": "رفض خادم البريد تسجيل الدخول هذا قبل التحقق من الرمز. اطلب من المسؤول التحقق من إعدادات عميل OAuth.",
+      "primary_sign_in_required": "سجّل الدخول إلى حسابك الرئيسي أولًا. لا يمكن إضافة هذا الخادم إلا كحساب إضافي."
     },
     "show_password": "إظهار كلمة المرور",
     "hide_password": "إخفاء كلمة المرور",
@@ -140,6 +141,7 @@
     "filter_values_hint": "لمطابقة عدة قيم، افصل بينها بفواصل."
   },
   "sidebar": {
+    "sign_in_again": "تسجيل الدخول مجددًا",
     "close": "إغلاق",
     "compose": "إنشاء رسالة",
     "compose_hint": "إنشاء رسالة (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "إضافة حساب آخر",
     "mv_manage_account": "إدارة حسابك",
     "mv_storage_used": "تم استخدام {percent}% من {total}",
-    "accessibility": "إمكانية الوصول"
+    "accessibility": "إمكانية الوصول",
+    "folder_hidden": "تم إخفاء المجلد. يمكنك إظهاره مجددًا من الإعدادات › المجلدات والوسوم.",
+    "folder_hide_failed": "تعذّر إخفاء المجلد."
   },
   "account_unread": {
     "others": "غير مقروءة في الحسابات الأخرى: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "الرد على الجميع",
     "forward_message": "إعادة توجيه",
     "from": "من",
+    "from_account": "الحساب: {name}",
     "to": "إلى",
     "cc": "نسخة",
     "bcc": "نسخة مخفية",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "لم تُرسل الرسالة: رفض الخادم {recipients}.",
     "recipients_partly_refused": "رفض الخادم {recipients}. سيتلقى باقي المستلمين الرسالة.",
     "send_offline": "يبدو أنك غير متصل. الرسالة ما زالت هنا، أرسلها مجددًا عند عودة الاتصال.",
+    "archive_after_reply_queued": "سيتم إرسال رسالتك عند عودتك إلى الاتصال. تبقى الرسالة الأصلية في صندوق الوارد.",
     "formatting": "التنسيق",
     "send_recipients_rejected": "لم تُرسل الرسالة: رفض الخادم جميع المستلمين.",
     "send_plugin_failed": "لم يُرسل - فشلت إضافة تتولى الإرسال أو استغرقت وقتًا طويلًا. تحقق من مجلد المرسل قبل الإرسال مرة أخرى.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "تضمين صناديق البريد الجماعية",
-          "description": "دمج صناديق البريد المشتركة/الجماعية أيضًا في العرض الموحّد."
+          "description": "دمج صناديق البريد المشتركة/الجماعية أيضًا في العرض الموحّد.",
+          "accounts_label": "صناديق البريد المشتركة في صندوق البريد الموحّد",
+          "accounts_description": "ألغِ تحديد صندوق بريد لا تقرؤه كل يوم. سيبقى في الشريط الجانبي."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "إظهار الرسائل دائمًا في الوضع الفاتح",
-        "description": "عرض محتوى الرسائل في الوضع الفاتح حتى عندما يكون التطبيق في الوضع الداكن، لتجنب مشاكل تحويل الوضع الداكن"
+        "description": "عرض الرسائل والنص الذي تكتبه على خلفية فاتحة حتى عندما يكون التطبيق في الوضع الداكن"
       },
       "external_content": {
         "label": "المحتوى الخارجي",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "تحذير العناصر النائبة",
         "description": "طلب تأكيد قبل إرسال رسالة لا تزال تحتوي على عناصر نائبة مثل [TIME] أو [أدخل الاسم]، أو حقول قالب فارغة، أو نص غير مكتمل مثل TODO أو TBD."
+      },
+      "archive_after_reply": {
+        "label": "الأرشفة بعد الرد",
+        "description": "عند الرد على رسالة في صندوق الوارد أو إعادة توجيهها، تتم أرشفتها بعد إرسال رسالتك."
       },
       "recipient_mentions": {
         "label": "الإشارة إلى المستلمين باستخدام @",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, zero {لا توجد عناوين} one {عنوان واحد} two {عنوانان} few {# عناوين} many {# عنوانًا} other {# عنوان}}",
         "empty": "لا توجد عناوين مقنّعة بعد.",
         "website": "الموقع (اختياري)",
+        "domain": "النطاق",
+        "domain_default": "النطاق الافتراضي",
+        "domain_not_allowed": "لا يسمح الخادم بعناوين مقنّعة على هذا النطاق لحسابك. اختر نطاقًا آخر.",
         "description": "الوصف (اختياري)",
         "no_website": "غير محدد",
         "enabled": "مفعّل",
@@ -2877,7 +2892,16 @@
       "error_delete": "فشل حذف المجلد",
       "error_delete_has_children": "لا يمكن حذف المجلد: لا يزال يحتوي على مجلدات فرعية. احذفها أو انقلها أولًا.",
       "error_delete_has_email": "لا يمكن حذف المجلد: لا يزال يحتوي على رسائل. انقلها أو احذفها أولًا.",
-      "error_role": "فشل تحديث دور المجلد"
+      "error_role": "فشل تحديث دور المجلد",
+      "hide_unsubscribed": {
+        "label": "إخفاء المجلدات غير المشترك بها",
+        "description": "المجلدات التي تلغي الاشتراك بها هنا أو في تطبيق آخر مثل Thunderbird تختفي من الشريط الجانبي. تبقى رسائلها على الخادم."
+      },
+      "show_folder": "إظهار في الشريط الجانبي",
+      "hide_folder": "إخفاء من الشريط الجانبي",
+      "show_folder_named": "إظهار {name} في الشريط الجانبي",
+      "hide_folder_named": "إخفاء {name} من الشريط الجانبي",
+      "error_subscription": "تعذّر إظهار المجلد أو إخفاؤه."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "خارجي",
       "managed_by_tooltip": "تُدار بواسطة {source}. عدّلها في ذلك التطبيق، أو استخدم محرر Sieve الخام.",
+      "server_rules": "قواعد الخادم",
+      "server_rules_description": "أضافها مزوّد البريد لديك. تعمل قبل عوامل التصفية الخاصة بك، ولا يمكن تغييرها هنا.",
       "quick_rule_names": {
         "move_sender": "نقل من {sender} إلى {folder}",
         "move_domain": "نقل من @{domain} إلى {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "المجلد ليس فارغًا. أفرغه أولًا.",
     "delete_with_contents_title": "المجلد ليس فارغًا",
     "delete_with_contents_message": "لا يزال المجلد \"{name}\" يحتوي على {count, plural, one {رسالة واحدة} other {# رسائل}}. هل تريد حذف المجلد وكل رسائله؟ لا يمكن التراجع عن هذا.",
-    "delete_with_contents_confirm": "حذف المجلد والرسائل"
+    "delete_with_contents_confirm": "حذف المجلد والرسائل",
+    "hide_folder": "إخفاء من الشريط الجانبي"
   },
   "mail_p2_folders": {
     "all_folders": "كل المجلدات",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "تذكر \"{keyword}\" لكن لا يوجد ملف مرفق",
     "warning_placeholders": "نص مؤقت سيراه المستلمون:",
     "warning_proofreading": "مشكلات إملائية أو نحوية مفتوحة: {count}",
+    "warning_account": "الرد من {sending}، لكن الرسالة وصلت إلى {received}",
+    "account_warning_title": "الرد من حساب آخر؟",
+    "account_warning_message": "وصلت هذه الرسالة إلى {received}. سيُرسل الرد من {sending}.",
+    "account_warning_back": "تغيير المرسل",
     "empty_text_title": "هل تريد الإرسال بدون نص؟",
     "empty_text_message": "لا تحتوي هذه الرسالة على نص ولا على مرفق. هل تريد إرسالها على أي حال؟",
     "scheduled_for": "مجدولة في {when}",
@@ -4542,7 +4573,11 @@
         "resource": "مورد",
         "location": "موقع",
         "other": "أخرى"
-      }
+      },
+      "filter_label": "إظهار",
+      "filter_all": "الكل",
+      "filter_people": "الأشخاص",
+      "filter_groups": "المجموعات"
     },
     "title": "جهات الاتصال",
     "disabled_title": "عطّل المسؤول جهات الاتصال",
@@ -5192,6 +5227,16 @@
       "subscription_title": "إلغاء الاشتراك في التقويم؟",
       "confirm": "حذف"
     },
+    "attachments": {
+      "title": "المرفقات",
+      "add": "إضافة ملف",
+      "remove": "إزالة {name}",
+      "download": "تنزيل {name}",
+      "unnamed": "مرفق",
+      "download_failed": "تعذّر تنزيل المرفق.",
+      "upload_failed": "تعذّر رفع ملف. لم يُحفظ الحدث.",
+      "too_large": "\"{name}\" أكبر مما يسمح به الخادم ({max} لكل ملف)"
+    },
     "alerts": {
       "title": "التذكيرات",
       "none": "لا توجد تذكيرات",
@@ -5229,6 +5274,10 @@
       "working_days": "أيام العمل",
       "title": "إعدادات التقويم",
       "default_view": "يفتح التقويم على",
+      "default_event_length": "المدة الافتراضية للأحداث",
+      "default_event_length_desc": "مدة الحدث الجديد عند النقر على وقت في التقويم أو إنشاء حدث.",
+      "event_length_minutes": "{minutes} دقيقة",
+      "event_length_hours": "{hours, plural, one {ساعة واحدة} two {ساعتان} few {# ساعات} many {# ساعة} other {# ساعة}}",
       "week_starts_on": "يبدأ الأسبوع في",
       "time_format": "تنسيق الوقت",
       "default_calendar": "التقويم الافتراضي",
@@ -5531,6 +5580,8 @@
       "cancel": "إلغاء",
       "save": "حفظ",
       "quick_add_placeholder": "أضف مهمة...",
+      "add_subtask": "إضافة مهمة فرعية…",
+      "subtask_of": "مهمة فرعية من {title}",
       "due_today": "اليوم",
       "due_tomorrow": "غدًا",
       "overdue": "متأخرة"
@@ -5678,6 +5729,25 @@
     "answered_by": "ردّ عليها {who}",
     "organizer_owner": "{name} (مُرسَل منك)",
     "organizer_me": "أنت"
+  },
+  "calendar_forward": {
+    "menu": "إعادة توجيه…",
+    "heading": "دعوة معاد توجيهها",
+    "when": "الموعد: {value}",
+    "where": "المكان: {value}",
+    "organizer": "المنظِّم: {value}",
+    "failed": "تعذّرت إعادة توجيه الدعوة.",
+    "add_replier": "إضافة {name} إلى الاجتماع",
+    "not_invited": "{name} غير مدعو إلى هذا الاجتماع. أعاد أحدهم توجيه الدعوة إليه.",
+    "added": "أُضيف إلى الاجتماع"
+  },
+  "calendar_invitations": {
+    "title": "الدعوات",
+    "from": "من {name}"
+  },
+  "event_from_mail": {
+    "menu": "إنشاء حدث…",
+    "link_line": "البريد: {link}"
   },
   "free_busy_share": {
     "button": "مشاركة أوقات توفري مع {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "تقويم",
       "addressBook": "دفتر عناوين",
       "file": "ملف"
-    }
+    },
+    "shared_items": "ما تشاركه",
+    "stop_sharing": "إيقاف مشاركة {item} مع {name}",
+    "stop_sharing_title": "إيقاف مشاركة {item} مع {name}؟",
+    "stop_sharing_message": "سيفقد {name} الوصول إلى {item}. يبقى كل ما تشاركه معه غير ذلك.",
+    "stop_sharing_confirm": "إيقاف المشاركة",
+    "stopped_sharing": "لم يعد لدى {name} وصول إلى {item}",
+    "stop_sharing_failed": "تعذّر إيقاف مشاركة {item}"
   },
   "advanced_search": {
     "title": "بحث متقدم",
@@ -6101,6 +6178,11 @@
     "zipping": "جارٍ تجهيز {name}",
     "download_canceled": "أُلغي التنزيل",
     "zip_error": "تعذّر تنزيل {name}",
+    "download_to_folder": "تنزيل إلى مجلد…",
+    "downloading_to_folder": "جارٍ التنزيل إلى {folder}",
+    "downloaded_to_folder": "{count, plural, zero {لم يُحفظ أي ملف في {folder}.} one {حُفظ ملف واحد في {folder}.} two {حُفظ ملفان في {folder}.} few {حُفظت # ملفات في {folder}.} many {حُفظ # ملفًا في {folder}.} other {حُفظ # ملف في {folder}.}}",
+    "downloaded_to_folder_partial": "حُفظ {saved} من {total} ملفات في {folder}.",
+    "download_to_folder_failed": "تعذّر حفظ الملفات في {folder}.",
     "not_available": "تخزين الملفات غير متاح على هذا الخادم",
     "cancel": "إلغاء",
     "create": "إنشاء",
@@ -7938,14 +8020,20 @@
       "added": "تمت إضافة العنوان.",
       "saved": "تم حفظ العنوان.",
       "deleted": "تم حذف العنوان.",
-      "delete_title": "حذف هذا العنوان؟"
+      "delete_title": "حذف هذا العنوان؟",
+      "offer_new_mail": "عرضه للرسائل الجديدة. عند الإيقاف: يُستخدم فقط للرد على الرسائل المرسلة إلى هذا العنوان.",
+      "offer_new_mail_named": "عرض {address} للرسائل الجديدة"
     },
     "signatures": {
       "title": "التوقيعات",
-      "description": "يُضاف في نهاية الرسائل التي تكتبها. لكل عنوان توقيعه الخاص.",
+      "description": "يُضاف في نهاية الرسائل التي تكتبها. لكل عنوان توقيعه الخاص، أو يستخدم توقيع عنوان آخر.",
       "saved": "تم حفظ التوقيع.",
       "error": "تعذّر حفظ التوقيع. حاول مرة أخرى.",
-      "no_addresses": "لا يوجد عنوان للإرسال منه بعد."
+      "no_addresses": "لا يوجد عنوان للإرسال منه بعد.",
+      "use_label": "التوقيع",
+      "own": "توقيعه الخاص",
+      "same_as": "مثل {address}",
+      "shared_note": "يستخدم توقيع {address}. عدّله هناك."
     },
     "search": {
       "addresses": "هوية هويات اسم مستعار مرسل عنوان المرسل عنوان من identity alias sender",

@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO 已啟用，但無法連線至身分提供者。請檢查 OAuth 設定。",
       "oauth_issuer_mismatch": "透過此身分提供者登入的設定不正確。管理員需要設定其簽發者（issuer）位址。",
       "token_exchange_failed": "密碼與驗證碼已通過，但郵件伺服器拒絕為此應用程式建立工作階段。請聯絡管理員檢查其 OAuth 用戶端設定。",
-      "login_refused": "郵件伺服器在檢查你的驗證碼之前拒絕了這次登入。請要求管理員檢查 OAuth 用戶端設定。"
+      "login_refused": "郵件伺服器在檢查你的驗證碼之前拒絕了這次登入。請要求管理員檢查 OAuth 用戶端設定。",
+      "primary_sign_in_required": "請先登入你的主要帳號。此伺服器只能作為額外帳號新增。"
     },
     "show_password": "顯示密碼",
     "hide_password": "隱藏密碼",
@@ -140,6 +141,7 @@
     "filter_values_hint": "若要比對多個值，請以逗號分隔。"
   },
   "sidebar": {
+    "sign_in_again": "重新登入",
     "close": "關閉",
     "compose": "寫郵件",
     "compose_hint": "寫郵件 (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "新增其他帳戶",
     "mv_manage_account": "管理您的帳戶",
     "mv_storage_used": "已使用 {total} 中的 {percent}%",
-    "accessibility": "無障礙"
+    "accessibility": "無障礙",
+    "folder_hidden": "資料夾已隱藏。可在 設定 › 資料夾與標籤 中重新顯示。",
+    "folder_hide_failed": "無法隱藏該資料夾。"
   },
   "account_unread": {
     "others": "其他帳號中的未讀郵件：{count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "全部回覆",
     "forward_message": "轉寄",
     "from": "寄件者",
+    "from_account": "帳號：{name}",
     "to": "收件者",
     "cc": "副本",
     "bcc": "密件副本",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "未傳送：伺服器拒絕了 {recipients}。",
     "recipients_partly_refused": "伺服器拒絕了 {recipients}。其他收件者會收到此郵件。",
     "send_offline": "你似乎已離線。郵件仍保留在這裡，恢復連線後請再次寄出。",
+    "archive_after_reply_queued": "您恢復連線後郵件就會寄出。原始郵件仍會留在收件匣中。",
     "formatting": "格式",
     "send_recipients_rejected": "未傳送：伺服器拒絕了所有收件者。",
     "send_plugin_failed": "未傳送：負責傳送的外掛程式失敗或耗時過久。再次傳送前，請先檢查「寄件備份」資料夾。",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "包含群組收件匣",
-          "description": "也將共用／群組收件匣合併到整合檢視中。"
+          "description": "也將共用／群組收件匣合併到整合檢視中。",
+          "accounts_label": "整合信箱中的共用信箱",
+          "accounts_description": "取消勾選不常看的信箱。它仍會顯示在側邊欄中。"
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "一律以淺色模式顯示郵件",
-        "description": "即使應用程式使用深色模式，也以淺色模式呈現郵件內容，避免深色模式轉換問題"
+        "description": "即使應用程式使用深色模式，也在淺色背景上顯示郵件和你正在撰寫的文字"
       },
       "external_content": {
         "label": "外部內容",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "預留位置提醒",
         "description": "傳送仍含有預留位置（如 [TIME] 或 [您的姓名]）、空白範本欄位或未完成文字（如 TODO 或 TBD）的郵件前請求確認。"
+      },
+      "archive_after_reply": {
+        "label": "回覆後封存",
+        "description": "回覆或轉寄收件匣中的郵件後，會在您的郵件寄出後將其封存。"
       },
       "recipient_mentions": {
         "label": "使用 @ 提及收件者",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, other {# 個地址}}",
         "empty": "尚無隱藏地址。",
         "website": "網站（選填）",
+        "domain": "網域",
+        "domain_default": "預設網域",
+        "domain_not_allowed": "伺服器不允許你的帳號在此網域上使用隱藏地址。請選擇其他網域。",
         "description": "說明（選填）",
         "no_website": "未指定",
         "enabled": "已啟用",
@@ -2877,7 +2892,16 @@
       "error_delete": "無法刪除信件匣",
       "error_delete_has_children": "無法刪除信件匣：其中仍有子信件匣。請先刪除或移動它們。",
       "error_delete_has_email": "無法刪除信件匣：其中仍有郵件。請先移動或刪除這些郵件。",
-      "error_role": "無法更新信件匣角色"
+      "error_role": "無法更新信件匣角色",
+      "hide_unsubscribed": {
+        "label": "隱藏未訂閱的資料夾",
+        "description": "在這裡或在 Thunderbird 等其他應用程式中取消訂閱的資料夾會從側邊欄消失。其中的郵件仍保留在伺服器上。"
+      },
+      "show_folder": "在側邊欄顯示",
+      "hide_folder": "從側邊欄隱藏",
+      "show_folder_named": "在側邊欄顯示 {name}",
+      "hide_folder_named": "從側邊欄隱藏 {name}",
+      "error_subscription": "無法顯示或隱藏該資料夾。"
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "外部",
       "managed_by_tooltip": "由 {source} 管理。請在該應用程式中編輯，或使用原始 Sieve 編輯器。",
+      "server_rules": "伺服器規則",
+      "server_rules_description": "這些規則由您的郵件服務商新增，會在您的篩選器之前執行，無法在此變更。",
       "quick_rule_names": {
         "move_sender": "將 {sender} 的郵件移至 {folder}",
         "move_domain": "將 @{domain} 的郵件移至 {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "信件匣不是空的，請先清空。",
     "delete_with_contents_title": "資料夾不是空的",
     "delete_with_contents_message": "資料夾「{name}」中仍有 {count} 封郵件。要刪除該資料夾及其所有郵件嗎？此操作無法復原。",
-    "delete_with_contents_confirm": "刪除資料夾和郵件"
+    "delete_with_contents_confirm": "刪除資料夾和郵件",
+    "hide_folder": "從側邊欄隱藏"
   },
   "mail_p2_folders": {
     "all_folders": "所有信件匣",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "提到了「{keyword}」，但沒有附加檔案",
     "warning_placeholders": "收件者會看到的預留位置文字：",
     "warning_proofreading": "未處理的拼字或文法問題：{count}",
+    "warning_account": "從 {sending} 回覆，但郵件寄到了 {received}",
+    "account_warning_title": "要從其他帳號回覆嗎？",
+    "account_warning_message": "這封郵件寄到了 {received}。回覆將從 {sending} 寄出。",
+    "account_warning_back": "變更寄件者",
     "empty_text_title": "不寫內文就傳送？",
     "empty_text_message": "這封郵件沒有內文，也沒有附件。仍然傳送？",
     "scheduled_for": "已排定於 {when} 傳送",
@@ -4542,7 +4573,11 @@
         "resource": "資源",
         "location": "地點",
         "other": "其他"
-      }
+      },
+      "filter_label": "顯示",
+      "filter_all": "全部",
+      "filter_people": "人員",
+      "filter_groups": "群組"
     },
     "title": "聯絡人",
     "disabled_title": "管理員已關閉聯絡人",
@@ -5192,6 +5227,16 @@
       "subscription_title": "要取消訂閱行事曆嗎？",
       "confirm": "刪除"
     },
+    "attachments": {
+      "title": "附件",
+      "add": "新增檔案",
+      "remove": "移除 {name}",
+      "download": "下載 {name}",
+      "unnamed": "附件",
+      "download_failed": "無法下載附件。",
+      "upload_failed": "無法上傳檔案。活動未儲存。",
+      "too_large": "「{name}」超過伺服器允許的大小（每個檔案 {max}）"
+    },
     "alerts": {
       "title": "提醒",
       "none": "無提醒",
@@ -5229,6 +5274,10 @@
       "working_days": "工作日",
       "title": "行事曆設定",
       "default_view": "行事曆開啟時顯示",
+      "default_event_length": "活動預設長度",
+      "default_event_length_desc": "在行事曆中點選時間或建立活動時，新活動的長度。",
+      "event_length_minutes": "{minutes} 分鐘",
+      "event_length_hours": "{hours, number} 小時",
       "week_starts_on": "一週開始於",
       "time_format": "時間格式",
       "default_calendar": "預設行事曆",
@@ -5531,6 +5580,8 @@
       "cancel": "取消",
       "save": "儲存",
       "quick_add_placeholder": "新增任務…",
+      "add_subtask": "新增子任務…",
+      "subtask_of": "{title} 的子任務",
       "due_today": "今天",
       "due_tomorrow": "明天",
       "overdue": "逾期"
@@ -5678,6 +5729,25 @@
     "answered_by": "由 {who} 回覆",
     "organizer_owner": "{name}（由你代為傳送）",
     "organizer_me": "你"
+  },
+  "calendar_forward": {
+    "menu": "轉寄…",
+    "heading": "轉寄的邀請",
+    "when": "時間：{value}",
+    "where": "地點：{value}",
+    "organizer": "主辦人：{value}",
+    "failed": "無法轉寄邀請。",
+    "add_replier": "將 {name} 加入會議",
+    "not_invited": "{name} 未受邀參加此會議。有人轉寄了邀請。",
+    "added": "已加入會議"
+  },
+  "calendar_invitations": {
+    "title": "邀請",
+    "from": "來自 {name}"
+  },
+  "event_from_mail": {
+    "menu": "建立活動…",
+    "link_line": "郵件：{link}"
   },
   "free_busy_share": {
     "button": "與 {group} 共用我的忙碌/空閒時間",
@@ -5930,7 +6000,14 @@
       "calendar": "行事曆",
       "addressBook": "通訊錄",
       "file": "檔案"
-    }
+    },
+    "shared_items": "你共用的內容",
+    "stop_sharing": "停止與 {name} 共用 {item}",
+    "stop_sharing_title": "停止與 {name} 共用 {item}？",
+    "stop_sharing_message": "{name} 將無法再存取 {item}。你與其共用的其他內容維持不變。",
+    "stop_sharing_confirm": "停止共用",
+    "stopped_sharing": "{name} 已無法存取 {item}",
+    "stop_sharing_failed": "無法停止共用 {item}"
   },
   "advanced_search": {
     "title": "進階搜尋",
@@ -6101,6 +6178,11 @@
     "zipping": "正在準備 {name}",
     "download_canceled": "已取消下載",
     "zip_error": "無法下載 {name}",
+    "download_to_folder": "下載到資料夾…",
+    "downloading_to_folder": "正在下載到 {folder}",
+    "downloaded_to_folder": "{count, plural, other {已將 # 個檔案儲存到 {folder}。}}",
+    "downloaded_to_folder_partial": "已將 {total} 個檔案中的 {saved} 個儲存到 {folder}。",
+    "download_to_folder_failed": "無法將檔案儲存到 {folder}。",
     "not_available": "此伺服器無法使用檔案儲存功能",
     "cancel": "取消",
     "create": "建立",
@@ -7938,14 +8020,20 @@
       "added": "已新增地址。",
       "saved": "已儲存地址。",
       "deleted": "已刪除地址。",
-      "delete_title": "要刪除這個地址嗎?"
+      "delete_title": "要刪除這個地址嗎?",
+      "offer_new_mail": "用於新郵件。關閉後：只在回覆寄到此地址的郵件時使用。",
+      "offer_new_mail_named": "將 {address} 用於新郵件"
     },
     "signatures": {
       "title": "簽名",
-      "description": "加在你所寫郵件的結尾。每個地址都有自己的簽名。",
+      "description": "加在你所寫郵件的結尾。每個地址都有自己的簽名，或使用另一個地址的簽名。",
       "saved": "已儲存簽名。",
       "error": "無法儲存簽名。請再試一次。",
-      "no_addresses": "還沒有可以寄信的地址。"
+      "no_addresses": "還沒有可以寄信的地址。",
+      "use_label": "簽名",
+      "own": "自己的簽名",
+      "same_as": "與 {address} 相同",
+      "shared_note": "使用 {address} 的簽名。請在那裡編輯。"
     },
     "search": {
       "addresses": "身分 別名 寄件者 寄件者地址 寄件地址 identity alias sender",

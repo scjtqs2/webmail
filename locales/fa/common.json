@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "ورود یکپارچه فعال است اما ارائه‌دهنده هویت در دسترس نیست.",
       "oauth_issuer_mismatch": "ورود از طریق این ارائه‌دهنده درست پیکربندی نشده است. مدیر باید نشانی صادرکننده (issuer) آن را تنظیم کند.",
       "token_exchange_failed": "رمز عبور و کد پذیرفته شد، اما سرور ایمیل از شروع نشست برای این برنامه خودداری کرد. از مدیر سیستم بخواهید تنظیمات کلاینت OAuth را بررسی کند.",
-      "login_refused": "سرور ایمیل این ورود را پیش از بررسی کد شما رد کرد. از مدیر خود بخواهید تنظیمات کلاینت OAuth را بررسی کند."
+      "login_refused": "سرور ایمیل این ورود را پیش از بررسی کد شما رد کرد. از مدیر خود بخواهید تنظیمات کلاینت OAuth را بررسی کند.",
+      "primary_sign_in_required": "ابتدا به حساب اصلی خود وارد شوید. این سرور را فقط می‌توان به‌عنوان حساب اضافی افزود."
     },
     "show_password": "نمایش رمز عبور",
     "hide_password": "مخفی کردن رمز عبور",
@@ -140,6 +141,7 @@
     "filter_values_hint": "برای چند مقدار، آن‌ها را با ویرگول جدا کنید."
   },
   "sidebar": {
+    "sign_in_again": "ورود دوباره",
     "close": "بستن",
     "compose": "ایمیل جدید",
     "compose_hint": "ایمیل جدید (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "افزودن حساب دیگر",
     "mv_manage_account": "مدیریت حساب",
     "mv_storage_used": "{percent}٪ از {total} استفاده شده",
-    "accessibility": "دسترس‌پذیری"
+    "accessibility": "دسترس‌پذیری",
+    "folder_hidden": "پوشه پنهان شد. از تنظیمات › پوشه‌ها و برچسب‌ها دوباره نمایشش دهید.",
+    "folder_hide_failed": "پنهان کردن پوشه ممکن نشد."
   },
   "account_unread": {
     "others": "خوانده‌نشده در حساب‌های دیگر: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "پاسخ به همه",
     "forward_message": "ارسال مجدد",
     "from": "از",
+    "from_account": "حساب: {name}",
     "to": "به",
     "cc": "رونوشت",
     "bcc": "رونوشت مخفی",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "ارسال نشد: سرور {recipients} را رد کرد.",
     "recipients_partly_refused": "سرور {recipients} را رد کرد. سایر گیرندگان پیام را دریافت می‌کنند.",
     "send_offline": "به نظر می‌رسد آفلاین هستید. پیام هنوز اینجاست، وقتی آنلاین شدید دوباره ارسالش کنید.",
+    "archive_after_reply_queued": "پیام شما پس از آنلاین شدن دوباره ارسال می‌شود. پیام اصلی در صندوق ورودی می‌ماند.",
     "formatting": "قالب‌بندی",
     "send_recipients_rejected": "ارسال نشد: سرور همه گیرندگان را رد کرد.",
     "send_plugin_failed": "ارسال نشد - افزونه‌ای که ارسال را انجام می‌دهد با خطا مواجه شد یا بیش از حد طول کشید. پیش از ارسال دوباره، پوشه ارسال‌شده را بررسی کنید.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "شامل صندوق ورودی گروه‌ها",
-          "description": "صندوق ورودی گروه‌های اشتراکی را هم ادغام کن"
+          "description": "صندوق ورودی گروه‌های اشتراکی را هم ادغام کن",
+          "accounts_label": "صندوق‌های پستی اشتراکی در صندوق پستی یکپارچه",
+          "accounts_description": "تیک صندوقی را که هر روز نمی‌خوانید بردارید. در نوار کناری می‌ماند."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "حالت روشن برای ایمیل‌ها",
-        "description": "رندر روشن حتی در تم تاریک"
+        "description": "نمایش ایمیل‌ها و متنی که می‌نویسید روی پس‌زمینه روشن، حتی وقتی برنامه در حالت تاریک است"
       },
       "external_content": {
         "label": "محتوای خارجی",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "هشدار متن جایگزین",
         "description": "پیش از ارسال پیامی که هنوز متن جایگزین مانند [TIME] یا [نام شما]، فیلدهای خالی الگو یا متن ناتمام مانند TODO یا TBD دارد، تأیید بگیرید."
+      },
+      "archive_after_reply": {
+        "label": "بایگانی پس از پاسخ",
+        "description": "وقتی به پیامی در صندوق ورودی پاسخ می‌دهید یا آن را هدایت می‌کنید، پس از ارسال پیام شما بایگانی می‌شود."
       },
       "recipient_mentions": {
         "label": "اشاره به گیرندگان با @",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, one {# آدرس} other {# آدرس}}",
         "empty": "هنوز آدرس پوشیده‌ای وجود ندارد.",
         "website": "وب‌سایت (اختیاری)",
+        "domain": "دامنه",
+        "domain_default": "دامنهٔ پیش‌فرض",
+        "domain_not_allowed": "سرور برای حساب شما آدرس پوشیده در این دامنه را مجاز نمی‌داند. دامنهٔ دیگری انتخاب کنید.",
         "description": "توضیحات (اختیاری)",
         "no_website": "مشخص نشده",
         "enabled": "فعال",
@@ -2877,7 +2892,16 @@
       "error_delete": "حذف پوشه ناموفق بود",
       "error_delete_has_children": "نمی‌توان پوشه را حذف کرد: همچنان زیرپوشه دارد. ابتدا آنها را حذف یا منتقل کنید.",
       "error_delete_has_email": "نمی‌توان پوشه را حذف کرد: همچنان حاوی ایمیل است. ابتدا آنها را منتقل یا حذف کنید.",
-      "error_role": "به‌روزرسانی نقش پوشه ناموفق بود"
+      "error_role": "به‌روزرسانی نقش پوشه ناموفق بود",
+      "hide_unsubscribed": {
+        "label": "پنهان کردن پوشه‌های بدون اشتراک",
+        "description": "پوشه‌هایی که اینجا یا در برنامه‌ای دیگر مانند Thunderbird اشتراکشان را لغو می‌کنید از نوار کناری حذف می‌شوند. نامه‌هایشان روی سرور می‌ماند."
+      },
+      "show_folder": "نمایش در نوار کناری",
+      "hide_folder": "پنهان کردن از نوار کناری",
+      "show_folder_named": "نمایش {name} در نوار کناری",
+      "hide_folder_named": "پنهان کردن {name} از نوار کناری",
+      "error_subscription": "نمایش یا پنهان کردن پوشه ممکن نشد."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "خارجی",
       "managed_by_tooltip": "مدیریت شده توسط {source}. در آن برنامه ویرایش کنید یا از ویرایشگر خام Sieve استفاده کنید.",
+      "server_rules": "قوانین سرور",
+      "server_rules_description": "ارائه‌دهندهٔ ایمیل شما این‌ها را افزوده است. پیش از فیلترهای شما اجرا می‌شوند و اینجا قابل تغییر نیستند.",
       "quick_rule_names": {
         "move_sender": "انتقال از {sender} به {folder}",
         "move_domain": "انتقال از @{domain} به {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "خالی نیست",
     "delete_with_contents_title": "پوشه خالی نیست",
     "delete_with_contents_message": "پوشه «{name}» هنوز شامل {count, plural, one {۱ پیام} other {# پیام}} است. پوشه و همه پیام‌های آن حذف شود؟ این عمل قابل بازگشت نیست.",
-    "delete_with_contents_confirm": "حذف پوشه و پیام‌ها"
+    "delete_with_contents_confirm": "حذف پوشه و پیام‌ها",
+    "hide_folder": "پنهان کردن از نوار کناری"
   },
   "mail_p2_folders": {
     "all_folders": "همه پوشه‌ها",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "به «{keyword}» اشاره می‌کند، اما هیچ فایلی پیوست نشده است",
     "warning_placeholders": "متن جایگزینی که گیرندگان خواهند دید:",
     "warning_proofreading": "خطاهای املایی یا دستوری باز: {count}",
+    "warning_account": "پاسخ از {sending}، اما پیام به {received} رسیده است",
+    "account_warning_title": "پاسخ از حساب دیگر؟",
+    "account_warning_message": "این پیام به {received} رسیده است. پاسخ از {sending} فرستاده می‌شود.",
+    "account_warning_back": "تغییر فرستنده",
     "empty_text_title": "بدون متن ارسال شود؟",
     "empty_text_message": "این پیام متن و پیوست ندارد. به هر حال ارسال شود؟",
     "scheduled_for": "زمان‌بندی‌شده برای {when}",
@@ -4542,7 +4573,11 @@
         "resource": "منبع",
         "location": "مکان",
         "other": "سایر"
-      }
+      },
+      "filter_label": "نمایش",
+      "filter_all": "همه",
+      "filter_people": "افراد",
+      "filter_groups": "گروه‌ها"
     },
     "title": "مخاطبین",
     "disabled_title": "مدیر شما مخاطبان را غیرفعال کرده است",
@@ -5192,6 +5227,16 @@
       "subscription_title": "اشتراک تقویم لغو شود؟",
       "confirm": "حذف"
     },
+    "attachments": {
+      "title": "پیوست‌ها",
+      "add": "افزودن فایل",
+      "remove": "برداشتن {name}",
+      "download": "دانلود {name}",
+      "unnamed": "پیوست",
+      "download_failed": "پیوست بارگیری نشد.",
+      "upload_failed": "یک فایل بارگذاری نشد. رویداد ذخیره نشد.",
+      "too_large": "«{name}» بزرگ‌تر از حدی است که سرور اجازه می‌دهد ({max} برای هر فایل)"
+    },
     "alerts": {
       "title": "یادآورها",
       "none": "بدون یادآور",
@@ -5229,6 +5274,10 @@
       "working_days": "روزهای کاری",
       "title": "تنظیمات تقویم",
       "default_view": "تقویم باز می‌شود در",
+      "default_event_length": "مدت پیش‌فرض رویدادها",
+      "default_event_length_desc": "مدت رویداد جدید وقتی روی زمانی در تقویم کلیک می‌کنید یا رویدادی می‌سازید.",
+      "event_length_minutes": "{minutes} دقیقه",
+      "event_length_hours": "{hours, number} ساعت",
       "week_starts_on": "شروع هفته",
       "time_format": "فرمت زمان",
       "default_calendar": "تقویم پیش‌فرض",
@@ -5531,6 +5580,8 @@
       "cancel": "انصراف",
       "save": "ذخیره",
       "quick_add_placeholder": "افزودن وظیفه...",
+      "add_subtask": "افزودن زیرکار…",
+      "subtask_of": "زیرکارِ {title}",
       "due_today": "امروز",
       "due_tomorrow": "فردا",
       "overdue": "عقب‌افتاده"
@@ -5678,6 +5729,25 @@
     "answered_by": "پاسخ‌دهنده: {who}",
     "organizer_owner": "{name} (ارسال‌شده توسط شما)",
     "organizer_me": "شما"
+  },
+  "calendar_forward": {
+    "menu": "هدایت…",
+    "heading": "دعوت‌نامهٔ هدایت‌شده",
+    "when": "زمان: {value}",
+    "where": "مکان: {value}",
+    "organizer": "برگزارکننده: {value}",
+    "failed": "دعوت‌نامه هدایت نشد.",
+    "add_replier": "افزودن {name} به جلسه",
+    "not_invited": "{name} به این جلسه دعوت نشده است. کسی دعوت‌نامه را برایش هدایت کرده است.",
+    "added": "به جلسه افزوده شد"
+  },
+  "calendar_invitations": {
+    "title": "دعوت‌نامه‌ها",
+    "from": "از {name}"
+  },
+  "event_from_mail": {
+    "menu": "ایجاد رویداد…",
+    "link_line": "ایمیل: {link}"
   },
   "free_busy_share": {
     "button": "هم‌رسانی آزاد/مشغول من با {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "تقویم",
       "addressBook": "دفترچه آدرس",
       "file": "فایل"
-    }
+    },
+    "shared_items": "آنچه هم‌رسانی می‌کنید",
+    "stop_sharing": "توقف هم‌رسانی {item} با {name}",
+    "stop_sharing_title": "هم‌رسانی {item} با {name} متوقف شود؟",
+    "stop_sharing_message": "{name} دسترسی به {item} را از دست می‌دهد. بقیه چیزهایی که با او هم‌رسانی می‌کنید می‌ماند.",
+    "stop_sharing_confirm": "توقف هم‌رسانی",
+    "stopped_sharing": "{name} دیگر به {item} دسترسی ندارد",
+    "stop_sharing_failed": "توقف هم‌رسانی {item} ممکن نشد"
   },
   "advanced_search": {
     "title": "جستجوی پیشرفته",
@@ -6101,6 +6178,11 @@
     "zipping": "در حال آماده‌سازی {name}",
     "download_canceled": "دانلود لغو شد",
     "zip_error": "{name} دانلود نشد",
+    "download_to_folder": "بارگیری در یک پوشه…",
+    "downloading_to_folder": "در حال بارگیری در {folder}",
+    "downloaded_to_folder": "{count, plural, one {# فایل در {folder} ذخیره شد.} other {# فایل در {folder} ذخیره شد.}}",
+    "downloaded_to_folder_partial": "{saved} از {total} فایل در {folder} ذخیره شد.",
+    "download_to_folder_failed": "فایل‌ها در {folder} ذخیره نشدند.",
     "not_available": "ذخیره‌سازی فایل روی این سرور در دسترس نیست",
     "cancel": "انصراف",
     "create": "ایجاد",
@@ -7938,14 +8020,20 @@
       "added": "نشانی افزوده شد.",
       "saved": "نشانی ذخیره شد.",
       "deleted": "نشانی حذف شد.",
-      "delete_title": "این نشانی حذف شود؟"
+      "delete_title": "این نشانی حذف شود؟",
+      "offer_new_mail": "برای ایمیل جدید پیشنهاد شود. خاموش: فقط برای پاسخ به ایمیل‌هایی که به این نشانی فرستاده شده‌اند.",
+      "offer_new_mail_named": "پیشنهاد {address} برای ایمیل جدید"
     },
     "signatures": {
       "title": "امضاها",
-      "description": "به انتهای پیام‌هایی که می‌نویسید افزوده می‌شود. هر نشانی امضای خودش را دارد.",
+      "description": "به انتهای پیام‌هایی که می‌نویسید افزوده می‌شود. هر نشانی امضای خودش را دارد یا از امضای نشانی دیگری استفاده می‌کند.",
       "saved": "امضا ذخیره شد.",
       "error": "امضا ذخیره نشد. دوباره امتحان کنید.",
-      "no_addresses": "هنوز نشانی‌ای برای فرستادن ندارید."
+      "no_addresses": "هنوز نشانی‌ای برای فرستادن ندارید.",
+      "use_label": "امضا",
+      "own": "امضای خودش",
+      "same_as": "مانند {address}",
+      "shared_note": "از امضای {address} استفاده می‌کند. آن را همان‌جا ویرایش کنید."
     },
     "search": {
       "addresses": "هویت هویت‌ها نام مستعار فرستنده نشانی فرستنده نشانی از identity alias sender",

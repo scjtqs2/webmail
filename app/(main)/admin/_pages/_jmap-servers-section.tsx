@@ -21,6 +21,8 @@ interface RowDraft {
   label: string;
   url: string;
   domains: string;
+  /** Where Bulwark's server reaches this server (#1294); empty uses the URL. */
+  internalUrl: string;
   oauthClientId: string;
   oauthIssuerUrl: string;
   oauthClientSecret: string;
@@ -31,6 +33,8 @@ interface RowDraft {
   oauthExpanded: boolean;
   /** Its superusers may open the admin dashboard without the admin password. */
   adminAccess: boolean;
+  /** Only as an extra account next to a sign-in elsewhere (#1687). */
+  extraAccountOnly: boolean;
 }
 
 function entryToDraft(e: JmapServerEntry): RowDraft {
@@ -40,6 +44,7 @@ function entryToDraft(e: JmapServerEntry): RowDraft {
     label: e.label,
     url: e.url,
     domains: (e.domains ?? []).join(', '),
+    internalUrl: e.internalUrl ?? '',
     oauthClientId: e.oauth?.clientId ?? '',
     oauthIssuerUrl: e.oauth?.issuerUrl ?? '',
     oauthClientSecret: '',
@@ -48,6 +53,7 @@ function entryToDraft(e: JmapServerEntry): RowDraft {
     oauthEndSessionUrl: e.oauth?.endSessionUrl ?? '',
     oauthExpanded: !!(e.oauth && (e.oauth.clientId || e.oauth.issuerUrl || hasClientSecret || e.oauth.endSessionUrl)),
     adminAccess: e.adminAccess === true,
+    extraAccountOnly: e.extraAccountOnly === true,
   };
 }
 
@@ -64,6 +70,7 @@ function draftToEntry(d: RowDraft): JmapServerEntry | null {
   const clientSecret = d.oauthClientSecret;
   const buttonLabel = d.oauthButtonLabel.trim();
   const endSessionUrl = d.oauthEndSessionUrl.trim();
+  const internalUrl = d.internalUrl.trim().replace(/\/+$/, '');
   // A typed secret replaces the stored one; an empty field keeps it (the
   // server fills it back in), and the flag keeps the block alive so the
   // server knows there is still an OAuth client here.
@@ -81,8 +88,10 @@ function draftToEntry(d: RowDraft): JmapServerEntry | null {
     label: d.label.trim() || id,
     url,
     ...(domains.length > 0 ? { domains } : {}),
+    ...(internalUrl ? { internalUrl } : {}),
     ...(oauth ? { oauth } : {}),
     ...(d.adminAccess ? { adminAccess: true } : {}),
+    ...(d.extraAccountOnly ? { extraAccountOnly: true } : {}),
   };
 }
 
@@ -92,6 +101,7 @@ function emptyDraft(): RowDraft {
     label: '',
     url: '',
     domains: '',
+    internalUrl: '',
     oauthClientId: '',
     oauthIssuerUrl: '',
     oauthClientSecret: '',
@@ -100,6 +110,7 @@ function emptyDraft(): RowDraft {
     oauthEndSessionUrl: '',
     oauthExpanded: false,
     adminAccess: false,
+    extraAccountOnly: false,
   };
 }
 
@@ -235,6 +246,22 @@ export function JmapServersSection({ value, source, onChange, onRevert }: Props)
                 className={fieldClass}
               />
             </div>
+            <div>
+              <label htmlFor={labelFor(i)("internal-url")} className={fieldLabelClass}>
+                Internal URL (optional, for Bulwark's server only)
+              </label>
+              <input
+                id={labelFor(i)("internal-url")}
+                type="url"
+                value={d.internalUrl}
+                onChange={(e) => update(i, { internalUrl: e.target.value })}
+                placeholder="http://stalwart:8080"
+                className={fieldClass}
+              />
+              <p className="mt-1 text-[0.6875rem] text-muted-foreground">
+                Where Bulwark&apos;s server reaches this server when the JMAP URL doesn&apos;t work from inside its network. Browsers keep using the JMAP URL.
+              </p>
+            </div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <span className="block text-xs font-medium text-foreground">
@@ -249,6 +276,20 @@ export function JmapServersSection({ value, source, onChange, onRevert }: Props)
                 onChange={(checked) => update(i, { adminAccess: checked })}
                 ariaLabel={tAdminAccess('label')}
                 testId={`jmap-server-admin-access-${i}`}
+              />
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="block text-xs font-medium text-foreground">Only as an extra account</span>
+                <p className="mt-0.5 text-[0.6875rem] text-muted-foreground">
+                  Not offered on the sign-in page. Users add it next to an account on another server here, for example a legacy-proxy for their external mailboxes. With LOGIN_GRANT_SECRET set here and in the legacy-proxy, the proxy takes new addresses only from users signed in here.
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={d.extraAccountOnly}
+                onChange={(checked) => update(i, { extraAccountOnly: checked })}
+                ariaLabel="Only as an extra account"
+                testId={`jmap-server-extra-only-${i}`}
               />
             </div>
             <button

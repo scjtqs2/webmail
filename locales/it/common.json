@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO è abilitato ma il provider di identità non è raggiungibile. Controlla la configurazione OAuth.",
       "oauth_issuer_mismatch": "L'accesso con questo provider non è configurato correttamente. L'amministratore deve impostarne l'indirizzo dell'emittente (issuer).",
       "token_exchange_failed": "Password e codice sono stati accettati, ma il server di posta ha rifiutato di avviare una sessione per questa app. Chiedi all'amministratore di controllare le impostazioni del client OAuth.",
-      "login_refused": "Il server di posta ha rifiutato questo accesso prima di controllare il codice. Chiedi all'amministratore di controllare le impostazioni del client OAuth."
+      "login_refused": "Il server di posta ha rifiutato questo accesso prima di controllare il codice. Chiedi all'amministratore di controllare le impostazioni del client OAuth.",
+      "primary_sign_in_required": "Accedi prima al tuo account principale. Questo server si può aggiungere solo come account aggiuntivo."
     },
     "show_password": "Mostra password",
     "hide_password": "Nascondi password",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Per più valori, separali con virgole."
   },
   "sidebar": {
+    "sign_in_again": "Accedi di nuovo",
     "close": "Chiudi",
     "compose": "Scrivi",
     "compose_hint": "Scrivi (c)",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Aggiungi un altro account",
     "mv_manage_account": "Gestisci il tuo account",
     "mv_storage_used": "{percent}% di {total} utilizzato",
-    "accessibility": "Accessibilità"
+    "accessibility": "Accessibilità",
+    "folder_hidden": "Cartella nascosta. Puoi mostrarla di nuovo in Impostazioni › Cartelle ed etichette.",
+    "folder_hide_failed": "Impossibile nascondere la cartella."
   },
   "account_unread": {
     "others": "Non letti negli altri account: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Rispondi a tutti",
     "forward_message": "Inoltra",
     "from": "Da",
+    "from_account": "Account: {name}",
     "to": "A",
     "cc": "Cc",
     "bcc": "CCN",
@@ -1189,6 +1194,7 @@
     "recipients_refused": "Non inviato: il server ha rifiutato {recipients}.",
     "recipients_partly_refused": "Il server ha rifiutato {recipients}. Gli altri destinatari ricevono il messaggio.",
     "send_offline": "Sembra che tu sia offline. Il messaggio è ancora qui, invialo di nuovo quando torni online.",
+    "archive_after_reply_queued": "Il messaggio verrà inviato quando tornerai online. L'originale resta in Posta in arrivo.",
     "formatting": "Formattazione",
     "send_recipients_rejected": "Non inviato: il server ha rifiutato tutti i destinatari.",
     "send_plugin_failed": "Non inviato: un plugin che gestisce l'invio non è riuscito o ha impiegato troppo tempo. Controlla la cartella Inviati prima di inviare di nuovo.",
@@ -1812,7 +1818,9 @@
         },
         "include_group": {
           "label": "Includi le caselle di gruppo",
-          "description": "Includi anche le caselle condivise o di gruppo nella vista unificata."
+          "description": "Includi anche le caselle condivise o di gruppo nella vista unificata.",
+          "accounts_label": "Caselle condivise nella casella unificata",
+          "accounts_description": "Togli la spunta a una casella che non leggi ogni giorno. Resta nella barra laterale."
         }
       },
       "all_mail": {
@@ -2264,7 +2272,7 @@
       },
       "always_light_mode": {
         "label": "Mostra sempre le email in modalità chiara",
-        "description": "Visualizza il contenuto delle email in modalità chiara anche quando l'app è in modalità scura, evitando problemi di conversione"
+        "description": "Mostra le email, e il testo che scrivi, su sfondo chiaro anche quando l'app è in modalità scura"
       },
       "external_content": {
         "label": "Contenuti esterni",
@@ -2340,6 +2348,10 @@
       "placeholder_warning": {
         "label": "Avviso segnaposto",
         "description": "Chiedi conferma prima di inviare un messaggio che contiene ancora segnaposto come [TIME] o [Il tuo nome], campi del modello vuoti o testo incompleto come TODO o TBD."
+      },
+      "archive_after_reply": {
+        "label": "Archivia dopo la risposta",
+        "description": "Quando rispondi a un messaggio in Posta in arrivo o lo inoltri, viene archiviato dopo l'invio del tuo messaggio."
       },
       "recipient_mentions": {
         "label": "Menziona i destinatari con @",
@@ -2534,6 +2546,9 @@
         "count": "{count, plural, one {# indirizzo} other {# indirizzi}}",
         "empty": "Ancora nessun indirizzo mascherato.",
         "website": "Sito web (facoltativo)",
+        "domain": "Dominio",
+        "domain_default": "Dominio predefinito",
+        "domain_not_allowed": "Il server non consente indirizzi mascherati su questo dominio per il tuo account. Scegli un altro dominio.",
         "description": "Descrizione (facoltativa)",
         "no_website": "Non specificato",
         "enabled": "Attivo",
@@ -2870,7 +2885,16 @@
       "error_delete": "Impossibile eliminare la cartella",
       "error_delete_has_children": "Impossibile eliminare la cartella: contiene ancora sottocartelle. Eliminale o spostale prima.",
       "error_delete_has_email": "Impossibile eliminare la cartella: contiene ancora email. Spostale o eliminale prima.",
-      "error_role": "Impossibile aggiornare il ruolo della cartella"
+      "error_role": "Impossibile aggiornare il ruolo della cartella",
+      "hide_unsubscribed": {
+        "label": "Nascondi le cartelle non sottoscritte",
+        "description": "Le cartelle di cui annulli la sottoscrizione qui o in un'altra app, come Thunderbird, escono dalla barra laterale. La loro posta resta sul server."
+      },
+      "show_folder": "Mostra nella barra laterale",
+      "hide_folder": "Nascondi dalla barra laterale",
+      "show_folder_named": "Mostra {name} nella barra laterale",
+      "hide_folder_named": "Nascondi {name} dalla barra laterale",
+      "error_subscription": "Impossibile mostrare o nascondere la cartella."
     },
     "advanced": {
       "debug_mode": {
@@ -3206,6 +3230,8 @@
       },
       "origin_external": "Esterno",
       "managed_by_tooltip": "Gestito da {source}. Modificalo in quell'app o usa l'editor Sieve grezzo.",
+      "server_rules": "Regole del server",
+      "server_rules_description": "Le ha aggiunte il tuo provider di posta. Vengono eseguite prima dei tuoi filtri e qui non si possono modificare.",
       "quick_rule_names": {
         "move_sender": "Sposta da {sender} a {folder}",
         "move_domain": "Sposta da @{domain} a {folder}",
@@ -4208,7 +4234,8 @@
     "delete_with_contents_confirm": "Elimina cartella e messaggi",
     "placeholder_folder_name": "Nome cartella",
     "create": "Crea",
-    "rename_confirm": "Rinomina"
+    "rename_confirm": "Rinomina",
+    "hide_folder": "Nascondi dalla barra laterale"
   },
   "mail_p2_folders": {
     "all_folders": "Tutte le cartelle",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Menziona \"{keyword}\", ma non c'è nessun file allegato",
     "warning_placeholders": "Testo segnaposto che i destinatari vedranno:",
     "warning_proofreading": "Errori di ortografia o grammatica aperti: {count}",
+    "warning_account": "Risposta da {sending}, ma il messaggio è arrivato a {received}",
+    "account_warning_title": "Rispondere da un altro account?",
+    "account_warning_message": "Questo messaggio è arrivato a {received}. La risposta verrà inviata da {sending}.",
+    "account_warning_back": "Cambia il mittente",
     "empty_text_title": "Inviare senza testo?",
     "empty_text_message": "Questo messaggio non ha testo né allegati. Inviarlo comunque?",
     "scheduled_for": "Programmato per {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Risorsa",
         "location": "Luogo",
         "other": "Altro"
-      }
+      },
+      "filter_label": "Mostra",
+      "filter_all": "Tutti",
+      "filter_people": "Persone",
+      "filter_groups": "Gruppi"
     },
     "title": "Contatti",
     "disabled_title": "I contatti sono stati disattivati dall'amministratore",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Annullare l'abbonamento al calendario?",
       "confirm": "Elimina"
     },
+    "attachments": {
+      "title": "Allegati",
+      "add": "Aggiungi file",
+      "remove": "Rimuovi {name}",
+      "download": "Scarica {name}",
+      "unnamed": "Allegato",
+      "download_failed": "Impossibile scaricare l'allegato.",
+      "upload_failed": "Impossibile caricare un file. L'evento non è stato salvato.",
+      "too_large": "\"{name}\" supera la dimensione consentita dal server ({max} per file)"
+    },
     "alerts": {
       "title": "Promemoria",
       "none": "Nessun promemoria",
@@ -5229,6 +5274,10 @@
       "working_days": "Giorni lavorativi",
       "title": "Impostazioni calendario",
       "default_view": "Il calendario si apre in",
+      "default_event_length": "Durata predefinita degli eventi",
+      "default_event_length_desc": "Quanto dura un nuovo evento quando fai clic su un orario del calendario o ne crei uno.",
+      "event_length_minutes": "{minutes} minuti",
+      "event_length_hours": "{hours, plural, one {# ora} other {# ore}}",
       "week_starts_on": "La settimana inizia il",
       "time_format": "Formato ora",
       "default_calendar": "Calendario predefinito",
@@ -5502,6 +5551,8 @@
       "cancel": "Annulla",
       "save": "Salva",
       "quick_add_placeholder": "Aggiungi un'attività...",
+      "add_subtask": "Aggiungi sottoattività…",
+      "subtask_of": "Sottoattività di {title}",
       "due_today": "Scade oggi",
       "due_tomorrow": "Scade domani",
       "overdue": "Scaduta"
@@ -5811,6 +5862,11 @@
     "zipping": "Preparazione di {name}",
     "download_canceled": "Download annullato",
     "zip_error": "Impossibile scaricare {name}",
+    "download_to_folder": "Scarica in una cartella…",
+    "downloading_to_folder": "Download in {folder}",
+    "downloaded_to_folder": "{count, plural, one {# file salvato in {folder}.} other {# file salvati in {folder}.}}",
+    "downloaded_to_folder_partial": "Salvati {saved} file su {total} in {folder}.",
+    "download_to_folder_failed": "Impossibile salvare i file in {folder}.",
     "not_available": "L'archiviazione file non è disponibile su questo server",
     "cancel": "Annulla",
     "create": "Crea",
@@ -6319,6 +6375,25 @@
     "organizer_owner": "{name} (inviato da te)",
     "organizer_me": "Tu"
   },
+  "calendar_forward": {
+    "menu": "Inoltra…",
+    "heading": "Invito inoltrato",
+    "when": "Quando: {value}",
+    "where": "Dove: {value}",
+    "organizer": "Organizzatore: {value}",
+    "failed": "Impossibile inoltrare l'invito.",
+    "add_replier": "Aggiungi {name} alla riunione",
+    "not_invited": "{name} non è invitato a questa riunione. Qualcuno gli ha inoltrato l'invito.",
+    "added": "Aggiunto alla riunione"
+  },
+  "calendar_invitations": {
+    "title": "Inviti",
+    "from": "Da {name}"
+  },
+  "event_from_mail": {
+    "menu": "Crea evento…",
+    "link_line": "Email: {link}"
+  },
   "free_busy_share": {
     "button": "Condividi la mia disponibilità con {group}",
     "already": "La tua disponibilità è condivisa con {group}",
@@ -6570,7 +6645,14 @@
       "calendar": "Calendario",
       "addressBook": "Rubrica",
       "file": "File"
-    }
+    },
+    "shared_items": "Cosa condividi",
+    "stop_sharing": "Smetti di condividere {item} con {name}",
+    "stop_sharing_title": "Smettere di condividere {item} con {name}?",
+    "stop_sharing_message": "{name} perde l'accesso a {item}. Tutto il resto che condividi rimane.",
+    "stop_sharing_confirm": "Smetti di condividere",
+    "stopped_sharing": "{name} non ha più accesso a {item}",
+    "stop_sharing_failed": "Impossibile smettere di condividere {item}"
   },
   "quote_header": {
     "reply_line": "Il {date}, {from} ha scritto:",
@@ -7938,14 +8020,20 @@
       "added": "Indirizzo aggiunto.",
       "saved": "Indirizzo salvato.",
       "deleted": "Indirizzo eliminato.",
-      "delete_title": "Eliminare questo indirizzo?"
+      "delete_title": "Eliminare questo indirizzo?",
+      "offer_new_mail": "Proponi per le nuove email. Disattivato: solo per rispondere alle email inviate a questo indirizzo.",
+      "offer_new_mail_named": "Proponi {address} per le nuove email"
     },
     "signatures": {
       "title": "Firme",
-      "description": "Aggiunta alla fine dei messaggi che scrivi. Ogni indirizzo ha la sua.",
+      "description": "Aggiunta alla fine dei messaggi che scrivi. Ogni indirizzo ha la sua o usa la firma di un altro indirizzo.",
       "saved": "Firma salvata.",
       "error": "Non è stato possibile salvare la firma. Riprova.",
-      "no_addresses": "Non c'è ancora un indirizzo da cui inviare."
+      "no_addresses": "Non c'è ancora un indirizzo da cui inviare.",
+      "use_label": "Firma",
+      "own": "La sua firma",
+      "same_as": "Uguale a {address}",
+      "shared_note": "Usa la firma di {address}. Modificala lì."
     },
     "search": {
       "addresses": "identità alias mittente indirizzo del mittente indirizzo da identity sender",

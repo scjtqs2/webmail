@@ -25,7 +25,8 @@
       "oauth_discovery_failed": "SSO je povolené, ale poskytovateľa identity sa nepodarilo dosiahnuť. Skontrolujte konfiguráciu OAuth.",
       "oauth_issuer_mismatch": "Prihlásenie cez tohto poskytovateľa nie je správne nastavené. Správca musí nastaviť jeho adresu vydavateľa (issuer).",
       "token_exchange_failed": "Heslo a kód boli prijaté, ale poštový server odmietol pre túto aplikáciu spustiť reláciu. Požiadajte správcu o kontrolu nastavení klienta OAuth.",
-      "login_refused": "Poštový server odmietol toto prihlásenie skôr, ako overil váš kód. Požiadajte správcu, aby skontroloval nastavenia klienta OAuth."
+      "login_refused": "Poštový server odmietol toto prihlásenie skôr, ako overil váš kód. Požiadajte správcu, aby skontroloval nastavenia klienta OAuth.",
+      "primary_sign_in_required": "Najprv sa prihláste do svojho hlavného účtu. Tento server sa dá pridať len ako ďalší účet."
     },
     "show_password": "Zobraziť heslo",
     "hide_password": "Skryť heslo",
@@ -140,6 +141,7 @@
     "filter_values_hint": "Viac hodnôt oddeľte čiarkami."
   },
   "sidebar": {
+    "sign_in_again": "Prihlásiť sa znova",
     "unified_mailbox": "Zjednotená schránka",
     "close": "Zavrieť",
     "compose": "Napísať",
@@ -242,7 +244,9 @@
     "mv_add_another_account": "Pridať ďalší účet",
     "mv_manage_account": "Spravovať účet",
     "mv_storage_used": "Využité {percent} % z {total}",
-    "accessibility": "Prístupnosť"
+    "accessibility": "Prístupnosť",
+    "folder_hidden": "Priečinok je skrytý. Znova ho zobrazíte v Nastavenia › Priečinky a štítky.",
+    "folder_hide_failed": "Priečinok sa nepodarilo skryť."
   },
   "account_unread": {
     "others": "Neprečítané v ostatných účtoch: {count}",
@@ -1079,6 +1083,7 @@
     "reply_all_to": "Odpovedať všetkým",
     "forward_message": "Preposlať",
     "from": "Od",
+    "from_account": "Účet: {name}",
     "to": "Komu",
     "cc": "Kópia",
     "bcc": "Skrytá kópia",
@@ -1185,6 +1190,7 @@
     "recipients_refused": "Neodoslané: server odmietol {recipients}.",
     "recipients_partly_refused": "Server odmietol {recipients}. Ostatní príjemcovia správu dostanú.",
     "send_offline": "Zdá sa, že ste offline. Správa tu zostáva, odošlite ju znova, keď budete online.",
+    "archive_after_reply_queued": "Správa sa odošle, keď budete znova online. Pôvodná správa zostane v doručenej pošte.",
     "formatting": "Formátovanie",
     "send_recipients_rejected": "Neodoslané – server odmietol všetkých príjemcov.",
     "send_plugin_failed": "Neodoslané – doplnok, ktorý zabezpečuje odoslanie, zlyhal alebo trval príliš dlho. Pred opätovným odoslaním skontrolujte priečinok Odoslané.",
@@ -1815,7 +1821,9 @@
         },
         "include_group": {
           "label": "Zahrnúť skupinové schránky",
-          "description": "Zahrnúť do zjednoteného zobrazenia aj zdieľané/skupinové schránky."
+          "description": "Zahrnúť do zjednoteného zobrazenia aj zdieľané/skupinové schránky.",
+          "accounts_label": "Zdieľané schránky v zjednotenej schránke",
+          "accounts_description": "Zrušte začiarknutie schránky, ktorú nečítate každý deň. Zostane na bočnom paneli."
         }
       },
       "all_mail": {
@@ -2267,7 +2275,7 @@
       },
       "always_light_mode": {
         "label": "Vždy zobrazovať e-maily v svetlom režime",
-        "description": "Vykresľovať obsah e-mailu v svetlom režime aj keď je aplikácia v tmavom režime"
+        "description": "Zobrazovať e-maily aj text, ktorý píšete, na svetlom pozadí, aj keď je aplikácia v tmavom režime"
       },
       "external_content": {
         "label": "Externý obsah",
@@ -2343,6 +2351,10 @@
       "placeholder_warning": {
         "label": "Upozornenie na zástupné texty",
         "description": "Pred odoslaním správy, ktorá ešte obsahuje zástupné texty ako [TIME] alebo [Vaše meno], prázdne polia šablóny alebo nedokončený text ako TODO či TBD, požiadať o potvrdenie."
+      },
+      "archive_after_reply": {
+        "label": "Po odpovedi archivovať",
+        "description": "Keď odpoviete na správu v doručenej pošte alebo ju prepošlete, po odoslaní vašej správy sa archivuje."
       },
       "recipient_mentions": {
         "label": "Spomínať príjemcov pomocou @",
@@ -2541,6 +2553,9 @@
         "count": "{count, plural, one {# adresa} few {# adresy} many {# adresy} other {# adries}}",
         "empty": "Zatiaľ žiadne maskované adresy.",
         "website": "Web (voliteľné)",
+        "domain": "Doména",
+        "domain_default": "Predvolená doména",
+        "domain_not_allowed": "Server pre váš účet nepovoľuje maskované adresy v tejto doméne. Vyberte inú doménu.",
         "description": "Popis (voliteľné)",
         "no_website": "Neuvedené",
         "enabled": "Zapnutá",
@@ -2877,7 +2892,16 @@
       "error_delete": "Priečinok sa nepodarilo odstrániť",
       "error_delete_has_children": "Priečinok sa nedá odstrániť: stále obsahuje podpriečinky. Najprv ich odstráňte alebo presuňte.",
       "error_delete_has_email": "Priečinok sa nedá odstrániť: stále obsahuje e-maily. Najprv ich presuňte alebo odstráňte.",
-      "error_role": "Rolu priečinka sa nepodarilo aktualizovať"
+      "error_role": "Rolu priečinka sa nepodarilo aktualizovať",
+      "hide_unsubscribed": {
+        "label": "Skryť neodoberané priečinky",
+        "description": "Priečinky, ktorých odber zrušíte tu alebo v inej aplikácii, napríklad v Thunderbirde, zmiznú z bočného panela. Ich pošta zostane na serveri."
+      },
+      "show_folder": "Zobraziť na bočnom paneli",
+      "hide_folder": "Skryť z bočného panela",
+      "show_folder_named": "Zobraziť {name} na bočnom paneli",
+      "hide_folder_named": "Skryť {name} z bočného panela",
+      "error_subscription": "Priečinok sa nepodarilo zobraziť ani skryť."
     },
     "advanced": {
       "debug_mode": {
@@ -3213,6 +3237,8 @@
       },
       "origin_external": "Externé",
       "managed_by_tooltip": "Spravované aplikáciou {source}. Upravte to v danej aplikácii alebo použite editor zdrojového kódu Sieve.",
+      "server_rules": "Pravidlá servera",
+      "server_rules_description": "Pridal ich váš poskytovateľ pošty. Bežia pred vašimi filtrami a tu sa nedajú zmeniť.",
       "quick_rule_names": {
         "move_sender": "Presunúť od {sender} do {folder}",
         "move_domain": "Presunúť od @{domain} do {folder}",
@@ -4208,7 +4234,8 @@
     "toast_error_delete_has_email": "Priečinok nie je prázdny. Najprv ho vyprázdnite.",
     "delete_with_contents_title": "Priečinok nie je prázdny",
     "delete_with_contents_message": "Priečinok „{name}“ stále obsahuje {count, plural, one {1 správu} few {# správy} other {# správ}}. Odstrániť priečinok aj všetky jeho správy? Túto akciu nie je možné vrátiť späť.",
-    "delete_with_contents_confirm": "Odstrániť priečinok a správy"
+    "delete_with_contents_confirm": "Odstrániť priečinok a správy",
+    "hide_folder": "Skryť z bočného panela"
   },
   "mail_p2_folders": {
     "all_folders": "Všetky priečinky",
@@ -4456,6 +4483,10 @@
     "warning_attachment": "Spomína „{keyword}“, ale nie je pripojený žiadny súbor",
     "warning_placeholders": "Zástupný text, ktorý uvidia príjemcovia:",
     "warning_proofreading": "Neopravené pravopisné alebo gramatické chyby: {count}",
+    "warning_account": "Odpoveď z účtu {sending}, ale správa prišla na účet {received}",
+    "account_warning_title": "Odpovedať z iného účtu?",
+    "account_warning_message": "Táto správa prišla na účet {received}. Odpoveď sa odošle z účtu {sending}.",
+    "account_warning_back": "Zmeniť odosielateľa",
     "empty_text_title": "Odoslať bez textu?",
     "empty_text_message": "Táto správa nemá text ani prílohu. Odoslať ju aj tak?",
     "scheduled_for": "Naplánované na {when}",
@@ -4542,7 +4573,11 @@
         "resource": "Prostriedok",
         "location": "Miesto",
         "other": "Iné"
-      }
+      },
+      "filter_label": "Zobraziť",
+      "filter_all": "Všetko",
+      "filter_people": "Ľudia",
+      "filter_groups": "Skupiny"
     },
     "title": "Kontakty",
     "disabled_title": "Kontakty vypol správca",
@@ -5192,6 +5227,16 @@
       "subscription_title": "Zrušiť odber kalendára?",
       "confirm": "Odstrániť"
     },
+    "attachments": {
+      "title": "Prílohy",
+      "add": "Pridať súbor",
+      "remove": "Odstrániť {name}",
+      "download": "Stiahnuť {name}",
+      "unnamed": "Príloha",
+      "download_failed": "Prílohu sa nepodarilo stiahnuť.",
+      "upload_failed": "Súbor sa nepodarilo nahrať. Udalosť nebola uložená.",
+      "too_large": "„{name}“ je väčší, než server povoľuje ({max} na súbor)"
+    },
     "alerts": {
       "title": "Pripomenutia",
       "none": "Žiadne pripomenutia",
@@ -5229,6 +5274,10 @@
       "working_days": "Pracovné dni",
       "title": "Nastavenia kalendára",
       "default_view": "Kalendár sa otvorí v",
+      "default_event_length": "Predvolená dĺžka udalostí",
+      "default_event_length_desc": "Ako dlho trvá nová udalosť, keď kliknete na čas v kalendári alebo ju vytvoríte.",
+      "event_length_minutes": "{minutes} minút",
+      "event_length_hours": "{hours, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodín}}",
       "week_starts_on": "Týždeň začína v",
       "time_format": "Formát času",
       "default_calendar": "Predvolený kalendár",
@@ -5531,6 +5580,8 @@
       "cancel": "Zrušiť",
       "save": "Uložiť",
       "quick_add_placeholder": "Pridať úlohu...",
+      "add_subtask": "Pridať podúlohu…",
+      "subtask_of": "Podúloha úlohy {title}",
       "due_today": "Dnes",
       "due_tomorrow": "Zajtra",
       "overdue": "Po termíne"
@@ -5678,6 +5729,25 @@
     "answered_by": "Odpovedal(a): {who}",
     "organizer_owner": "{name} (odoslané vami)",
     "organizer_me": "Vy"
+  },
+  "calendar_forward": {
+    "menu": "Preposlať…",
+    "heading": "Preposlaná pozvánka",
+    "when": "Kedy: {value}",
+    "where": "Kde: {value}",
+    "organizer": "Organizátor: {value}",
+    "failed": "Pozvánku sa nepodarilo preposlať.",
+    "add_replier": "Pridať {name} na stretnutie",
+    "not_invited": "{name} nie je pozvaný na toto stretnutie. Niekto mu pozvánku preposlal.",
+    "added": "Pridané na stretnutie"
+  },
+  "calendar_invitations": {
+    "title": "Pozvánky",
+    "from": "Od {name}"
+  },
+  "event_from_mail": {
+    "menu": "Vytvoriť udalosť…",
+    "link_line": "E-mail: {link}"
   },
   "free_busy_share": {
     "button": "Zdieľať môj voľný čas so skupinou {group}",
@@ -5930,7 +6000,14 @@
       "calendar": "Kalendár",
       "addressBook": "Adresár",
       "file": "Súbor"
-    }
+    },
+    "shared_items": "Čo zdieľate",
+    "stop_sharing": "Prestať zdieľať {item} s {name}",
+    "stop_sharing_title": "Prestať zdieľať {item} s {name}?",
+    "stop_sharing_message": "{name} stratí prístup k {item}. Všetko ostatné, čo zdieľate, zostane.",
+    "stop_sharing_confirm": "Prestať zdieľať",
+    "stopped_sharing": "{name} už nemá prístup k {item}",
+    "stop_sharing_failed": "Zdieľanie {item} sa nepodarilo zrušiť"
   },
   "advanced_search": {
     "title": "Pokročilé hľadanie",
@@ -6101,6 +6178,11 @@
     "zipping": "Pripravuje sa {name}",
     "download_canceled": "Sťahovanie zrušené",
     "zip_error": "{name} sa nepodarilo stiahnuť",
+    "download_to_folder": "Stiahnuť do priečinka…",
+    "downloading_to_folder": "Sťahovanie do priečinka {folder}",
+    "downloaded_to_folder": "{count, plural, one {Uložený # súbor do priečinka {folder}.} few {Uložené # súbory do priečinka {folder}.} many {Uložených # súborov do priečinka {folder}.} other {Uložených # súborov do priečinka {folder}.}}",
+    "downloaded_to_folder_partial": "Uložených {saved} z {total} súborov do priečinka {folder}.",
+    "download_to_folder_failed": "Súbory sa nepodarilo uložiť do priečinka {folder}.",
     "not_available": "Úložisko súborov nie je na tomto serveri k dispozícii",
     "cancel": "Zrušiť",
     "create": "Vytvoriť",
@@ -7938,14 +8020,20 @@
       "added": "Adresa pridaná.",
       "saved": "Adresa uložená.",
       "deleted": "Adresa odstránená.",
-      "delete_title": "Odstrániť túto adresu?"
+      "delete_title": "Odstrániť túto adresu?",
+      "offer_new_mail": "Ponúkať pre nové e-maily. Vypnuté: len na odpovede na poštu poslanú na túto adresu.",
+      "offer_new_mail_named": "Ponúkať {address} pre nové e-maily"
     },
     "signatures": {
       "title": "Podpisy",
-      "description": "Pridá sa na koniec správ, ktoré píšete. Každá adresa má vlastný.",
+      "description": "Pridá sa na koniec správ, ktoré píšete. Každá adresa má vlastný, alebo používa podpis inej adresy.",
       "saved": "Podpis uložený.",
       "error": "Podpis sa nepodarilo uložiť. Skúste to znova.",
-      "no_addresses": "Zatiaľ nemáte adresu, z ktorej sa dá odosielať."
+      "no_addresses": "Zatiaľ nemáte adresu, z ktorej sa dá odosielať.",
+      "use_label": "Podpis",
+      "own": "Vlastný podpis",
+      "same_as": "Rovnaký ako {address}",
+      "shared_note": "Používa podpis adresy {address}. Upravte ho tam."
     },
     "search": {
       "addresses": "identita identity alias odosielateľ adresa odosielateľa adresa od identity sender",

@@ -22,6 +22,7 @@ import type { Mailbox } from "@/lib/jmap/types";
 import { forwardsAround, inRunOrder, worstCaseForwards } from "@/lib/filters/forward-limit";
 import { isPeriodBoundary, periodStatus, supportsPeriods } from "@/lib/sieve/period";
 import { supportsRegex } from "@/lib/sieve/regex";
+import { isManagedScriptName } from "@/lib/sieve/generator";
 import { formatDateTime } from "@/lib/utils";
 import { useVacationStore } from "@/stores/vacation-store";
 import { useManagedAccountStore } from "@/stores/managed-account-store";
@@ -236,7 +237,9 @@ export function FilterSettings() {
     rawScript,
     vacationSettings,
     includeVacation,
+    vacationScriptName,
     vacationForward,
+    serverRules,
     sieveCapabilities,
     selectAccount,
     saveFilters,
@@ -299,8 +302,11 @@ export function FilterSettings() {
   const vacationStoreEnabled = useVacationStore((s) => s.isEnabled);
   // Vacation uses a separate per-(primary)-account mechanism (RFC 9661), so the
   // "vacation active" banner only applies when editing the personal account.
+  // An include of Stalwart 1.2's "managed" stays while the auto-reply is off
+  // (stores/filter-store.ts), so only the server says whether that one is on.
+  const includesAutoReply = includeVacation && !isManagedScriptName(vacationScriptName);
   const vacationEnabled =
-    isPrimaryAccount && (vacationStoreEnabled || vacationSettings?.isEnabled || includeVacation);
+    isPrimaryAccount && (vacationStoreEnabled || vacationSettings?.isEnabled || includesAutoReply);
 
   const [editingRule, setEditingRule] = useState<FilterRule | undefined>();
   const [showRuleModal, setShowRuleModal] = useState(false);
@@ -592,6 +598,25 @@ export function FilterSettings() {
                   {t("reset_to_visual")}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Shown so nothing in the filters script runs out of the user's sight. */}
+        {!isOpaque && serverRules && (
+          <div
+            className="flex items-start gap-3 p-3 rounded-md border border-border"
+            data-testid="server-rules"
+          >
+            <div className="pt-0.5 text-muted-foreground" aria-hidden="true">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">{t("server_rules")}</p>
+              <p className="text-xs text-muted-foreground">{t("server_rules_description")}</p>
+              <pre dir="ltr" className="mt-1.5 text-xs font-mono whitespace-pre-wrap break-all text-muted-foreground bg-muted rounded p-2 max-h-32 overflow-y-auto">
+                {serverRules}
+              </pre>
             </div>
           </div>
         )}

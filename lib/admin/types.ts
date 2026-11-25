@@ -90,6 +90,11 @@ export interface FeatureGates {
   tagsAboveSharedEnabled: boolean;
   /** Booking, parcel and order cards read from schema.org markup in mail. */
   structuredMailEnabled: boolean;
+  /**
+   * Remote pictures in mail load through this server (/api/remote-content),
+   * so senders don't see the reader's address (#1021). Global only.
+   */
+  remoteContentProxyEnabled: boolean;
 }
 
 export const DEFAULT_FEATURE_GATES: FeatureGates = {
@@ -125,6 +130,7 @@ export const DEFAULT_FEATURE_GATES: FeatureGates = {
   archiveActionEnabled: true,
   tagsAboveSharedEnabled: false,
   structuredMailEnabled: true,
+  remoteContentProxyEnabled: false,
 };
 
 export type ColorMode = 'light' | 'dark' | 'system';
@@ -301,6 +307,9 @@ export const CONFIG_ENV_MAP: Record<string, { envVar?: string; fileEnvVar?: stri
   appDescription: { envVar: 'APP_DESCRIPTION', type: 'string', defaultValue: '' },
   searchEngineIndexing: { envVar: 'SEARCH_ENGINE_INDEXING', type: 'boolean', defaultValue: false },
   jmapServerUrl: { envVar: 'JMAP_SERVER_URL', type: 'url', defaultValue: '' },
+  // Where Bulwark's own server reaches jmapServerUrl, e.g. a container name;
+  // browsers keep using jmapServerUrl (#1294, lib/stalwart/internal-url.ts).
+  jmapInternalServerUrl: { envVar: 'JMAP_INTERNAL_SERVER_URL', type: 'url', defaultValue: '' },
   stalwartFeaturesEnabled: { envVar: 'STALWART_FEATURES', type: 'boolean', defaultValue: true },
   // Server-side switch for /api/account/stalwart/jmap. Independent of the UI
   // flag above so operators can keep the client features but block the
@@ -310,6 +319,11 @@ export const CONFIG_ENV_MAP: Record<string, { envVar?: string; fileEnvVar?: stri
   devMode: { envVar: 'DEV_MOCK_JMAP', type: 'boolean', defaultValue: false },
   faviconUrl: { envVar: 'FAVICON_URL', type: 'url', defaultValue: '/branding/Bulwark_Favicon.svg' },
   pwaIconUrl: { envVar: 'PWA_ICON_URL', type: 'url', defaultValue: '' },
+  // The small mark in the Android status bar for push notifications. Android
+  // draws only its transparency, so it has to be a cut-out on transparency;
+  // an opaque app icon turns into a solid blob there (#915). Empty uses the
+  // bundled Bulwark mark (/api/notification-badge).
+  notificationBadgeUrl: { envVar: 'NOTIFICATION_BADGE_URL', type: 'url', defaultValue: '' },
   pwaScreenshotMobileUrl: { envVar: 'PWA_SCREENSHOT_MOBILE_URL', type: 'url', defaultValue: '' },
   pwaScreenshotDesktopUrl: { envVar: 'PWA_SCREENSHOT_DESKTOP_URL', type: 'url', defaultValue: '' },
   pwaThemeColor: { envVar: 'PWA_THEME_COLOR', type: 'string', defaultValue: '#ffffff' },
@@ -460,6 +474,9 @@ export const CONFIG_ENV_MAP: Record<string, { envVar?: string; fileEnvVar?: stri
   errorReportingSampleRate: { envVar: 'ERROR_REPORTING_SAMPLE_RATE', type: 'string', defaultValue: '1' },
   errorReportingEnvironment: { envVar: 'ERROR_REPORTING_ENVIRONMENT', type: 'string', defaultValue: 'production' },
   sessionSecret: { envVar: 'SESSION_SECRET', fileEnvVar: 'SESSION_SECRET_FILE', fileKey: "sessionSecretFile", type: 'string', defaultValue: '' },
+  // Shared with a legacy-proxy's LOGIN_GRANT_SECRET: signs the login grant a
+  // server entry marked extraAccountOnly gets (#1687, lib/auth/extra-account.ts).
+  loginGrantSecret: { envVar: 'LOGIN_GRANT_SECRET', fileEnvVar: 'LOGIN_GRANT_SECRET_FILE', fileKey: 'loginGrantSecretFile', type: 'string', defaultValue: '' },
   extensionDirectoryUrl: { envVar: 'EXTENSION_DIRECTORY_URL', type: 'url', defaultValue: 'https://extensions.bulwarkmail.org' },
   // Root keys (base64 raw Ed25519, comma-separated) a self-hosted extension
   // directory signs its keyring with. The official directory's are built in
@@ -511,7 +528,7 @@ export const CONFIG_ENV_MAP: Record<string, { envVar?: string; fileEnvVar?: stri
 };
 
 /** Keys that should never be exposed to the client config endpoint */
-export const SENSITIVE_CONFIG_KEYS = new Set(['oauthClientSecret', 'sessionSecret']);
+export const SENSITIVE_CONFIG_KEYS = new Set(['oauthClientSecret', 'sessionSecret', 'loginGrantSecret']);
 
 /** Admin session cookie name */
 export const ADMIN_SESSION_COOKIE = 'admin_session';

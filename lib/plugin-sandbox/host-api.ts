@@ -28,6 +28,7 @@ import { useAccountStore } from '@/stores/account-store';
 import { returnToOwnAccount } from '@/lib/impersonation/return-client';
 import { isPopoutWindow } from '@/lib/popout/window-role';
 import { claimLegacyPluginStorage, pluginStoragePrefix } from './storage-scope';
+import { isSyncedStorageKey, stampSyncedStorage, stampSyncedStorageRemoved } from './synced-prefs';
 import { useIdentityStore } from '@/stores/identity-store';
 import { resolveEmailBlobContext, useEmailStore } from '@/stores/email-store';
 import { keywordPointer } from '../jmap/patch-pointer';
@@ -50,7 +51,7 @@ import { isServerSetKeyword } from '../jmap/server-keywords';
 import { suggestKeywordColor } from '../keyword-discovery';
 import { isValidKeywordDefinitionId, MAX_KEYWORD_LABEL_LENGTH } from '../keyword-nesting';
 import { emailKeyFor } from '../thread-utils';
-import { DEFAULT_SEARCH_FILTERS, isFilterEmpty, normalizePluginFilter } from '../jmap/search-utils';
+import { DEFAULT_SEARCH_FILTERS, isFilterEmpty, normalizePluginFilter, type PluginListedEmail } from '../jmap/search-utils';
 import { awaitDialog, awaitPrompt, awaitCustomDialog, type PromptField } from './host-dialog';
 import { triggerAnchor } from './dialog-anchor';
 import { fileStorage } from '../plugin-storage';
@@ -69,7 +70,7 @@ import {
 import {
   doEmailArchive, doEmailGet, doEmailGetAttachment, doEmailGetRaw, doEmailList, doEmailMove, doEmailSearch, doMailboxesList,
 } from './host-api-mail';
-import { MAX_PLUGIN_FETCH_BYTES, readFileName, readMediaType, sessionClient } from './host-api-input';
+import { MAX_PLUGIN_FETCH_BYTES, readFileName, readId, readMediaType, readObject, sessionClient } from './host-api-input';
 import { doComposeOpen, doComposeReply, doDraftsCreate } from './host-api-compose';
 import { doEmailForward } from './host-api-forward';
 import { doUiPrint } from './host-api-print';
@@ -269,6 +270,7 @@ export const PERM_PER_METHOD: Readonly<Record<string, Permission | null>> = {
   // which messages the list shows.
   'search.run': 'email:read',
   'search.clear': 'email:read',
+  'search.showMessages': 'email:read',
   // OAuth with a third party: a state value bound to this plugin, and the
   // redirect URI the provider sends the user back to.
   'oauth.createState': 'http:fetch',
@@ -433,11 +435,18 @@ function storageGet(pluginId: string, key: string): unknown {
  */
 export const PLUGIN_STORAGE_QUOTA_BYTES = 1024 * 1024;
 
-function storageSet(pluginId: string, key: string, value: unknown): void {
+/**
+ * `{ sync: true }` keeps the key in the account's synced settings (#1327):
+ * the value reaches every browser of the account, and later sets and removes
+ * of the key follow it there. Up to 16 KB per plugin.
+ */
+function storageSet(pluginId: string, key: string, value: unknown, options?: unknown): void {
   if (typeof window === 'undefined') return;
   if (typeof key !== 'string' || key.length === 0 || key.length > 256) {
     throw new Error('storage.set: key must be a string of 1-256 characters');
   }
+  const sync = readObject(options, 'storage.set', 'options', ['sync'], true).sync;
+  if (sync !== undefined && typeof sync !== 'boolean') throw new Error('storage.set: sync must be true or false');
   const prefix = storagePrefix(pluginId);
   const serialized = JSON.stringify(value);
   if (serialized === undefined) throw new Error('storage.set: value is not JSON-serialisable');
@@ -451,10 +460,17 @@ function storageSet(pluginId: string, key: string, value: unknown): void {
   if (used + prefix.length + key.length + serialized.length > PLUGIN_STORAGE_QUOTA_BYTES) {
     throw new Error(`Plugin storage is full (${Math.round(PLUGIN_STORAGE_QUOTA_BYTES / 1024)} KB per account)`);
   }
+  const accountId = useAccountStore.getState().activeAccountId;
+  // Signed out there is no account to sync with.
+  if (accountId && (sync === true || isSyncedStorageKey(pluginId, accountId, key))) {
+    stampSyncedStorage(pluginId, accountId, key, serialized, window.localStorage.getItem(prefix + key));
+  }
   window.localStorage.setItem(prefix + key, serialized);
 }
 function storageRemove(pluginId: string, key: string): void {
   if (typeof window === 'undefined') return;
+  const accountId = useAccountStore.getState().activeAccountId;
+  if (accountId && typeof key === 'string') stampSyncedStorageRemoved(pluginId, accountId, key);
   window.localStorage.removeItem(storagePrefix(pluginId) + key);
 }
 function storageKeys(pluginId: string): string[] {
@@ -1971,6 +1987,46 @@ async function doSearchRun(plugin: InstalledPlugin, query: unknown, options: unk
   await store.advancedSearch(client);
 }
 
+/** Most messages a plugin may put in the list at once (#954): a list a person reads. */
+export const MAX_PLUGIN_LISTED_EMAILS = 200;
+
+/**
+ * Show the messages a plugin found itself as the message list (#954), under
+ * a chip with its label, in place of any search. Each entry is an id, or
+ * `{ id, accountId }` for a message of a shared or team account. The list
+ * reads them with the user's own login, so a plugin can't show a message the
+ * user couldn't open; ones the server doesn't have are left out. The user's
+ * own search, a filter or another folder replaces it.
+ */
+async function doSearchShowMessages(plugin: InstalledPlugin, emails: unknown, options: unknown): Promise<void> {
+  const method = 'search.showMessages';
+  if (!Array.isArray(emails)) throw new Error(`${method}: emails must be an array`);
+  if (emails.length > MAX_PLUGIN_LISTED_EMAILS) throw new Error(`${method}: at most ${MAX_PLUGIN_LISTED_EMAILS} messages`);
+  const seen = new Set<string>();
+  const listed: PluginListedEmail[] = [];
+  for (const entry of emails) {
+    const data = typeof entry === 'string' ? { id: entry } : readObject(entry, method, 'email', ['id', 'accountId']);
+    const id = readId(data.id, method);
+    const accountId = data.accountId === undefined ? undefined : readId(data.accountId, method, 'accountId');
+    const key = `${accountId ?? ''}/${id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    listed.push(accountId ? { id, accountId } : { id });
+  }
+  const rawLabel = readObject(options, method, 'options', ['label'], true).label;
+  if (rawLabel !== undefined && typeof rawLabel !== 'string') throw new Error(`${method}: label must be a string`);
+  const label = (rawLabel?.trim() || plugin.name).slice(0, MAX_SEARCH_LABEL_LENGTH);
+
+  const client = requireClient();
+  const store = useEmailStore.getState();
+  store.setSearchQuery('');
+  store.setSearchFilters({
+    ...DEFAULT_SEARCH_FILTERS,
+    pluginFilter: { pluginId: plugin.id, label, filter: {}, emails: listed },
+  });
+  await store.advancedSearch(client);
+}
+
 /**
  * End the plugin's own search: its chip goes, as with the chip's ✕. Filters
  * the user added on top stay and the search runs again with them; with
@@ -2171,7 +2227,7 @@ export async function dispatchApiCall(
     }
 
     case 'storage.get': return storageGet(plugin.id, args[0] as string);
-    case 'storage.set': storageSet(plugin.id, args[0] as string, args[1]); return undefined;
+    case 'storage.set': storageSet(plugin.id, args[0] as string, args[1], args[2]); return undefined;
     case 'storage.remove': storageRemove(plugin.id, args[0] as string); return undefined;
     case 'storage.keys': return storageKeys(plugin.id);
 
@@ -2438,6 +2494,7 @@ export async function dispatchApiCall(
 
     case 'search.run': return doSearchRun(plugin, args[0], args[1]);
     case 'search.clear': return doSearchClear(plugin);
+    case 'search.showMessages': return doSearchShowMessages(plugin, args[0], args[1]);
 
     case 'oauth.createState': return createOAuthState(plugin.id);
     case 'oauth.getRedirectUri': {
@@ -2491,8 +2548,8 @@ export async function dispatchApiCall(
     case 'mailboxes.list': return doMailboxesList();
     case 'email.getAttachment': return doEmailGetAttachment(args[0], args[1], args[2]);
     case 'email.getRaw': return doEmailGetRaw(args[0], args[1]);
-    case 'email.move': return doEmailMove(plugin.id, args[0], args[1]);
-    case 'email.archive': return doEmailArchive(plugin.id, args[0]);
+    case 'email.move': return doEmailMove(plugin.id, args[0], args[1], args[2]);
+    case 'email.archive': return doEmailArchive(plugin.id, args[0], args[1]);
     case 'email.forward': return doEmailForward(plugin, args[0], args[1], {
       confirm: (input) => awaitDialog({ pluginId: plugin.id, kind: 'confirm', ...input }),
       // Read too, as when the user forwards it (#1756).

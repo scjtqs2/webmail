@@ -28,6 +28,7 @@ import {
 import { locales } from '@/i18n/routing';
 import { UNREAD_SECTION_SIZES } from '@/lib/unread-first';
 import { COMPOSE_PLACEMENTS } from '@/lib/compose-placement';
+import { EVENT_LENGTHS } from '@/lib/calendar-event-length';
 
 /** Which store holds the setting. */
 export type SettingsStoreName = 'settings' | 'theme' | 'locale' | 'calendar';
@@ -173,6 +174,7 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('showToolbarLabels', 'appearance', `${AP}toolbar_labels.label`),
   bool('colorfulSidebarIcons', 'appearance', `${AP}colorful_sidebar_icons.label`),
   bool('showFolderTotalCount', 'appearance', `${AP}show_folder_total_count.label`),
+  bool('hideUnsubscribedFolders', 'organize', 'settings.folders.hide_unsubscribed.label'),
   bool('sidebarAccountSwitcher', 'appearance', `${AP}sidebar_account_switcher.label`),
   choice('composePlacement', 'appearance', `${AP}compose_placement.label`,
     opts(`${AP}compose_placement.`, COMPOSE_PLACEMENTS)),
@@ -309,6 +311,7 @@ const ENTRIES: SettingSchemaEntry[] = [
   bool('emptySubjectWarningEnabled', 'composing', `${EB}empty_subject_warning.label`),
   bool('placeholderWarningEnabled', 'composing', `${EB}placeholder_warning.label`),
   bool('requestReadReceiptDefault', 'privacy', `${EB}request_read_receipt.label`),
+  bool('archiveAfterReply', 'composing', `${EB}archive_after_reply.label`, { gate: 'archiveActionEnabled' }),
   // No "always": that sends a receipt mail by itself.
   choice('readReceiptResponse', 'privacy', `${EB}read_receipt_response.label`,
     opts(`${EB}read_receipt_response.`, ['ask', 'never'])),
@@ -331,6 +334,8 @@ const ENTRIES: SettingSchemaEntry[] = [
 
   // --- Calendar ---
   choice('viewMode', 'calendar', `${CAL}default_view`, opts('calendar.views.', ['month', 'week', 'day', 'agenda']), { store: 'calendar' }),
+  // Minutes read "30 minutes", "1.5 hours": formatted.
+  choice('defaultEventLength', 'calendar', `${CAL}default_event_length`, EVENT_LENGTHS.map((value) => ({ value, label: null }))),
   bool('calendarInvitationParsingEnabled', 'calendar', `${CAL}invitation_parsing`),
   bool('showTimeInMonthView', 'calendar', `${CAL}show_time_in_month_view`),
   bool('calendarTintedEvents', 'calendar', `${CAL}tinted_events`),
@@ -443,8 +448,8 @@ export const DENIED_SETTINGS: readonly string[] = [
   // A browser voice id the model can't know.
   'readAloudVoice',
   // Maps and lists keyed by server ids.
-  'allMailFolderIds', 'hiddenSharedMailAccounts', 'sharedMailAccountOrder', 'notificationMutes', 'hiddenCompanyCalendars', 'sharedCalendarColors',
-  'folderIcons', 'folderCountModes', 'preferredIdentityIds',
+  'allMailFolderIds', 'hiddenSharedMailAccounts', 'sharedMailAccountOrder', 'unifiedExcludedSharedAccounts', 'notificationMutes', 'hiddenCompanyCalendars', 'sharedCalendarColors', 'calendarVisibility',
+  'folderIcons', 'folderCountModes', 'preferredIdentityIds', 'signatureSources', 'replyOnlyIdentities',
   // App bookkeeping and UI state, not preferences.
   'onboardingCompleted', 'tourCompleted', 'emailKeywordsChoiceTracked', 'mvUnreadSectionCollapsed', 'mvEverythingElseCollapsed',
   'vacationCalendarBlocks', 'explicitSettings', 'proofreadingNoticeSeen',

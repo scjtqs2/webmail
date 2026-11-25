@@ -47,7 +47,10 @@ import {
   mergeSyncedSubscriptions,
   subscriptionOwnerFor,
 } from '@/lib/calendar-subscription-sync';
-import { registerCalendarSubscriptionSyncBridge } from './settings-store';
+import { isSettingsLoadSettled, onSettingsLoadSettled, registerCalendarSubscriptionSyncBridge, useSettingsStore } from './settings-store';
+import { applyVisibilityChoices, choicesFromLocalSelection, visibilityKeyOf, withVisibilityChoice } from '@/lib/calendar-visibility';
+import { generateAccountId } from '@/lib/account-utils';
+import { noteRefreshed, oneTabChecks, refreshedInAnyTab } from '@/lib/ical-subscription-refresh';
 import { currentStoreEpoch } from '@/lib/store-epoch';
 import { isCalendarEventArray, isFetchRange, isPartialCalendarEvent } from '@/lib/plugin-calendar-hooks';
 import { sentByPatchValue } from '@/lib/calendar-delegate';
@@ -603,6 +606,46 @@ function withNewCalendars(
   };
 }
 
+/**
+ * The login whose calendars carry no `<login>::` prefix: the one a
+ * single-login load was for. Their shown/hidden choices are kept under it
+ * (lib/calendar-visibility).
+ */
+let unprefixedLogin: string | null = null;
+
+function loginOfClient(client: Partial<Pick<IJMAPClient, 'getUsername' | 'getServerUrl'>>): string | null {
+  try {
+    const username = client.getUsername?.();
+    const serverUrl = client.getServerUrl?.();
+    return username && serverUrl ? generateAccountId(username, serverUrl) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `selection` with the shown/hidden choices synced with the settings (#1845). */
+function withSyncedVisibility(selection: string[], calendars: Calendar[]): string[] {
+  return applyVisibilityChoices(selection, calendars, useSettingsStore.getState().calendarVisibility, unprefixedLogin);
+}
+
+/**
+ * Before the choices were synced, the calendars a browser hid were kept in
+ * that browser only. Once a login's synced settings are loaded and have no
+ * choices for it, the calendars this browser hides become its choices, so
+ * they survive the next sign-out and reach the login's other browsers.
+ */
+function migrateLocalVisibility(): void {
+  const { calendars, selectedCalendarIds, knownCalendarIds, calendarSelectionChosen } = useCalendarStore.getState();
+  if (!calendarSelectionChosen || !knownCalendarIds || calendars.length === 0) return;
+  const settled = calendars.filter((calendar) => {
+    const at = visibilityKeyOf(calendar, unprefixedLogin);
+    return !!at && isSettingsLoadSettled(at.login);
+  });
+  const settings = useSettingsStore.getState();
+  const next = choicesFromLocalSelection(settings.calendarVisibility, selectedCalendarIds, knownCalendarIds, settled, unprefixedLogin);
+  if (next !== settings.calendarVisibility) settings.updateSetting('calendarVisibility', next);
+}
+
 // In-flight refresh dedup. Concurrent callers (auto-interval +
 // manual refresh, two account-switch reloads, etc.) share the same
 // promise instead of double-fetching and racing the diff/import phase.
@@ -990,13 +1033,15 @@ interface CalendarStore {
    * Create `events` in the calendar, linking those whose UID the account
    * already has; resolves to how many were created or linked, or null when a
    * plugin stopped the import. With `throwIfNoneImported`, rejects with the
-   * server's first refusal (its SetError type kept) when none was.
+   * server's first refusal (its SetError type kept) when none was. With
+   * `sendSchedulingMessages`, the server sends the iTIP messages the new
+   * events call for (joining a forwarded invitation sends the REPLY).
    */
   importEvents: (
     client: IJMAPClient,
     events: Partial<CalendarEvent>[],
     calendarId: string,
-    options?: { throwIfNoneImported?: boolean },
+    options?: { throwIfNoneImported?: boolean; sendSchedulingMessages?: boolean },
   ) => Promise<number | null>;
   updateCalendar: (client: IJMAPClient, calendarId: string, updates: Partial<Calendar>) => Promise<void>;
   /** Store `orderedIds` in that order by renumbering their sortOrder. */
@@ -1163,25 +1208,29 @@ export const useCalendarStore = create<CalendarStore>()(
           const defaultSelected = calendars.filter(c => !c.isTasksOnly).map(c => c.id);
           // Shared calendars' ids are `<accountId>:<id>` (getAllCalendars).
           const unloadedPrefixes = failedAccountIds.map((accountId) => `${accountId}:`);
+          unprefixedLogin = loginOfClient(client);
+          const selection = withNewCalendars(
+            selectionAfterFetch(
+              get().selectedCalendarIds,
+              calendars,
+              defaultSelected,
+              unloadedPrefixes,
+              undefined,
+              get().calendarSelectionChosen,
+            ),
+            get().knownCalendarIds,
+            calendars,
+            defaultSelected,
+            unloadedPrefixes,
+          );
           set({
             calendars,
             taskCalendarKinds,
             isLoading: false,
-            ...withNewCalendars(
-              selectionAfterFetch(
-                get().selectedCalendarIds,
-                calendars,
-                defaultSelected,
-                unloadedPrefixes,
-                undefined,
-                get().calendarSelectionChosen,
-              ),
-              get().knownCalendarIds,
-              calendars,
-              defaultSelected,
-              unloadedPrefixes,
-            ),
+            ...selection,
+            selectedCalendarIds: withSyncedVisibility(selection.selectedCalendarIds, calendars),
           });
+          migrateLocalVisibility();
         } catch (error) {
           if (currentStoreEpoch() !== epoch) return;
           debug.error('Failed to fetch calendars:', error);
@@ -1288,27 +1337,31 @@ export const useCalendarStore = create<CalendarStore>()(
           const calendars = sortCalendars(withTaskKinds(fetched, taskCalendarKinds, ownerOf));
           // As for one account: tasks-only calendars stay out of the grid.
           const defaultSelected = calendars.filter(c => !c.isTasksOnly).map(c => c.id);
+          unprefixedLogin = activeLocalAccountId ?? null;
+          const selection = withNewCalendars(
+            selectionAfterFetch(
+              get().selectedCalendarIds,
+              calendars,
+              defaultSelected,
+              unloadedPrefixes,
+              activeLocalAccountId ?? undefined,
+              get().calendarSelectionChosen,
+            ),
+            get().knownCalendarIds,
+            calendars,
+            defaultSelected,
+            unloadedPrefixes,
+            activeLocalAccountId ?? undefined,
+          );
           set({
             calendars,
             taskCalendarKinds,
             isLoading: false,
             ...(events.length !== shownEvents.length ? { events } : {}),
-            ...withNewCalendars(
-              selectionAfterFetch(
-                get().selectedCalendarIds,
-                calendars,
-                defaultSelected,
-                unloadedPrefixes,
-                activeLocalAccountId ?? undefined,
-                get().calendarSelectionChosen,
-              ),
-              get().knownCalendarIds,
-              calendars,
-              defaultSelected,
-              unloadedPrefixes,
-              activeLocalAccountId ?? undefined,
-            ),
+            ...selection,
+            selectedCalendarIds: withSyncedVisibility(selection.selectedCalendarIds, calendars),
           });
+          migrateLocalVisibility();
         } catch (error) {
           if (currentStoreEpoch() !== epoch) return;
           debug.error('Failed to fetch all-account calendars:', error);
@@ -2039,6 +2092,13 @@ export const useCalendarStore = create<CalendarStore>()(
             ? [...state.knownCalendarIds, calendarId]
             : state.knownCalendarIds,
         }));
+        // Kept with the synced settings, so it stays after a sign-out and in other browsers (#1845).
+        const calendar = get().calendars.find((c) => c.id === calendarId);
+        if (calendar) {
+          const settings = useSettingsStore.getState();
+          const next = withVisibilityChoice(settings.calendarVisibility, calendar, unprefixedLogin, visible);
+          if (next !== settings.calendarVisibility) settings.updateSetting('calendarVisibility', next);
+        }
         void calendarHooks.onCalendarVisibilityToggle.emit({ calendarId, visible });
       },
 
@@ -2369,12 +2429,14 @@ export const useCalendarStore = create<CalendarStore>()(
             }
           }
 
-          // Update last refreshed timestamp
+          // Update last refreshed timestamp, here and for the other tabs
+          const refreshedAt = new Date();
           set((state) => ({
             icalSubscriptions: state.icalSubscriptions.map(s =>
-              s.id === subscriptionId ? { ...s, lastRefreshed: new Date().toISOString() } : s
+              s.id === subscriptionId ? { ...s, lastRefreshed: refreshedAt.toISOString() } : s
             ),
           }));
+          noteRefreshed(subscriptionId, refreshedAt.getTime(), get().icalSubscriptions.map((s) => s.id));
         })();
 
         refreshInFlight.set(subscriptionId, work);
@@ -2392,27 +2454,31 @@ export const useCalendarStore = create<CalendarStore>()(
       },
 
       refreshAllSubscriptions: async (client) => {
-        const { icalSubscriptions } = get();
-        const currentAccountId = client.getAccountId();
-        const owner = subscriptionOwner(client);
-        const now = Date.now();
+        // One tab at a time, and one that finds a feed fetched by another
+        // tab since leaves it (lib/ical-subscription-refresh).
+        await oneTabChecks(async () => {
+          const { icalSubscriptions } = get();
+          const currentAccountId = client.getAccountId();
+          const owner = subscriptionOwner(client);
+          const now = Date.now();
 
-        for (const sub of icalSubscriptions) {
-          // Only refresh subs of this login. Older ones without an owner
-          // are checked (and adopted) by refreshICalSubscription.
-          if (sub.owner ? sub.owner !== owner : (sub.accountId && sub.accountId !== currentAccountId)) continue;
+          for (const sub of icalSubscriptions) {
+            // Only refresh subs of this login. Older ones without an owner
+            // are checked (and adopted) by refreshICalSubscription.
+            if (sub.owner ? sub.owner !== owner : (sub.accountId && sub.accountId !== currentAccountId)) continue;
 
-          const lastRefreshed = sub.lastRefreshed ? new Date(sub.lastRefreshed).getTime() : 0;
-          const intervalMs = sub.refreshInterval * 60 * 1000;
+            const lastRefreshed = Math.max(sub.lastRefreshed ? new Date(sub.lastRefreshed).getTime() : 0, refreshedInAnyTab(sub.id));
+            const intervalMs = sub.refreshInterval * 60 * 1000;
 
-          if (now - lastRefreshed >= intervalMs) {
-            try {
-              await get().refreshICalSubscription(client, sub.id);
-            } catch {
-              debug.warn('calendar', 'Failed to refresh subscription:', sub.name);
+            if (now - lastRefreshed >= intervalMs) {
+              try {
+                await get().refreshICalSubscription(client, sub.id);
+              } catch {
+                debug.warn('calendar', 'Failed to refresh subscription:', sub.name);
+              }
             }
           }
-        }
+        });
       },
 
       forgetICalSubscriptions: (owner) => {
@@ -2562,7 +2628,7 @@ async function importEventsUnhooked(
   client: IJMAPClient,
   events: Partial<CalendarEvent>[],
   calendarId: string,
-  options?: { throwIfNoneImported?: boolean },
+  options?: { throwIfNoneImported?: boolean; sendSchedulingMessages?: boolean },
 ): Promise<number> {
   const get = useCalendarStore.getState;
   const set = useCalendarStore.setState;
@@ -2736,7 +2802,7 @@ async function importEventsUnhooked(
   for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
     const batch = prepared.slice(i, i + BATCH_SIZE);
     try {
-      const { created, failed, notCreated } = await client.batchCreateCalendarEvents(batch, targetAccountId);
+      const { created, failed, notCreated } = await client.batchCreateCalendarEvents(batch, targetAccountId, options?.sendSchedulingMessages ?? false);
       imported += created.length;
       if (failed.length > 0) {
         const first = Object.values(notCreated)[0];
@@ -2784,6 +2850,20 @@ registerCalendarSubscriptionSyncBridge(
     }
   })
 );
+
+// Choices that arrive with the synced settings (a sign-in, an account's
+// settings loaded) show and hide the calendars on screen (#1845).
+useSettingsStore.subscribe((state, prev) => {
+  if (state.calendarVisibility === prev.calendarVisibility) return;
+  const { selectedCalendarIds, calendars } = useCalendarStore.getState();
+  const next = withSyncedVisibility(selectedCalendarIds, calendars);
+  if (next.length !== selectedCalendarIds.length || next.some((id, i) => id !== selectedCalendarIds[i])) {
+    useCalendarStore.setState({ selectedCalendarIds: next });
+  }
+});
+// After the sign-in turns syncing back on, which follows the load: made
+// before, the carried-over choices waited for some other change to go up.
+onSettingsLoadSettled(() => { setTimeout(migrateLocalVisibility, 0); });
 
 /**
  * Drops the calendars, events and client of login `localAccountId` (the Pro

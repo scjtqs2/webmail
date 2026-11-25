@@ -14,6 +14,7 @@ import type { ComposerDraftData } from "@/components/email/email-composer";
 import { ReplyDock } from "@/components/mail/reply-dock";
 import { addEcho, isUndoWindow, mergeEchoes, nextSendTime, raiseThreadCount, scheduledShownTotal, sentEcho, settleSent, withoutHeldSend } from "@/lib/held-send";
 import { useQuickReplyRestoreStore } from "@/stores/quick-reply-restore-store";
+import { planArchiveAfterReply, runArchiveAfterReply, type ArchiveAfterReply } from "@/lib/archive-after-reply";
 
 /** What waits with a send in its Undo window (mail-p2-8). */
 type HeldSendExtras = {
@@ -149,7 +150,7 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import { DragDropProvider } from "@/contexts/drag-drop-context";
 import { jmapErrorType } from "@/lib/jmap/jmap-error";
-import { isFilterEmpty, activeFilterCount, DEFAULT_SEARCH_FILTERS } from "@/lib/jmap/search-utils";
+import { isFilterEmpty, isPluginMessageList, activeFilterCount, DEFAULT_SEARCH_FILTERS } from "@/lib/jmap/search-utils";
 import { SearchBox, type ContactSearchField } from "@/components/search/search-box";
 import { FilterPanelHost } from "@/components/search/filter-panel-host";
 import { SearchFilterPanel, SELECT_CLASS } from "@/components/search/search-filter-panel";
@@ -432,7 +433,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
   }), []);
   const { dialogProps: confirmDialogProps, confirm: confirmDialog } = useConfirmDialog();
   const { dialogProps: promptDialogProps, prompt: promptDialog } = usePromptDialog();
-  const { showAppsModal, inlineApp, loadedApps, handleManageApps, handleInlineApp, closeInlineApp, closeAppsModal } = useSidebarApps();
+  const { showAppsModal, inlineApp, handleManageApps, handleInlineApp, closeInlineApp, closeAppsModal } = useSidebarApps();
   const [initialCheckDone, setInitialCheckDone] = useState(() => useAuthStore.getState().isAuthenticated && !!useAuthStore.getState().client);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   // A message that couldn't be fetched: the reader says so, with Retry (mail-p2-7).
@@ -920,6 +921,9 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
   const activeHasMore = isScheduledView ? scopedScheduledHasMore : hasMoreEmails;
   const activeIsLoading = isScheduledView ? isLoadingScheduled : isLoading;
   const includeGroupInUnified = useSettingsStore((s) => s.includeGroupInUnified);
+  // A shared account left out of the unified mailbox (or taken back in)
+  // recounts it and reloads its open list (#962).
+  const unifiedExclusions = useSettingsStore((s) => JSON.stringify(s.unifiedExcludedSharedAccounts ?? {}));
   const unifiedCrossAccount = useSettingsStore((s) => s.unifiedCrossAccount);
   const unifiedCrossAccountGate = usePolicyStore((s) => s.isFeatureEnabled('unifiedCrossAccountEnabled'));
   const archiveActionEnabled = useArchiveActionEnabled();
@@ -1222,14 +1226,14 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
     onNextEmail: () => {
       const next = stepFrom(1);
       if (next) {
-        void handleEmailSelect(next);
+        void handleEmailSelect(next, { cursor: mvShell });
         if (mvShell) setCursorOnly(true);
       }
     },
     onPreviousEmail: () => {
       const previous = stepFrom(-1);
       if (previous) {
-        void handleEmailSelect(previous);
+        void handleEmailSelect(previous, { cursor: mvShell });
         if (mvShell) setCursorOnly(true);
       }
     },
@@ -2381,16 +2385,21 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
       if (built.length < 2 && !hasGroupEntry && !isEmbedded) return;
       refreshUnifiedCounts(built);
     });
-  }, [enableUnifiedMailbox, includeGroupInUnified, unifiedCrossAccount, activeAccountId, isEmbedded, isAuthenticated, client, mailboxes, connectedAccountsSignature, buildPopulatedUnifiedAccounts, refreshUnifiedCounts, refreshCrossCounts, showCrossUnread, showCrossStarred, showCrossAll]);
+  }, [enableUnifiedMailbox, includeGroupInUnified, unifiedExclusions, unifiedCrossAccount, activeAccountId, isEmbedded, isAuthenticated, client, mailboxes, connectedAccountsSignature, buildPopulatedUnifiedAccounts, refreshUnifiedCounts, refreshCrossCounts, showCrossUnread, showCrossStarred, showCrossAll]);
 
   // Refetch the open unified/cross list whenever an account joins the connected
   // set. Only growth matters - a shrink (sign-out, disconnect) is already
   // handled by the flows that cause it, and refetching there would fight them.
+  // A shared account left out of the unified mailbox or taken back in reloads
+  // the list too.
   const previousConnectedAccountsRef = useRef<string | null>(null);
+  const previousExclusionsRef = useRef(unifiedExclusions);
   useEffect(() => {
     const previous = previousConnectedAccountsRef.current;
     previousConnectedAccountsRef.current = connectedAccountsSignature;
-    if (!connectedAccountsGrew(previous, connectedAccountsSignature)) return;
+    const exclusionsChanged = previousExclusionsRef.current !== unifiedExclusions;
+    previousExclusionsRef.current = unifiedExclusions;
+    if (!connectedAccountsGrew(previous, connectedAccountsSignature) && !exclusionsChanged) return;
     if (!isAuthenticated || !client) return;
 
     // Read the view at fire time: this effect is keyed on the account set, not
@@ -2413,7 +2422,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
           : fetchCrossViewAction(populated, crossView!);
       })
       .catch(() => { /* per-account failures surface through unifiedErrors */ });
-  }, [connectedAccountsSignature, isAuthenticated, client, buildPopulatedUnifiedAccounts, fetchUnifiedEmailsAction, fetchCrossViewAction]);
+  }, [connectedAccountsSignature, unifiedExclusions, isAuthenticated, client, buildPopulatedUnifiedAccounts, fetchUnifiedEmailsAction, fetchCrossViewAction]);
 
   // Deep links (#733). Applies `/mail/folder|message|thread/<id>` - and the
   // legacy `?email=<id>` the push service worker used to emit - once the JMAP
@@ -3233,9 +3242,22 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
           toast.info(t('email_composer.file_in_reply_elsewhere', { folder: folderName }));
         }
       };
+      // "Archive after replying": bound now to the login the original was
+      // read through, and run with the flag, so an undone send archives
+      // nothing. Not with "File in folder", which already moves it.
+      const archivePlan = fileFolder ? null : planArchiveAfterReply({
+        mode: effectiveMode,
+        email: composerSourceEmail,
+        emailId: originalEmailId,
+        client: answeredSource?.clientAccountId ? loginClientOf(answeredSource.clientAccountId) : client,
+        accountId: answeredSource?.accountId,
+      });
+      // Kept in the offline outbox: the reply hasn't gone, so the original stays.
+      if (archivePlan && result.queued) toast.info(t('email_composer.archive_after_reply_queued'));
       const answerAndFile = async () => {
         await markAnswered();
         await fileWithOriginal();
+        if (archivePlan && !result.queued) await archiveAfterReply(archivePlan);
       };
       const held = holdSend(result, {
         answer: answerAndFile,
@@ -3686,6 +3708,19 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
     if (!held) return;
     heldSendsRef.current.delete(submissionId);
     void held.answer?.();
+  };
+  // "Archive after replying", once the reply has gone, with Undo in its toast.
+  // No "Confirm before archiving": the user asked for it with the setting,
+  // and after an Undo window the dialog would come up in the middle of
+  // whatever they do by then.
+  const archiveAfterReply = async (plan: ArchiveAfterReply) => {
+    try {
+      const restore = await runArchiveAfterReply(plan, useAuthStore.getState().client);
+      if (restore) toastWithUndo(t('mail_list_extra.archived'), undoMoveAction(plan.client, restore, undo));
+    } catch (error) {
+      debug.error('Archive after replying failed:', error);
+      toast.error(t('notifications.error_archiving'), error instanceof Error ? error.message : undefined);
+    }
   };
   /** True when the send waits in its Undo window; `extras` then wait with it. */
   const holdSend = (result: SendEmailResult, extras: Omit<HeldSendExtras, 'emailId'>): boolean => {
@@ -4652,7 +4687,8 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
   // the folder, as in Gmail, Outlook and Thunderbird (mail-p3-3); another
   // folder keeps the search unless the user chose to reset it.
   const clearSearchIfFolderChangeResets = (sameFolder = false): boolean => {
-    if (!sameFolder && !useSettingsStore.getState().clearSearchOnFolderChange) return false;
+    // A plugin's list of messages has no folder to follow: another folder ends it (#954).
+    if (!sameFolder && !useSettingsStore.getState().clearSearchOnFolderChange && !isPluginMessageList(searchFilters)) return false;
     if (isFilterEmpty(searchFilters) && !searchQuery) return false;
     setSearchQuery("");
     clearSearchFilters();
@@ -5561,11 +5597,24 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
         debug.error('Failed to set $answered keyword:', e);
       }
     };
+    // "Archive after replying", as after the composer's send.
+    const archivePlan = planArchiveAfterReply({
+      mode: 'reply',
+      email: selectedEmail,
+      emailId: originalEmailId,
+      client: originalSource.clientAccountId ? loginClientOf(originalSource.clientAccountId) : client,
+      accountId: originalSource.accountId,
+    });
+    if (archivePlan && result.queued) toast.info(t('email_composer.archive_after_reply_queued'));
+    const answerAndArchive = async () => {
+      await markAnswered();
+      if (archivePlan && !result.queued) await archiveAfterReply(archivePlan);
+    };
     const held = holdSend(result, {
-      answer: markAnswered,
+      answer: answerAndArchive,
       origin: { kind: 'quick-reply', emailId: originalEmailId, text: body },
     });
-    if (!held) await markAnswered();
+    if (!held) await answerAndArchive();
     echoSentReply(selectedEmail, {
       emailId: result.emailId, to: recipients, subject: labelled.subject, text: finalBody,
       fromEmail: headerFromEmail, fromName: headerFromName,
@@ -6018,6 +6067,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
 
   const handleEmailSelect = async (
     email: { id: string } & Partial<Pick<Email, 'sourceClientAccountId' | 'sourceAccountId'>>,
+    opts?: { cursor?: boolean },
   ): Promise<OpenEmailOutcome> => {
     if (!client || !email) return new Error('the mail page is not ready');
     setCursorOnly(false);
@@ -6076,8 +6126,10 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
     // Paint the header from the row at once (subject, sender and date are in
     // hand) and let the body follow; the viewer shows a row without body
     // values as loading. Mountain View shows the message inside its
-    // conversation, which is fetched alongside, so it waits for both.
-    const rowEmail = !readerConversationView && listEmail && 'receivedAt' in listEmail ? listEmail as Email : null;
+    // conversation, which is fetched alongside, so it waits for both. Its
+    // list cursor shows no message, so it moves at once: otherwise a ticked
+    // row showed the tick colour until the fetch came back (#1847).
+    const rowEmail = (!readerConversationView || opts?.cursor) && listEmail && 'receivedAt' in listEmail ? listEmail as Email : null;
     if (rowEmail) {
       beginOpenEmail(rowEmail);
     } else {
@@ -6553,7 +6605,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
         )}
 
         {inlineApp && (
-          <InlineAppView apps={loadedApps} activeAppId={inlineApp!.id} onClose={closeInlineApp} className="flex-1" />
+          <InlineAppView app={inlineApp} onClose={closeInlineApp} className="flex-1" />
         )}
 
         {/* Mobile/Tablet Sidebar Overlay Backdrop.
@@ -6927,7 +6979,7 @@ export function MailApp({ linkSegments: routeSegments }: MailAppProps = {}) {
                 onRowTick={mvShell ? (email) => {
                   const open = useEmailStore.getState().selectedEmail;
                   if (open && (!cursorOnly || emailKeyFor(open) === emailKeyFor(email))) return;
-                  void handleEmailSelect(email);
+                  void handleEmailSelect(email, { cursor: true });
                   setCursorOnly(true);
                 } : undefined}
                 selectedEmailKey={selectedEmail ? emailKeyFor(selectedEmail) : undefined}
